@@ -58,11 +58,19 @@ export default function App() {
       if (left) flash('Hors ligne : sauvegarde en attente');
     } catch (e) {
       if (e.badCode) logout();
-      else flash('Connexion impossible, données locales affichées');
+      else flash('Hors ligne : tout est gardé et sera envoyé au retour du réseau');
     }
   }, []);
 
   useEffect(() => { if (code) refresh(); }, [code, refresh]);
+  // retour du réseau ou retour dans l'appli : on envoie ce qui attend
+  useEffect(() => {
+    if (!code) return undefined;
+    const onBack = () => { if (navigator.onLine && document.visibilityState === 'visible') refresh(); };
+    window.addEventListener('online', onBack);
+    document.addEventListener('visibilitychange', onBack);
+    return () => { window.removeEventListener('online', onBack); document.removeEventListener('visibilitychange', onBack); };
+  }, [code, refresh]);
 
   const me = players.find((p) => p.id === meId) || null;
   const played = useMemo(() => games.filter((g) => g.data?.legs?.some((l) => l.done)), [games]);

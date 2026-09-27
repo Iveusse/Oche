@@ -6,7 +6,7 @@ import { mkdirSync } from 'fs';
 
 const OUT = process.argv[2] || 'shots';
 mkdirSync(OUT, { recursive: true });
-const BASE = 'http://localhost:4173';
+const BASE = process.env.BASE || 'http://localhost:4173';
 
 // ---------- faux backend ----------
 const uid = () => crypto.randomUUID();
