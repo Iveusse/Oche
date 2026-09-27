@@ -59,7 +59,7 @@ export function Dartboard({ onHit, disabled, markers = [] }) {
     const rect = wrap.current.getBoundingClientRect();
     const fx = e.clientX - rect.left; const fy = e.clientY - rect.top;
     const k = (R.miss * 2) / rect.width;
-    return { fx, fy, bx: fx * k - R.miss, by: fy * k - R.miss, w: rect.width };
+    return { fx, fy, bx: fx * k - R.miss, by: fy * k - R.miss, w: rect.width, top: rect.top };
   };
 
   const down = (e) => {
@@ -117,11 +117,35 @@ export function Dartboard({ onHit, disabled, markers = [] }) {
               <line x1={touch.bx + 0.015} y1={touch.by} x2={touch.bx + span} y2={touch.by} stroke="var(--accent)" strokeOpacity="0.6" strokeWidth="0.002" />
             </svg>
           </div>
-          <div className="loupe-label" style={{ left: lx, top: ly + LS / 2 + 6 }}>
-            {dartLabel(hit)}{hit.mult ? ` · ${dartScore(hit)}` : ''}
-          </div>
+          <ZoneTip hit={hit} lx={lx} ly={ly} ls={LS} boardTop={touch.top} boardW={touch.w} />
         </>
       )}
+    </div>
+  );
+}
+
+const ZONE = {
+  0: ['Hors cible', 'miss'], 1: ['Simple', 's'], 2: ['Double', 'd'], 3: ['Triple', 't'],
+};
+
+// Bulle au-dessus de la loupe : zone + numéro en toutes lettres
+function ZoneTip({ hit, lx, ly, ls, boardTop, boardW }) {
+  let big; let small; let kind;
+  if (!hit.mult) { big = 'Hors cible'; small = '0 point'; kind = 'miss'; }
+  else if (hit.seg === 25) { big = hit.mult === 2 ? 'Bull' : '25'; small = hit.mult === 2 ? 'Centre · 50 pts' : 'Bull extérieur · 25 pts'; kind = hit.mult === 2 ? 'd' : 's'; }
+  else { const [word, k] = ZONE[hit.mult]; big = `${word} ${hit.seg}`; small = `${dartLabel(hit)} · ${dartScore(hit)} pt${dartScore(hit) > 1 ? 's' : ''}`; kind = k; }
+  // au-dessus de la loupe s'il y a la place à l'écran, sinon à côté (jamais sous la loupe : c'est là qu'est le doigt)
+  const above = boardTop + ly - ls / 2 - 70 > 4;
+  let style;
+  if (above) style = { left: lx, top: ly - ls / 2 - 8 };
+  else {
+    const right = lx < boardW / 2;
+    style = { left: right ? lx + ls / 2 + 8 : lx - ls / 2 - 8, top: ly, transform: `translate(${right ? '0' : '-100%'}, -50%)` };
+  }
+  return (
+    <div className={`zone-tip ${kind}`} style={style}>
+      <div className="big">{big}</div>
+      <div className="sm">{small}</div>
     </div>
   );
 }

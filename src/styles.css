@@ -266,3 +266,18 @@ button, a, [role="button"] { touch-action: manipulation; }
 .theme-swatch { border-radius: 14px; padding: 10px; border: 2px solid transparent; display: flex; flex-direction: column; gap: 6px; align-items: center; }
 .theme-swatch.on { border-color: var(--accent); }
 .sheet > * { flex-shrink: 0; }
+
+.zone-tip {
+  position: absolute; transform: translate(-50%, -100%); z-index: 6; pointer-events: none; text-align: center;
+  background: var(--card-2); color: var(--text); border: 2px solid var(--wire); border-radius: 12px;
+  padding: 6px 14px; min-width: 120px; box-shadow: 0 8px 20px rgba(0,0,0,.45); white-space: nowrap;
+}
+.zone-tip.below { transform: translate(-50%, 0); }
+.zone-tip .big { font-size: 20px; font-weight: 800; line-height: 1.15; }
+.zone-tip .sm { font-size: 12px; color: var(--text-2); font-weight: 600; }
+.zone-tip.d { border-color: var(--sky); }
+.zone-tip.d .big { color: var(--sky); }
+.zone-tip.t { border-color: var(--accent); background: var(--accent); color: var(--on-accent); }
+.zone-tip.t .big, .zone-tip.t .sm { color: var(--on-accent); }
+.zone-tip.miss { border-style: dashed; }
+.zone-tip.miss .big { color: var(--muted); }
