@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Avatar, Icon, Seg } from '../components/ui.jsx';
 import { Heatmap } from '../components/Dartboard.jsx';
-import { LineChart } from '../components/LineChart.jsx';
+import { LineChart, MultiLineChart } from '../components/LineChart.jsx';
 import { playerStats, filterByPeriod, headToHead, trainingResult } from '../engine/stats.js';
 import { MODE_LABEL, isTraining } from '../engine/modes.js';
 import { gameWinner, legsWon } from '../engine/runner.js';
@@ -117,6 +117,7 @@ export function Stats({ me, players, games }) {
   const [period, setPeriod] = useState('30j');
   const [heatMode, setHeatMode] = useState('all');
   const [pickOpen, setPickOpen] = useState(false);
+  const [pid2, setPid2] = useState('');
   const player = players.find((p) => p.id === pid);
   const scoped = useMemo(() => filterByPeriod(games, period), [games, period]);
   const s = useMemo(() => (pid ? playerStats(scoped, pid) : null), [scoped, pid]);
@@ -145,8 +146,17 @@ export function Stats({ me, players, games }) {
         </div>
       </div>
 
+      <label className="row" style={{ gap: 10 }}>
+        <span className="small" style={{ color: 'var(--text-2)', fontWeight: 600, whiteSpace: 'nowrap' }}>Comparer avec</span>
+        <select className="input grow" style={{ height: 40, fontSize: 15 }} value={pid2} onChange={(e) => setPid2(e.target.value)} aria-label="Comparer avec">
+          <option value="">Personne</option>
+          {players.filter((p) => p.id !== pid).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+        </select>
+      </label>
+
       <Seg options={[['7j', '7 j'], ['30j', '30 j'], ['1an', '1 an'], ['all', 'Tout']]} value={period} onChange={setPeriod} />
 
+      {pid2 && pid2 !== pid ? <StatsCompare a={player} b={players.find((p) => p.id === pid2)} games={scoped} /> : (<>
       <div className="grid2">
         <div className="kpi"><div className="k">Moyenne (3 fléch.)</div><div className="v">{fmt1(s.avg)}</div><div className="s">X01 · {s.x01Darts} fléchettes</div></div>
         <div className="kpi"><div className="k">Moy. 9 premières</div><div className="v">{fmt1(s.first9)}</div><div className="s">début de leg</div></div>
@@ -187,8 +197,94 @@ export function Stats({ me, players, games }) {
           </div>
         ))}
       </div>
+      </>)}
     </div>
   );
+}
+
+const CMP_ROWS = [
+  ['Moyenne (3 fléch.)', (s) => s.avg, 'high', fmt1],
+  ['Moy. 9 premières', (s) => s.first9, 'high', fmt1],
+  ['Checkout', (s) => s.checkout, 'high', pct],
+  ['Meilleur finish', (s) => s.bestFinish || null, 'high', (v) => v ?? '-'],
+  ['180', (s) => s.c180, 'high', (v) => v],
+  ['140+', (s) => s.c140, 'high', (v) => v],
+  ['100+', (s) => s.c100, 'high', (v) => v],
+  ['Legs gagnés', (s) => s.winRate, 'high', pct],
+  ['Cricket (MPR)', (s) => s.mpr, 'high', (v) => (v == null ? '-' : v.toFixed(2))],
+  ['Hors cible', (s) => s.missRate, 'low', pct],
+  ['Parties', (s) => s.gamesPlayed, null, (v) => v],
+  ['Fléchettes', (s) => s.totalDarts, null, (v) => v],
+];
+
+function StatsCompare({ a, b, games }) {
+  const sa = useMemo(() => playerStats(games, a.id), [games, a.id]);
+  const sb = useMemo(() => playerStats(games, b.id), [games, b.id]);
+  const h2h = useMemo(() => headToHead(realGames(games), a.id, b.id), [games, a.id, b.id]);
+  const CA = 'var(--accent)'; const CB = 'var(--sky)';
+  const series = [
+    { name: a.name, color: '#c8f031', points: sa.series.map((p) => ({ t: new Date(p.date).getTime(), value: p.avg })) },
+    { name: b.name, color: '#5fc8ff', points: sb.series.map((p) => ({ t: new Date(p.date).getTime(), value: p.avg })) },
+  ];
+  return (<>
+    <div className="panel">
+      <div className="between">
+        <span style={{ fontWeight: 800, color: CA }}>{a.name}</span>
+        <span className="small muted">face à face</span>
+        <span style={{ fontWeight: 800, color: CB }}>{b.name}</span>
+      </div>
+      {h2h.legs > 0 ? (<>
+        <div className="between" style={{ alignItems: 'baseline' }}>
+          <span style={{ fontSize: 36, fontWeight: 800 }}>{h2h.a}</span>
+          <span className="small muted">legs gagnés l'un contre l'autre</span>
+          <span style={{ fontSize: 36, fontWeight: 800 }}>{h2h.b}</span>
+        </div>
+        <div className="row" style={{ height: 10, borderRadius: 5, overflow: 'hidden', gap: 0 }}>
+          <div style={{ width: `${(h2h.a / h2h.legs) * 100}%`, height: 10, background: CA }} />
+          <div style={{ flex: 1, height: 10, background: CB }} />
+        </div>
+      </>) : <div className="small muted">Pas encore de leg joué l'un contre l'autre sur cette période.</div>}
+    </div>
+
+    <div className="panel" style={{ gap: 0, padding: '6px 14px' }}>
+      {CMP_ROWS.map(([label, get, better, f]) => {
+        const va = get(sa); const vb = get(sb);
+        let win = null;
+        if (better && va != null && vb != null && va !== vb) win = (better === 'high' ? va > vb : va < vb) ? 'a' : 'b';
+        return (
+          <div key={label} style={{ display: 'grid', gridTemplateColumns: '1fr 1.4fr 1fr', alignItems: 'center', padding: '9px 0', borderBottom: '1px solid var(--line)' }}>
+            <span style={{ fontSize: 17, fontWeight: 800, color: win === 'a' ? CA : 'var(--text)' }}>{f(va)}</span>
+            <span className="small muted" style={{ textAlign: 'center' }}>{label}</span>
+            <span style={{ fontSize: 17, fontWeight: 800, textAlign: 'right', color: win === 'b' ? CB : 'var(--text)' }}>{f(vb)}</span>
+          </div>
+        );
+      })}
+      <div className="small muted" style={{ padding: '8px 0' }}>En couleur : le meilleur des deux. Stats sur toutes leurs parties de la période, pas seulement l'un contre l'autre.</div>
+    </div>
+
+    <div className="panel">
+      <div className="between"><span className="h3">Évolution de la moyenne</span>
+        <span className="row small" style={{ gap: 10 }}>
+          <span className="row" style={{ gap: 4 }}><span style={{ width: 10, height: 10, borderRadius: 5, background: CA }} />{a.name}</span>
+          <span className="row" style={{ gap: 4 }}><span style={{ width: 10, height: 10, borderRadius: 5, background: CB }} />{b.name}</span>
+        </span>
+      </div>
+      <MultiLineChart series={series} ariaLabel={`Moyenne X01 de ${a.name} et ${b.name}`} />
+    </div>
+
+    <div className="panel">
+      <span className="h3">Heatmaps</span>
+      <div className="grid2">
+        {[[a, sa, CA], [b, sb, CB]].map(([p, st, c]) => (
+          <div key={p.id} className="col" style={{ alignItems: 'center', gap: 4 }}>
+            <span style={{ fontWeight: 800, color: c }}>{p.name}</span>
+            {st.heat.length ? <Heatmap points={st.heat} /> : <span className="small muted" style={{ padding: 20 }}>Aucune fléchette</span>}
+            <span className="small muted">{st.heat.length} fléchettes</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  </>);
 }
 
 // ---------------- Classement ----------------

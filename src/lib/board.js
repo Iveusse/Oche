@@ -84,7 +84,18 @@ export function suggestCheckout(rem, out = 'double', darts = 3) {
     const ia = pref.indexOf(dartScore(a)); const ib = pref.indexOf(dartScore(b));
     return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
   });
-  const setup = ALL.filter((d) => d.seg !== 25 || d.mult === 2 || true);
+  const setup = ALL;
+  if (out === 'single') {
+    // sortie simple : on vise gros d'abord, puis un simple facile pour finir
+    const fin = [...ALL].sort((a, b) => (a.mult === 1 ? 0 : 1) - (b.mult === 1 ? 0 : 1) || dartScore(b) - dartScore(a));
+    for (let n = 1; n <= darts && !res; n++) {
+      if (n === 1) res = fin.find((f) => dartScore(f) === rem) ? [fin.find((f) => dartScore(f) === rem)] : null;
+      else if (n === 2) { for (const a of setup) { const f = fin.find((x) => dartScore(a) + dartScore(x) === rem); if (f) { res = [a, f]; break; } } }
+      else { outer3: for (const a of setup) for (const b of setup) { const f = fin.find((x) => dartScore(a) + dartScore(b) + dartScore(x) === rem); if (f) { res = [a, b, f]; break outer3; } } }
+    }
+    checkoutCache[key] = res;
+    return res;
+  }
   outer: for (let n = 1; n <= darts; n++) {
     if (n === 1) {
       for (const f of finishers) if (dartScore(f) === rem) { res = [f]; break outer; }

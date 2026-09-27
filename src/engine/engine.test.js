@@ -22,6 +22,9 @@ describe('board', () => {
     expect(suggestCheckout(40).map(dartLabel)).toEqual(['D20']);
     expect(suggestCheckout(169)).toBeNull();
     expect(suggestCheckout(1)).toBeNull();
+    expect(suggestCheckout(121, 'single').map(dartLabel)).toEqual(['T20', 'T20', '1']);
+    expect(suggestCheckout(61, 'single', 2).map(dartLabel)).toEqual(['T20', '1']);
+    expect(suggestCheckout(100, 'double', 2).map(dartLabel)).toEqual(['T20', 'D20']);
   });
 });
 

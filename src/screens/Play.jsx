@@ -126,10 +126,6 @@ export function Play({ game, players, records, onUpdate, onLegDone, onEnd, onExi
   if (game.mode === 'x01') {
     info = { b: 'Reste', a: tps.rem };
     if (shown?.bust) hint = 'Bust ! Le score revient à celui du début du tour.';
-    else if (tps.opened && tps.rem <= 170 && !r.awaiting) {
-      const co = suggestCheckout(tps.rem, s.out, 3 - tDarts.length);
-      if (co) hint = `Finish : ${co.map(dartLabel).join(' · ')}`;
-    }
   } else if (game.mode === 'atc' || game.mode === 'train-doubles') {
     const t = leg.targets[tps.pos];
     info = { b: 'Cible', a: tps.finished ? '✓' : game.mode === 'train-doubles' ? (t === 25 ? 'Bull' : `D${t}`) : targetLabel(t) };
@@ -148,6 +144,17 @@ export function Play({ game, players, records, onUpdate, onLegDone, onEnd, onExi
     hint = `${tps.succ} réussi${tps.succ > 1 ? 's' : ''} · objectif ${target}`;
   } else if (game.mode === 'train-free') {
     info = { b: 'Total', a: tps.pts };
+  }
+
+  // Finish possible : recalculé après chaque fléchette
+  let checkout = null;
+  const coMode = game.mode === 'x01' || game.mode === 'train-checkout';
+  const coOut = game.mode === 'x01' ? (s.out || 'single') : 'double';
+  if (coMode && !r.awaiting && !shown?.bust && (game.mode !== 'x01' || tps.opened) && tps.rem > 0 && tps.rem <= 180) {
+    const left = 3 - tDarts.length;
+    const route = suggestCheckout(tps.rem, coOut, left);
+    if (route) checkout = { route, done: tDarts };
+    else if (tDarts.length > 0 && tps.rem <= 170) checkout = { none: `Pas de finish en ${left} fléchette${left > 1 ? 's' : ''}` };
   }
 
   const markers = tDarts.filter((d) => typeof d.x === 'number');
@@ -176,6 +183,8 @@ export function Play({ game, players, records, onUpdate, onLegDone, onEnd, onExi
       )}
       {game.mode === 'cricket' && <div className="panel" style={{ padding: 10 }}><CricketGrid r={r} players={byId} thrower={thrower} /></div>}
       {training && <div className="between"><span className="h3">{byId[r.ps[0].id]?.name}</span><span className="small muted">{MODE_LABEL[game.mode]}</span></div>}
+
+      {checkout && <CheckoutBar {...checkout} />}
 
       {game.mode === 'shanghai' && (
         <Seg options={[['board', 'Cible'], ['buttons', 'Boutons']]} value={input} onChange={setInput} />
@@ -229,6 +238,21 @@ export function Play({ game, players, records, onUpdate, onLegDone, onEnd, onExi
           <button className="btn btn-ghost" onClick={() => setMenu(false)}>Fermer</button>
         </Sheet>
       )}
+    </div>
+  );
+}
+
+function CheckoutBar({ route, done, none }) {
+  if (none) {
+    return <div className="checkout-bar off"><span className="lbl">Finish</span><span className="small" style={{ color: 'var(--text-2)' }}>{none}</span></div>;
+  }
+  return (
+    <div className="checkout-bar" aria-live="polite">
+      <span className="lbl">Finish</span>
+      <div className="row" style={{ gap: 6, flexWrap: 'wrap' }}>
+        {done.map((d, i) => <span key={`d${i}`} className="chip done">{dartLabel(d)}</span>)}
+        {route.map((d, i) => <span key={`r${i}`} className={`chip ${i === 0 ? 'next' : ''}`}>{dartLabel(d)}</span>)}
+      </div>
     </div>
   );
 }

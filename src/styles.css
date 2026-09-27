@@ -213,3 +213,11 @@ a { color: var(--accent); }
 .compact .stepper button { width: 36px; height: 36px; font-size: 18px; }
 .compact .stepper span { min-width: 22px; }
 button, a, [role="button"] { touch-action: manipulation; }
+
+.checkout-bar { display: flex; align-items: center; gap: 10px; background: var(--accent-bg); border: 1px solid var(--accent); border-radius: 12px; padding: 6px 10px; min-height: 44px; }
+.checkout-bar.off { background: var(--panel); border-color: var(--wire); }
+.checkout-bar .lbl { font-size: 11px; letter-spacing: 1px; text-transform: uppercase; color: var(--accent); font-weight: 800; }
+.checkout-bar.off .lbl { color: var(--muted); }
+.checkout-bar .chip { font-size: 16px; font-weight: 800; padding: 3px 10px; border-radius: 8px; background: var(--card); color: var(--text); }
+.checkout-bar .chip.next { background: var(--accent); color: var(--on-accent); }
+.checkout-bar .chip.done { background: transparent; color: var(--muted); text-decoration: line-through; font-weight: 600; }
