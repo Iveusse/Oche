@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { ACHIEVEMENTS, EXPLOIT_LIST, SERIES, TIER, computeAchievements } from '../engine/achievements.js';
 
+const ACH_BY_ID = Object.fromEntries(ACHIEVEMENTS.map((a) => [a.id, a]));
 const TIER_COLOR = { 1: '#d08b52', 2: '#c3cbd6', 3: '#f2c14e', 4: '#8fe3ff' };
 const fmtDate = (d, long) => new Date(d).toLocaleDateString('fr-FR', long ? { day: 'numeric', month: 'long', year: 'numeric' } : { day: 'numeric', month: 'short' });
 
@@ -48,7 +49,8 @@ function SeriesCard({ s, res }) {
             <span className="small" style={{ fontWeight: 700, whiteSpace: 'nowrap' }}>{value.toLocaleString('fr-FR')} / {next.n.toLocaleString('fr-FR')}</span>
           </div>
         ) : <div className="small" style={{ color: 'var(--good)', marginTop: 6, fontWeight: 700 }}>Série terminée !</div>}
-        {next && <div className="small muted" style={{ marginTop: 2 }}>Prochain palier : {next.n.toLocaleString('fr-FR')} {s.unit}</div>}
+        {next && <div className="small muted" style={{ marginTop: 2 }}>Prochain palier : {next.n.toLocaleString('fr-FR')} {s.unit} · {TIER[s.tiers[next.i]]}</div>}
+        {next && ACH_BY_ID[`${s.key}-${next.n}`]?.rarity && <div className="rarity">{ACH_BY_ID[`${s.key}-${next.n}`].rarity}</div>}
         {open && (
           <div className="col" style={{ gap: 4, marginTop: 8 }}>
             {levels.map((l) => (
@@ -57,7 +59,7 @@ function SeriesCard({ s, res }) {
                   <span style={{ width: 10, height: 10, borderRadius: 5, background: TIER_COLOR[s.tiers[l.i]], opacity: l.r.unlocked ? 1 : 0.3 }} />
                   {l.n.toLocaleString('fr-FR')} {s.unit}
                 </span>
-                <span style={{ color: l.r.unlocked ? 'var(--good)' : 'var(--muted)', fontWeight: 600 }}>{l.r.unlocked ? fmtDate(l.r.unlocked) : TIER[s.tiers[l.i]]}</span>
+                <span style={{ color: l.r.unlocked ? 'var(--good)' : 'var(--muted)', fontWeight: 600, textAlign: 'right' }}>{l.r.unlocked ? fmtDate(l.r.unlocked) : TIER[s.tiers[l.i]]}</span>
               </div>
             ))}
           </div>
@@ -75,6 +77,7 @@ function ExploitCard({ a, r }) {
       <div className="grow">
         <div className="between"><span className="t">{a.name}</span><span className="tier">{TIER[a.tier]}</span></div>
         <div className="d">{a.desc}</div>
+        {a.rarity && <div className="rarity">{a.rarity}</div>}
         {locked ? (<>
           {r.max > 1 && (
             <div className="row" style={{ gap: 8, marginTop: 6 }}>

@@ -75,7 +75,7 @@ export function generateDemo(days = 180, seed = 42) {
       const date = new Date(start + day * 86400000 + (19 + s * 0.4) * 3600000);
       const roll = rnd();
       let mode; let settings;
-      if (roll < 0.55) { mode = 'x01'; settings = { start: rnd() < 0.7 ? 501 : 301, in: 'single', out: rnd() < 0.6 ? 'double' : 'single' }; }
+      if (roll < 0.55) { mode = 'x01'; settings = { start: rnd() < 0.8 ? 301 : 501, in: 'single', out: rnd() < 0.6 ? 'double' : 'single' }; }
       else if (roll < 0.72) { mode = 'cricket'; settings = { points: true }; }
       else if (roll < 0.86) { mode = 'shanghai'; settings = rnd() < 0.7 ? { from: 1, to: 7, instantWin: true } : { from: 1, to: 20, instantWin: true }; }
       else { mode = 'atc'; settings = { zones: ['S', 'D', 'T'], order: 'asc', bull: false, skip: false }; }

@@ -352,3 +352,5 @@ button, a, [role="button"] { touch-action: manipulation; }
 .frow .two small { font-size: 11px; font-weight: 600; color: var(--muted); }
 .pips { display: flex; gap: 3px; margin-top: 6px; }
 .pips span { flex: 1; height: 5px; border-radius: 3px; background: var(--card-2); }
+
+.rarity { font-size: 11px; color: var(--sky); margin-top: 3px; font-weight: 600; }
