@@ -8,6 +8,7 @@ import { CodeScreen, ProfileScreen } from './screens/Setup.jsx';
 import { NewGame } from './screens/NewGame.jsx';
 import { Play } from './screens/Play.jsx';
 import { Home, Ranking, Stats, Training, trainingRecords } from './screens/Tabs.jsx';
+import { generateDemo } from './lib/demo.js';
 
 function newLeg(mode, settings, order) {
   const leg = { order, darts: [], validated: 0, continueForPlaces: null };
@@ -32,6 +33,14 @@ export default function App() {
   const [view, setView] = useState(() => (load('profile', null) || load('profileSkipped', false) ? 'tabs' : 'profile'));
   const [tab, setTab] = useState('home');
   const [toast, setToast] = useState('');
+  const [demo, setDemoState] = useState(load('demo', false));
+  const [demoData, setDemoData] = useState(null);
+  const setDemo = (v) => { setDemoState(v); save('demo', v); if (!v) setDemoData(null); };
+  useEffect(() => {
+    if (!demo || demoData) return undefined;
+    const t = setTimeout(() => setDemoData(generateDemo()), 60);
+    return () => clearTimeout(t);
+  }, [demo, demoData]);
 
   const flash = (msg) => { setToast(msg); setTimeout(() => setToast(''), 2600); };
 
@@ -75,6 +84,8 @@ export default function App() {
   const me = players.find((p) => p.id === meId) || null;
   const played = useMemo(() => games.filter((g) => g.data?.legs?.some((l) => l.done)), [games]);
   const lastPlayedMap = useMemo(() => lastPlayed(played), [played]);
+  const statPlayers = useMemo(() => (demo && demoData ? [...players, ...demoData.players] : players), [players, demo, demoData]);
+  const statGames = useMemo(() => (demo && demoData ? [...played, ...demoData.games] : played), [played, demo, demoData]);
   const records = useMemo(() => (me ? trainingRecords(played, me.id) : {}), [played, me]);
 
   const setCur = (g) => { setCurrent(g); save('current', g); };
@@ -184,7 +195,7 @@ export default function App() {
   if (view === 'play' && current) {
     return (
       <Play
-        game={current} players={players} records={records}
+        game={current} players={players} records={records} history={played}
         onUpdate={updateGame} onLegDone={onLegDone} onEnd={endGame}
         onExit={() => { setView('tabs'); setTab('home'); }}
       />
@@ -196,14 +207,21 @@ export default function App() {
       {tab === 'home' && (
         <Home me={me} players={players} games={played} current={current}
           onNew={() => setView('new')} onResume={() => setView('play')}
-          onProfile={() => setView('profile')} goRanking={() => setTab('ranking')} />
+          onProfile={() => setView('profile')} goRanking={() => setTab('ranking')} demo={demo} onDemo={setDemo} />
       )}
       {tab === 'training' && (
         <Training me={me} games={played} onStart={startTraining} onProfile={() => setView('profile')}
           onAtc={() => begin({ mode: 'atc', settings: { zones: ['S', 'D', 'T'], order: 'asc', bull: false, skip: false, ...(load('lastSetup', null)?.settings?.atc || {}) }, playerIds: [me.id] })} />
       )}
-      {tab === 'stats' && <Stats me={me} players={players} games={played} />}
-      {tab === 'ranking' && <Ranking me={me} players={players} games={played} />}
+      {demo && (tab === 'stats' || tab === 'ranking') && (
+        <div style={{ maxWidth: 520, margin: '0 auto', padding: 'calc(12px + var(--safe-top)) 16px 0' }}>
+          <div className="demo-banner" role="status">
+            {demoData ? <><b>Mode démo</b> : Testeur, Bot Pote et Bot Costaud sont simulés sur 6 mois. Rien n'est enregistré. À couper dans les réglages.</> : 'Mode démo : génération de 6 mois de parties…'}
+          </div>
+        </div>
+      )}
+      {tab === 'stats' && <Stats me={me} players={statPlayers} games={statGames} />}
+      {tab === 'ranking' && <Ranking me={me} players={statPlayers} games={statGames} />}
       <TabBar tab={tab} onTab={(t) => { setTab(t); window.scrollTo(0, 0); if (t !== 'home') refresh(); }} />
       {toast && <div className="toast" role="status">{toast}</div>}
     </>

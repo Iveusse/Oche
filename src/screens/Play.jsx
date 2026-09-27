@@ -6,6 +6,8 @@ import { Dartboard } from '../components/Dartboard.jsx';
 import { Icon, Seg, Sheet, TopBar } from '../components/ui.jsx';
 import { PlayerOrder, shuffle } from '../components/PlayerOrder.jsx';
 import { trainingResult } from '../engine/stats.js';
+import { bestLegDarts, computeAchievements, newlyUnlocked, TIER } from '../engine/achievements.js';
+import { Medal } from './Achievements.jsx';
 import { load, save } from '../lib/store.js';
 
 const RULE = { single: 'Simple', double: 'Double', master: 'Master' };
@@ -72,7 +74,7 @@ function CricketGrid({ r, players, thrower }) {
   );
 }
 
-export function Play({ game, players, records, onUpdate, onLegDone, onEnd, onExit, onReplay }) {
+export function Play({ game, players, records, history = [], onUpdate, onLegDone, onEnd, onExit, onReplay }) {
   const byId = useMemo(() => Object.fromEntries(players.map((p) => [p.id, p])), [players]);
   const legs = game.data.legs;
   const leg = legs[legs.length - 1];
@@ -98,7 +100,7 @@ export function Play({ game, players, records, onUpdate, onLegDone, onEnd, onExi
   if (leg.done) {
     return training
       ? <TrainingEnd game={game} r={r} records={records} onEnd={onEnd} onReplay={onReplay} />
-      : <LegEnd game={game} byId={byId} onUpdate={onUpdate} onEnd={onEnd} />;
+      : <LegEnd game={game} byId={byId} history={history} onUpdate={onUpdate} onEnd={onEnd} />;
   }
 
   const blocked = r.awaiting || r.needDecision || r.over;
@@ -324,7 +326,49 @@ function legStatLabel(game, r, idx) {
   }
 }
 
-function LegEnd({ game, byId, onUpdate, onEnd }) {
+function Celebrations({ game, byId, history }) {
+  const items = useMemo(() => {
+    const legs = game.data.legs;
+    const leg = legs[legs.length - 1];
+    const others = history.filter((g) => g.id !== game.id);
+    const before = [...others, { ...game, data: { ...game.data, legs: legs.slice(0, -1) } }];
+    const after = [...others, game];
+    const out = [];
+    // record de fléchettes pour gagner un leg X01
+    const winner = leg.ranking?.[0];
+    if (game.mode === 'x01' && winner && leg.order.length > 1) {
+      const r = runLeg(game.mode, game.settings, leg);
+      const idx = leg.order.indexOf(winner);
+      const n = r.turns.filter((t) => t.p === idx).reduce((a, t) => a + t.darts.length, 0);
+      const prev = bestLegDarts(before, winner, game.settings.start);
+      const who = byId[winner]?.name;
+      if (prev == null) out.push({ key: 'rec', kind: 'record', title: `Premier ${game.settings.start} gagné par ${who}`, text: `${n} fléchettes : c'est le record à battre.` });
+      else if (n < prev) out.push({ key: 'rec', kind: 'record', title: `Record battu pour ${who} !`, text: `${game.settings.start} gagné en ${n} fléchettes, l'ancien record était ${prev}.` });
+      else if (n === prev) out.push({ key: 'rec', kind: 'record', title: `Record égalé par ${who}`, text: `${game.settings.start} en ${n} fléchettes, comme son meilleur leg.` });
+    }
+    for (const id of leg.order) {
+      const nu = newlyUnlocked(computeAchievements(before, id), computeAchievements(after, id));
+      for (const a of nu) out.push({ key: `${id}-${a.id}`, kind: 'ach', tier: a.tier, title: `${byId[id]?.name} débloque « ${a.name} »`, text: `${a.desc} · ${TIER[a.tier]}` });
+    }
+    return out;
+  }, [game, history, byId]);
+  if (!items.length) return null;
+  return (
+    <div className="col" style={{ gap: 8 }}>
+      {items.map((it) => (
+        <div key={it.key} className="celebrate" role="status">
+          {it.kind === 'ach' ? <Medal tier={it.tier} size={40} /> : <span style={{ width: 40, height: 40, borderRadius: 20, background: 'var(--accent)', color: 'var(--on-accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Icon.Trophy width="22" height="22" /></span>}
+          <div className="grow">
+            <div className="t">{it.title}</div>
+            <div className="small" style={{ color: 'var(--text-2)' }}>{it.text}</div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function LegEnd({ game, byId, history, onUpdate, onEnd }) {
   const legs = game.data.legs;
   const leg = legs[legs.length - 1];
   const r = useMemo(() => runLeg(game.mode, game.settings, leg), [game.mode, game.settings, leg]);
@@ -355,6 +399,8 @@ function LegEnd({ game, byId, onUpdate, onEnd }) {
           {champion ? `${byId[champion]?.name} gagne la partie` : `${byId[winnerId]?.name} gagne le leg`}
         </div>
       </div>
+
+      <Celebrations game={game} byId={byId} history={history} />
 
       <div className="col" style={{ gap: 6 }}>
         {leg.ranking.map((id, k) => {

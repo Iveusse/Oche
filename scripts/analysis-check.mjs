@@ -1,0 +1,41 @@
+import { chromium } from '/home/claude/.npm-global/lib/node_modules/playwright/index.mjs';
+const OUT = process.argv[2];
+const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
+const ctx = await browser.newContext({ viewport: { width: 393, height: 852 }, deviceScaleFactor: 2 });
+await ctx.route('**/rest/v1/rpc/**', (route) => {
+  const fn = route.request().url().split('/rpc/')[1];
+  const d = fn === 'oche_check' ? true : fn === 'oche_players' ? [{ id: 'p1', name: 'Yves', color: '#5fc8ff' }] : fn === 'oche_games' ? [] : null;
+  return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(d) });
+});
+const page = await ctx.newPage();
+const errs = []; page.on('pageerror', (e) => errs.push(String(e)));
+await page.goto('http://127.0.0.1:4173');
+await page.getByLabel('Code du groupe').fill('x');
+await page.getByRole('button', { name: 'Entrer' }).click();
+await page.getByRole('button', { name: /Yves/ }).first().click();
+await page.getByRole('button', { name: 'Réglages' }).click();
+await page.getByRole('switch', { name: 'Mode démo' }).click();
+await page.getByRole('button', { name: 'OK' }).click();
+await page.getByRole('button', { name: 'Stats' }).click();
+const t0 = Date.now();
+await page.getByText('simulés sur 6 mois').waitFor({ timeout: 30000 });
+console.log('demo ready in', Date.now() - t0, 'ms');
+await page.getByRole('button', { name: /^Yves/ }).click();
+await page.screenshot({ path: `${OUT}/dbg.png` }); await page.locator('[role=option]', { hasText: 'Testeur' }).click();
+await page.screenshot({ path: `${OUT}/a0-resume.png`, fullPage: true });
+await page.getByRole('radio', { name: 'Analyse' }).click();
+await page.waitForTimeout(400);
+await page.screenshot({ path: `${OUT}/a1-x01.png`, fullPage: true });
+for (const m of ['Cricket', 'Shanghai', 'ATC']) {
+  await page.locator('.mode-tabs button', { hasText: m }).click();
+  await page.waitForTimeout(300);
+  await page.screenshot({ path: `${OUT}/a-${m}.png`, fullPage: true });
+}
+await page.getByRole('radio', { name: 'Succès' }).click();
+await page.waitForTimeout(300);
+await page.screenshot({ path: `${OUT}/a9-succes.png`, fullPage: true });
+await page.getByRole('button', { name: 'Classement' }).click();
+await page.waitForTimeout(300);
+await page.screenshot({ path: `${OUT}/a10-classement.png` });
+console.log('errors:', errs.length ? errs : 'none');
+await browser.close();

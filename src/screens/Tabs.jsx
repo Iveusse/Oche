@@ -8,6 +8,8 @@ import { gameWinner, legsWon } from '../engine/runner.js';
 import { fmt1, pct, shortDate } from '../lib/store.js';
 import { modeSubtitle, modeTitle } from './Play.jsx';
 import { SettingsSheet } from './Settings.jsx';
+import { Analysis } from './Analysis.jsx';
+import { Achievements } from './Achievements.jsx';
 
 const realGames = (games) => games.filter((g) => !isTraining(g.mode));
 
@@ -28,14 +30,14 @@ function gameResult(g, byId) {
   return w ? `${byId[w]?.name} gagne` : 'égalité';
 }
 
-export function Home({ me, players, games, current, onNew, onResume, onProfile, goRanking }) {
+export function Home({ me, players, games, current, onNew, onResume, onProfile, goRanking, demo, onDemo }) {
   const byId = Object.fromEntries(players.map((p) => [p.id, p]));
   const recent = realGames(games).filter((g) => g.status === 'finished').slice(-4).reverse();
   const st = useMemo(() => (me ? playerStats(filterByPeriod(games, '30j'), me.id) : null), [games, me]);
   const [settings, setSettings] = useState(false);
   return (
     <div className="screen with-tabs">
-      {settings && <SettingsSheet onClose={() => setSettings(false)} onProfile={onProfile} />}
+      {settings && <SettingsSheet onClose={() => setSettings(false)} onProfile={onProfile} demo={demo} onDemo={onDemo} />}
       <div className="between">
         <div className="h1 grow" style={{ fontSize: 32 }}>Oche</div>
         <button className="icon-btn" aria-label="Réglages" onClick={() => setSettings(true)}><Icon.Gear /></button>
@@ -122,6 +124,7 @@ export function Stats({ me, players, games }) {
   const [heatMode, setHeatMode] = useState('all');
   const [pickOpen, setPickOpen] = useState(false);
   const [pid2, setPid2] = useState('');
+  const [view, setView] = useState('summary');
   const player = players.find((p) => p.id === pid);
   const scoped = useMemo(() => filterByPeriod(games, period), [games, period]);
   const s = useMemo(() => (pid ? playerStats(scoped, pid) : null), [scoped, pid]);
@@ -150,6 +153,8 @@ export function Stats({ me, players, games }) {
         </div>
       </div>
 
+      <Seg options={[['summary', 'Résumé'], ['analysis', 'Analyse'], ['achievements', 'Succès']]} value={view} onChange={setView} />
+      {view === 'summary' && (<>
       <label className="row" style={{ gap: 10 }}>
         <span className="small" style={{ color: 'var(--text-2)', fontWeight: 600, whiteSpace: 'nowrap' }}>Comparer avec</span>
         <select className="input grow" style={{ height: 40, fontSize: 15 }} value={pid2} onChange={(e) => setPid2(e.target.value)} aria-label="Comparer avec">
@@ -202,6 +207,9 @@ export function Stats({ me, players, games }) {
         ))}
       </div>
       </>)}
+      </>)}
+      {view === 'analysis' && <Analysis games={games} pid={pid} />}
+      {view === 'achievements' && <Achievements games={games} pid={pid} name={player.name} />}
     </div>
   );
 }

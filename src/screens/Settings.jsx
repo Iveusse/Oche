@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { Sheet } from '../components/ui.jsx';
+import { Sheet, Switch } from '../components/ui.jsx';
 import { BoardShapes } from '../components/Dartboard.jsx';
 import { BOARDS, THEMES, getLook, setLook } from '../lib/theme.js';
 
-export function SettingsSheet({ onClose, onProfile }) {
+export function SettingsSheet({ onClose, onProfile, demo, onDemo }) {
   const [look, setLookState] = useState(getLook());
   const pick = (patch) => { const next = { ...look, ...patch }; setLookState(next); setLook(next); };
 
@@ -48,6 +48,14 @@ export function SettingsSheet({ onClose, onProfile }) {
           ))}
         </div>
         <span className="small muted">"Daltonien" remplace le rouge et le vert par de l'orange et du bleu, plus faciles à distinguer.</span>
+      </div>
+
+      <div className="between panel" style={{ background: 'var(--card)' }}>
+        <div className="grow">
+          <div style={{ fontWeight: 700 }}>Mode démo</div>
+          <div className="small muted" style={{ lineHeight: 1.4 }}>Ajoute un joueur « Testeur » (joueur moyen qui progresse) et deux bots, avec 6 mois de parties simulées, pour voir les stats, l'analyse et les succès. Visible dans Stats et Classement, rien n'est enregistré.</div>
+        </div>
+        <Switch on={!!demo} onChange={onDemo} label="Mode démo" />
       </div>
 
       <button className="btn btn-ghost" onClick={() => { onClose(); onProfile(); }}>Changer de profil</button>
