@@ -1,7 +1,7 @@
 # Oche
 
 Compteur de fléchettes entre potes : X01, Cricket, Around the Clock, Shanghai, entraînements, stats partagées.
-Appli web (React + Vite), données dans Supabase, hébergée sur Cloudflare Pages.
+Appli web (React + Vite), données dans Supabase, hébergée sur Cloudflare.
 
 ## Mise en route (une seule fois)
 
@@ -11,16 +11,14 @@ Appli web (React + Vite), données dans Supabase, hébergée sur Cloudflare Page
 
 Pour changer le code plus tard, relance seulement le dernier bloc `insert ... on conflict` avec le nouveau code.
 
-### 2. Hébergement Cloudflare Pages
-1. Cloudflare > **Workers & Pages** > Create > Pages > **Connect to Git**, choisis le repo `Oche`.
-2. Réglages de build :
-   - Framework preset : `Vite` (ou None)
-   - Build command : `npm run build`
-   - Build output directory : `dist`
-3. Save and Deploy. Chaque push sur `main` redéploie tout seul.
+### 2. Hébergement Cloudflare
+1. Cloudflare > **Workers & Pages** > Create > Import a repository, choisis le repo `Oche`.
+2. Build command : `npm run build` · Deploy command : `npx wrangler deploy` (valeurs par défaut).
+   Le dossier de sortie (`dist`) est déclaré dans `wrangler.jsonc`, rien d'autre à régler.
+3. Deploy. Chaque push sur `main` redéploie tout seul.
 
 ### 3. Sur l'iPhone
-Ouvre l'URL `*.pages.dev` dans Safari > bouton Partager > **Sur l'écran d'accueil**.
+Ouvre l'URL `*.workers.dev` dans Safari > bouton Partager > **Sur l'écran d'accueil**.
 
 ## Dev
 ```
