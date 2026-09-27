@@ -174,7 +174,7 @@ export function Play({ game, players, records, onUpdate, onLegDone, onEnd, onExi
       {game.mode === 'cricket' && <div className="panel" style={{ padding: 10 }}><CricketGrid r={r} players={byId} thrower={thrower} /></div>}
       {training && <div className="between"><span className="h3">{byId[r.ps[0].id]?.name}</span><span className="small muted">{MODE_LABEL[game.mode]}</span></div>}
 
-      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 0 }}>
+      <div className="board-slot">
         <Dartboard onHit={hit} disabled={blocked} markers={markers} />
       </div>
 
