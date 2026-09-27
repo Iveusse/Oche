@@ -41,6 +41,11 @@ for (const m of ['Cricket', 'Shanghai', 'ATC']) {
 await page.getByRole('radio', { name: 'Succès' }).click();
 await page.waitForTimeout(300);
 await page.screenshot({ path: `${OUT}/a9-succes.png`, fullPage: true });
+await page.locator('.mode-tabs button', { hasText: 'Paliers' }).click();
+await page.waitForTimeout(200);
+await page.locator('.ach button', { hasText: 'Triples' }).first().click();
+await page.waitForTimeout(200);
+await page.screenshot({ path: `${OUT}/a9b-paliers.png`, fullPage: true });
 await page.getByRole('button', { name: 'Classement' }).click();
 await page.waitForTimeout(300);
 await page.screenshot({ path: `${OUT}/a10-classement.png` });
