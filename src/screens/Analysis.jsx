@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Seg } from '../components/ui.jsx';
 import { Delta, HBars, HeatStrip, Ring, Sparkline, StackBar, VBars } from '../components/Charts.jsx';
-import { TURN_BUCKETS, atcAdvanced, cricketAdvanced, shanghaiAdvanced, x01Advanced } from '../engine/advanced.js';
+import { ALT_BUCKETS, TURN_BUCKETS, atcAdvanced, cricketAdvanced, shanghaiAdvanced, x01Advanced } from '../engine/advanced.js';
 import { playerStats } from '../engine/stats.js';
 import { CRICKET_NUMS } from '../engine/modes.js';
 
@@ -54,10 +54,102 @@ function Empty({ what }) {
   return <div className="panel" style={{ alignItems: 'center', textAlign: 'center', padding: 28 }}><div className="h3">Pas encore de {what} sur cette période</div><div className="small muted">Élargis la période ou joue une partie !</div></div>;
 }
 
-function X01View({ games, prevGames, pid }) {
+const n0 = (v) => (v == null ? '-' : v.toLocaleString('fr-FR'));
+const frac = (h, a) => (a ? `${h}/${a}` : '-');
+const cnt = (n, tot) => (tot ? <span className="two"><b>{Math.round((n / tot) * 100)} %</b><small>{n.toLocaleString('fr-FR')}</small></span> : '-');
+
+// Tableau complet : sections de lignes, une colonne par jeu de données
+function FullTable({ sections, cols }) {
+  const [open, setOpen] = useState(false);
+  const total = sections.reduce((a, [, rows]) => a + rows.length, 0);
+  return (
+    <div className="panel">
+      <button className="between" onClick={() => setOpen(!open)} aria-expanded={open} style={{ minHeight: 40, textAlign: 'left' }}>
+        <span className="h3">Tableau complet</span>
+        <span className="small" style={{ color: 'var(--accent)', fontWeight: 700 }}>{open ? 'Replier' : `Voir les ${total} stats`}</span>
+      </button>
+      {open && (
+        <div className="ftable" style={{ '--cols': cols.length }}>
+          <div className="frow fhead"><span />{cols.map((c) => <span key={c.label}>{c.label}</span>)}</div>
+          {sections.map(([title, rows]) => (
+            <React.Fragment key={title}>
+              <div className="fsec">{title}</div>
+              {rows.map(([label, fn]) => (
+                <div className="frow" key={title + label}>
+                  <span className="fl">{label}</span>
+                  {cols.map((c) => <span key={c.label}>{c.data ? fn(c.data) : '-'}</span>)}
+                </div>
+              ))}
+            </React.Fragment>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function colsFor(cur, prev, all, period) {
+  const lbl = PERIODS.find((p) => p[0] === period)[1];
+  if (period === 'all') return [{ label: 'Tout', data: all }];
+  return [{ label: lbl, data: cur }, { label: 'Avant', data: prev }, { label: 'Tout', data: all }];
+}
+
+const X01_SECTIONS = [
+  ['Général', [
+    ['Legs', (a) => a.legs], ['Legs gagnés', (a) => a.won], ['% de victoire', (a) => pc(a.winRate)], ['Fléchettes', (a) => n0(a.darts)],
+    ['Fléch. / leg gagné', (a) => f1(a.dartsPerLeg)], ['Temps de jeu', (a) => dur(a.duration.total)], ['Temps / partie', (a) => dur(a.duration.avg)],
+  ]],
+  ['Moyenne 3 fléchettes', [
+    ['Toutes', (a) => f1(a.avgAll)], ['Sortie simple', (a) => f1(a.avgOut.single)], ['Sortie double', (a) => f1(a.avgOut.double)], ['Sortie master', (a) => f1(a.avgOut.master)],
+    ['9 premières', (a) => f1(a.avgFirst[9])], ['12 premières', (a) => f1(a.avgFirst[12])], ['15 premières', (a) => f1(a.avgFirst[15])],
+    ['Tant que > 170', (a) => f1(a.avgUntil[170])], ['Tant que > 100', (a) => f1(a.avgUntil[100])],
+  ]],
+  ['Checkout', [
+    ['Checkout moyen', (a) => f0(a.coAvg)], ['Meilleur checkout', (a) => a.coHigh ?? '-'], ['Réussis / tentés', (a) => frac(a.coHit, a.coAtt)], ['Taux', (a) => pc(a.coRate)],
+    ['Doubles réussis / tentés', (a) => frac(a.dblHit, a.dblAtt)], ['Taux sur double', (a) => pc(a.dblRate)],
+  ]],
+  ['Records', [
+    ['Leg le plus court', (a) => a.bestLeg ?? '-'], ['Meilleure moyenne de leg', (a) => f1(a.bestLegAvg)], ['Meilleur tour', (a) => a.high || '-'],
+  ]],
+  ['Tours par tranche', TURN_BUCKETS.map(([l], i) => [l, (a) => cnt(a.buckets[i], a.turns)])],
+  ['Tranches alternatives', ALT_BUCKETS.map(([l], i) => [l, (a) => cnt(a.alt[i], a.turns)])],
+  ['Moyenne par tour du leg', Array.from({ length: 10 }, (_, i) => [`Tour ${i + 1}`, (a) => f1(a.roundAvg[i])])],
+  ['Reste moyen après', [3, 6, 9, 12, 15].map((k) => [`${k} fléchettes`, (a) => f0(a.remAfterAvg[k])])],
+];
+
+const CRICKET_SECTIONS = [
+  ['Général', [['Legs', (a) => a.legs], ['Legs gagnés', (a) => a.won], ['% de victoire', (a) => pc(a.winRate)], ['Temps de jeu', (a) => dur(a.duration.total)], ['MPR', (a) => (a.mpr == null ? '-' : a.mpr.toFixed(2))]]],
+  ['Précision', [['Touches', (a) => pc(a.pct.hit)], ['Triples', (a) => pc(a.pct.t)], ['Doubles', (a) => pc(a.pct.d)], ['Simples', (a) => pc(a.pct.s)], ['Hors numéros', (a) => pc(a.pct.miss)]]],
+  ['Fléchettes', [['Lancées', (a) => n0(a.darts)], ['Touches', (a) => n0(a.darts - a.miss)], ['Triples', (a) => a.t], ['Doubles', (a) => a.d], ['Simples', (a) => a.sgl], ['Hors numéros', (a) => a.miss]]],
+  ['Points', [['Moyenne / leg', (a) => f0(a.ptsAvg)], ['Max points', (a) => a.maxPts], ['Max triples / leg', (a) => a.maxT], ['Max doubles / leg', (a) => a.maxD], ['Max simples / leg', (a) => a.maxS]]],
+  ['Gros tours', [['9 marques', (a) => a.m9], ['7-8 marques', (a) => a.m7], ['5-6 marques', (a) => a.m5]]],
+  ['Marques / leg par numéro', CRICKET_NUMS.map((n) => [n === 25 ? 'Bull' : String(n), (a) => f1(a.perNumAvg[n])])],
+  ['Touches par numéro', CRICKET_NUMS.map((n) => [n === 25 ? 'Bull' : String(n), (a) => a.hitsNum[n]])],
+];
+
+const SH_NUMS = Array.from({ length: 20 }, (_, i) => i + 1);
+const SHANGHAI_SECTIONS = [
+  ['Général', [['Parties', (a) => a.legs], ['Victoires', (a) => a.won], ['% de victoire', (a) => pc(a.winRate)], ['Shanghais', (a) => a.shanghais], ['Temps de jeu', (a) => dur(a.duration.total)]]],
+  ['Points', [['Moyenne / partie', (a) => f0(a.ptsAvg)], ['Meilleur 1 à 7', (a) => a.best7 ?? '-'], ['Meilleur 1 à 20', (a) => a.best20 ?? '-']]],
+  ['Fléchettes', [['Tentatives', (a) => n0(a.darts)], ['Triples', (a) => a.t], ['Doubles', (a) => a.d], ['Simples', (a) => a.sgl], ['Ratées', (a) => a.miss]]],
+  ['Précision', [['Touches', (a) => pc(a.pct.hit)], ['Triples', (a) => pc(a.pct.t)], ['Doubles', (a) => pc(a.pct.d)], ['Simples', (a) => pc(a.pct.s)], ['Ratées', (a) => pc(a.pct.miss)]]],
+  ['Précision par numéro', SH_NUMS.map((n) => [String(n), (a) => pc(a.numAcc[n])])],
+  ['Points moyens par numéro', SH_NUMS.map((n) => [String(n), (a) => f1(a.numPts[n])])],
+  ['Shanghais par numéro', SH_NUMS.map((n) => [String(n), (a) => a.num[n].sh])],
+];
+
+const ATC_NUMS = [...SH_NUMS, 25];
+const ATC_SECTIONS = [
+  ['Général', [['Parties', (a) => a.legs], ['Victoires', (a) => a.won], ['% de victoire', (a) => pc(a.winRate)], ['Temps de jeu', (a) => dur(a.duration.total)]]],
+  ['Fléchettes', [['Lancées', (a) => n0(a.darts)], ['Touches', (a) => n0(a.hits)], ['Précision', (a) => pc(a.acc)], ['Moy. pour finir', (a) => f0(a.finAvg)], ['Record', (a) => a.best ?? '-']]],
+  ['Précision par numéro', ATC_NUMS.map((n) => [n === 25 ? 'Bull' : String(n), (a) => pc(a.numAcc[n])])],
+];
+
+function X01View({ games, prevGames, allGames, period, pid }) {
   const [start, setStart] = useState('all');
   const a = useMemo(() => x01Advanced(games, pid, start), [games, pid, start]);
   const b = useMemo(() => (prevGames ? x01Advanced(prevGames, pid, start) : null), [prevGames, pid, start]);
+  const all = useMemo(() => x01Advanced(allGames, pid, start), [allGames, pid, start]);
   const series = useMemo(() => playerStats(games.filter((g) => g.mode === 'x01' && (start === 'all' || String(g.settings?.start) === start)), pid).series.slice(-20).map((p) => p.avg), [games, pid, start]);
   return (<>
     <Seg options={[['all', 'Tous'], ['301', '301'], ['501', '501'], ['701', '701']]} value={start} onChange={setStart} />
@@ -110,11 +202,13 @@ function X01View({ games, prevGames, pid }) {
       <Card title="Moyenne par sortie">
         <HBars rows={[['Simple', 'single'], ['Double', 'double'], ['Master', 'master']].map(([l, k]) => ({ label: l, value: a.avgOut[k] || 0, sub: f1(a.avgOut[k]) }))} />
       </Card>
+      <FullTable sections={X01_SECTIONS} cols={colsFor(a, b, all, period)} />
     </>)}
   </>);
 }
 
-function CricketView({ games, prevGames, pid }) {
+function CricketView({ games, prevGames, allGames, period, pid }) {
+  const all = useMemo(() => cricketAdvanced(allGames, pid), [allGames, pid]);
   const a = useMemo(() => cricketAdvanced(games, pid), [games, pid]);
   const b = useMemo(() => (prevGames ? cricketAdvanced(prevGames, pid) : null), [prevGames, pid]);
   if (!a.legs) return <Empty what="partie de Cricket" />;
@@ -143,10 +237,12 @@ function CricketView({ games, prevGames, pid }) {
         <Mini k="Temps de jeu" v={dur(a.duration.total)} />
       </div>
     </Card>
+    <FullTable sections={CRICKET_SECTIONS} cols={colsFor(a, b, all, period)} />
   </>);
 }
 
-function ShanghaiView({ games, prevGames, pid }) {
+function ShanghaiView({ games, prevGames, allGames, period, pid }) {
+  const all = useMemo(() => shanghaiAdvanced(allGames, pid), [allGames, pid]);
   const a = useMemo(() => shanghaiAdvanced(games, pid), [games, pid]);
   const b = useMemo(() => (prevGames ? shanghaiAdvanced(prevGames, pid) : null), [prevGames, pid]);
   if (!a.legs) return <Empty what="partie de Shanghai" />;
@@ -180,10 +276,12 @@ function ShanghaiView({ games, prevGames, pid }) {
         <Mini k="Temps de jeu" v={dur(a.duration.total)} />
       </div>
     </Card>
+    <FullTable sections={SHANGHAI_SECTIONS} cols={colsFor(a, b, all, period)} />
   </>);
 }
 
-function AtcView({ games, prevGames, pid }) {
+function AtcView({ games, prevGames, allGames, period, pid }) {
+  const all = useMemo(() => atcAdvanced(allGames, pid), [allGames, pid]);
   const a = useMemo(() => atcAdvanced(games, pid), [games, pid]);
   const b = useMemo(() => (prevGames ? atcAdvanced(prevGames, pid) : null), [prevGames, pid]);
   if (!a.legs) return <Empty what="partie d'Around the Clock" />;
@@ -200,6 +298,7 @@ function AtcView({ games, prevGames, pid }) {
       }))} />
       <div className="small muted">Les numéros les plus pâles sont ceux qui te coûtent le plus de fléchettes.</div>
     </Card>
+    <FullTable sections={ATC_SECTIONS} cols={colsFor(a, b, all, period)} />
   </>);
 }
 
@@ -218,6 +317,6 @@ export function Analysis({ games, pid }) {
       ))}
     </div>
     {prev && <div className="small muted" style={{ marginTop: -6 }}>Les flèches comparent avec les {PERIODS.find((p) => p[0] === period)[1]} d'avant.</div>}
-    <View games={cur} prevGames={prev} pid={pid} />
+    <View games={cur} prevGames={prev} allGames={games} period={period} pid={pid} />
   </>);
 }

@@ -1,6 +1,6 @@
 // Succès : calculés à partir de l'historique, dans l'ordre chronologique.
 // Chaque succès garde la date où il a été débloqué pour la première fois.
-import { replayed } from './stats.js';
+import { replayed, afterReset } from './stats.js';
 import { isTraining } from './modes.js';
 
 // tier : 1 bronze, 2 argent, 3 or, 4 platine
@@ -63,7 +63,7 @@ export function computeAchievements(games, pid) {
       if (cur >= max) out[a.id] = date;
     }
   };
-  const sorted = [...games].filter((g) => g.player_ids.includes(pid)).sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+  const sorted = [...afterReset(games, pid)].filter((g) => g.player_ids.includes(pid)).sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
   for (const g of sorted) {
     const legs = replayed(g);
     if (!legs.length) continue;
@@ -127,7 +127,7 @@ export function newlyUnlocked(before, after) {
 // Meilleur nombre de fléchettes pour gagner un leg X01, par score de départ
 export function bestLegDarts(games, pid, start, excludeGameId) {
   let best = null;
-  for (const g of games) {
+  for (const g of afterReset(games, pid)) {
     if (g.mode !== 'x01' || g.id === excludeGameId || Number(g.settings?.start) !== Number(start) || !g.player_ids.includes(pid)) continue;
     for (const { leg, r } of replayed(g)) {
       if (leg.ranking?.[0] !== pid || leg.order.length < 2) continue;

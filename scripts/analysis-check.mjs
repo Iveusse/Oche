@@ -4,6 +4,11 @@ const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromi
 const ctx = await browser.newContext({ viewport: { width: 393, height: 852 }, deviceScaleFactor: 2 });
 await ctx.route('**/rest/v1/rpc/**', (route) => {
   const fn = route.request().url().split('/rpc/')[1];
+  const body = JSON.parse(route.request().postData() || '{}');
+  if (fn === 'oche_reset_player') {
+    if (body.p_code !== 'x') return route.fulfill({ status: 400, contentType: 'application/json', body: JSON.stringify({ message: 'bad_code' }) });
+    return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(new Date().toISOString()) });
+  }
   const d = fn === 'oche_check' ? true : fn === 'oche_players' ? [{ id: 'p1', name: 'Yves', color: '#5fc8ff' }] : fn === 'oche_games' ? [] : null;
   return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(d) });
 });
@@ -25,6 +30,8 @@ await page.screenshot({ path: `${OUT}/dbg.png` }); await page.locator('[role=opt
 await page.screenshot({ path: `${OUT}/a0-resume.png`, fullPage: true });
 await page.getByRole('radio', { name: 'Analyse' }).click();
 await page.waitForTimeout(400);
+await page.getByRole('button', { name: /Voir les \d+ stats/ }).click();
+await page.waitForTimeout(200);
 await page.screenshot({ path: `${OUT}/a1-x01.png`, fullPage: true });
 for (const m of ['Cricket', 'Shanghai', 'ATC']) {
   await page.locator('.mode-tabs button', { hasText: m }).click();
@@ -37,5 +44,20 @@ await page.screenshot({ path: `${OUT}/a9-succes.png`, fullPage: true });
 await page.getByRole('button', { name: 'Classement' }).click();
 await page.waitForTimeout(300);
 await page.screenshot({ path: `${OUT}/a10-classement.png` });
+// remise à zéro (sur le Testeur de démo, via la vraie liste de joueurs : Yves)
+await page.getByRole('button', { name: 'Jouer' }).click();
+await page.getByRole('button', { name: 'Réglages' }).click();
+await page.getByRole('button', { name: 'Zone sensible' }).click();
+await page.getByLabel('Joueur à remettre à zéro').selectOption({ label: 'Yves' });
+await page.getByLabel('Code du groupe pour confirmer').fill('faux');
+await page.getByRole('button', { name: 'Remettre Yves à zéro' }).click();
+await page.getByText('Code incorrect.').waitFor();
+await page.screenshot({ path: `${OUT}/r1-reset-erreur.png` });
+await page.getByLabel('Joueur à remettre à zéro').selectOption({ label: 'Yves' });
+await page.getByLabel('Code du groupe pour confirmer').fill('x');
+await page.getByRole('button', { name: 'Remettre Yves à zéro' }).click();
+await page.getByText('repart de zéro').waitFor();
+await page.screenshot({ path: `${OUT}/r2-reset-ok.png` });
+console.log('reset OK');
 console.log('errors:', errs.length ? errs : 'none');
 await browser.close();

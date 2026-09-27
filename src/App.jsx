@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { addPlayer, fetchGames, fetchPlayers, flushPending, getCode, saveGame, setCode } from './lib/api.js';
+import { addPlayer, fetchGames, fetchPlayers, flushPending, getCode, resetPlayer, saveGame, setCode } from './lib/api.js';
 import { load, save, uuid, PLAYER_COLORS } from './lib/store.js';
 import { atcTargets, checkoutTargets, isTraining } from './engine/modes.js';
-import { lastPlayed } from './engine/stats.js';
+import { lastPlayed, setResets } from './engine/stats.js';
 import { TabBar } from './components/ui.jsx';
 import { CodeScreen, ProfileScreen } from './screens/Setup.jsx';
 import { NewGame } from './screens/NewGame.jsx';
@@ -81,6 +81,13 @@ export default function App() {
     return () => { window.removeEventListener('online', onBack); document.removeEventListener('visibilitychange', onBack); };
   }, [code, refresh]);
 
+  setResets(players);
+  const [statsKey, setStatsKey] = useState(0);
+  const onResetPlayer = async (code, pid) => {
+    const at = await resetPlayer(code, pid);
+    setPlayers((ps) => { const n = ps.map((p) => (p.id === pid ? { ...p, reset_at: at } : p)); save('cachePlayers', n); return n; });
+    setStatsKey((k) => k + 1);
+  };
   const me = players.find((p) => p.id === meId) || null;
   const played = useMemo(() => games.filter((g) => g.data?.legs?.some((l) => l.done)), [games]);
   const lastPlayedMap = useMemo(() => lastPlayed(played), [played]);
@@ -207,7 +214,7 @@ export default function App() {
       {tab === 'home' && (
         <Home me={me} players={players} games={played} current={current}
           onNew={() => setView('new')} onResume={() => setView('play')}
-          onProfile={() => setView('profile')} goRanking={() => setTab('ranking')} demo={demo} onDemo={setDemo} />
+          onProfile={() => setView('profile')} goRanking={() => setTab('ranking')} demo={demo} onDemo={setDemo} onResetPlayer={onResetPlayer} />
       )}
       {tab === 'training' && (
         <Training me={me} games={played} onStart={startTraining} onProfile={() => setView('profile')}
@@ -220,8 +227,8 @@ export default function App() {
           </div>
         </div>
       )}
-      {tab === 'stats' && <Stats me={me} players={statPlayers} games={statGames} />}
-      {tab === 'ranking' && <Ranking me={me} players={statPlayers} games={statGames} />}
+      {tab === 'stats' && <Stats key={`st${statsKey}`} me={me} players={statPlayers} games={statGames} />}
+      {tab === 'ranking' && <Ranking key={`rk${statsKey}`} me={me} players={statPlayers} games={statGames} />}
       <TabBar tab={tab} onTab={(t) => { setTab(t); window.scrollTo(0, 0); if (t !== 'home') refresh(); }} />
       {toast && <div className="toast" role="status">{toast}</div>}
     </>

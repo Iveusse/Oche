@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Avatar, Icon, Seg } from '../components/ui.jsx';
 import { Heatmap } from '../components/Dartboard.jsx';
 import { LineChart, MultiLineChart } from '../components/LineChart.jsx';
-import { playerStats, filterByPeriod, headToHead, trainingResult } from '../engine/stats.js';
+import { playerStats, filterByPeriod, headToHead, trainingResult, afterReset } from '../engine/stats.js';
 import { MODE_LABEL, isTraining } from '../engine/modes.js';
 import { gameWinner, legsWon } from '../engine/runner.js';
 import { fmt1, pct, shortDate } from '../lib/store.js';
@@ -30,14 +30,14 @@ function gameResult(g, byId) {
   return w ? `${byId[w]?.name} gagne` : 'égalité';
 }
 
-export function Home({ me, players, games, current, onNew, onResume, onProfile, goRanking, demo, onDemo }) {
+export function Home({ me, players, games, current, onNew, onResume, onProfile, goRanking, demo, onDemo, onResetPlayer }) {
   const byId = Object.fromEntries(players.map((p) => [p.id, p]));
   const recent = realGames(games).filter((g) => g.status === 'finished').slice(-4).reverse();
   const st = useMemo(() => (me ? playerStats(filterByPeriod(games, '30j'), me.id) : null), [games, me]);
   const [settings, setSettings] = useState(false);
   return (
     <div className="screen with-tabs">
-      {settings && <SettingsSheet onClose={() => setSettings(false)} onProfile={onProfile} demo={demo} onDemo={onDemo} />}
+      {settings && <SettingsSheet onClose={() => setSettings(false)} onProfile={onProfile} demo={demo} onDemo={onDemo} players={players} onResetPlayer={onResetPlayer} />}
       <div className="between">
         <div className="h1 grow" style={{ fontSize: 32 }}>Oche</div>
         <button className="icon-btn" aria-label="Réglages" onClick={() => setSettings(true)}><Icon.Gear /></button>
@@ -389,7 +389,7 @@ const DRILLS = [
 
 export function trainingRecords(games, pid) {
   const rec = {};
-  for (const g of games) {
+  for (const g of afterReset(games, pid)) {
     if (!isTraining(g.mode) || !g.player_ids.includes(pid)) continue;
     const r = trainingResult(g);
     if (!r || g.mode === 'train-free') continue;
@@ -404,7 +404,7 @@ export function Training({ me, games, onStart, onAtc, onProfile }) {
   const rec = useMemo(() => (me ? trainingRecords(games, me.id) : {}), [games, me]);
   const series = useMemo(() => {
     if (!me) return [];
-    return games.filter((g) => g.mode === chart && g.player_ids.includes(me.id))
+    return afterReset(games, me.id).filter((g) => g.mode === chart && g.player_ids.includes(me.id))
       .map((g) => ({ g, r: trainingResult(g) })).filter((x) => x.r)
       .map(({ g, r }) => ({ label: new Date(g.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }), value: r.value }));
   }, [games, me, chart]);

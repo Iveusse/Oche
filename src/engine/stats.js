@@ -4,6 +4,17 @@ import { isTraining } from './modes.js';
 
 const DAY = 86400000;
 
+// Remise à zéro de profil : on ignore, pour ce joueur, tout ce qui est avant sa date de reset.
+let RESETS = {};
+export function setResets(players) {
+  RESETS = {};
+  for (const p of players || []) if (p.reset_at) RESETS[p.id] = new Date(p.reset_at).getTime();
+}
+export function afterReset(games, ...pids) {
+  const since = Math.max(0, ...pids.map((id) => RESETS[id] || 0));
+  return since ? games.filter((g) => new Date(g.created_at).getTime() >= since) : games;
+}
+
 export function filterByPeriod(games, period) {
   const days = { '7j': 7, '30j': 30, '1an': 365 }[period];
   if (!days) return games;
@@ -33,7 +44,8 @@ export function emptyStats() {
   };
 }
 
-export function playerStats(games, pid) {
+export function playerStats(allGames, pid) {
+  const games = afterReset(allGames, pid);
   const s = emptyStats();
   for (const g of games) {
     if (!g.player_ids.includes(pid)) continue;
@@ -99,7 +111,8 @@ export function playerStats(games, pid) {
 }
 
 // Face à face : legs où les deux jouaient
-export function headToHead(games, a, b) {
+export function headToHead(allGames, a, b) {
+  const games = afterReset(allGames, a, b);
   const res = { a: 0, b: 0, legs: 0, games: [] };
   for (const g of games) {
     if (isTraining(g.mode) || !g.player_ids.includes(a) || !g.player_ids.includes(b)) continue;

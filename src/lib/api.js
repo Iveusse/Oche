@@ -54,3 +54,14 @@ export async function flushPending() {
   }
   return Object.keys(load('pending', {})).length;
 }
+
+// Remise à zéro d'un profil : le code est ressaisi pour confirmer
+export async function resetPlayer(code, playerId) {
+  const { data, error } = await sb.rpc('oche_reset_player', { p_code: code, p_player: playerId });
+  if (error) {
+    if (/bad_code/.test(error.message)) throw new Error('Code incorrect.');
+    if (/oche_reset_player|function/i.test(error.message)) throw new Error("La base n'est pas à jour : lance le fichier supabase/002_reset_profil.sql dans Supabase.");
+    throw new Error("Impossible de joindre le serveur.");
+  }
+  return data;
+}

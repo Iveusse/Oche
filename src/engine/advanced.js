@@ -1,5 +1,5 @@
 // Stats avancées par mode, calculées à partir des legs rejoués.
-import { replayed } from './stats.js';
+import { replayed, afterReset } from './stats.js';
 import { CRICKET_NUMS, shanghaiNumbers } from './modes.js';
 import { oneDartFinish } from '../lib/board.js';
 
@@ -23,7 +23,7 @@ export function periodFilter(games, key) {
 }
 
 function forEachLeg(games, pid, mode, fn) {
-  for (const g of games) {
+  for (const g of afterReset(games, pid)) {
     if (g.mode !== mode || !g.player_ids.includes(pid)) continue;
     for (const { leg, r } of replayed(g)) {
       const idx = leg.order.indexOf(pid);
@@ -35,7 +35,7 @@ function forEachLeg(games, pid, mode, fn) {
 
 function duration(games, pid, mode) {
   let total = 0; let n = 0;
-  for (const g of games) {
+  for (const g of afterReset(games, pid)) {
     if (g.mode !== mode || !g.player_ids.includes(pid)) continue;
     const ends = g.data.legs.map((l) => l.finishedAt).filter(Boolean).sort();
     if (!ends.length) continue;
@@ -50,13 +50,18 @@ export const TURN_BUCKETS = [
   ['100+', 100, 119], ['120+', 120, 139], ['140+', 140, 159], ['160+', 160, 179], ['180', 180, 180],
 ];
 
+export const ALT_BUCKETS = [
+  ['Aucun point', 0, 0], ['1-29', 1, 29], ['30+', 30, 49], ['50+', 50, 69], ['70+', 70, 89], ['90+', 90, 109],
+  ['110+', 110, 129], ['130+', 130, 159], ['160+', 160, 179], ['180', 180, 180],
+];
+
 export function x01Advanced(games, pid, start = 'all') {
   const gs = start === 'all' ? games : games.filter((g) => String(g.settings?.start) === String(start));
   const s = {
     legs: 0, won: 0, darts: 0, pts: 0, byOut: { single: [0, 0], double: [0, 0], master: [0, 0] },
     first: { 9: [0, 0], 12: [0, 0], 15: [0, 0] }, until: { 100: [0, 0], 170: [0, 0] },
     wonDarts: 0, co: [], coAtt: 0, coHit: 0, dblAtt: 0, dblHit: 0,
-    bestLeg: null, bestLegAvg: null, high: 0, buckets: TURN_BUCKETS.map(() => 0), turns: 0,
+    bestLeg: null, bestLegAvg: null, high: 0, buckets: TURN_BUCKETS.map(() => 0), alt: ALT_BUCKETS.map(() => 0), turns: 0,
     round: Array.from({ length: 10 }, () => [0, 0]), remAfter: { 3: [0, 0], 6: [0, 0], 9: [0, 0], 12: [0, 0], 15: [0, 0] },
   };
   forEachLeg(gs, pid, 'x01', ({ g, leg, turns }) => {
@@ -80,6 +85,8 @@ export function x01Advanced(games, pid, start = 'all') {
         s.turns += 1;
         const bi = TURN_BUCKETS.findIndex(([, lo, hi]) => pts >= lo && pts <= hi);
         if (bi >= 0) s.buckets[bi] += 1;
+        const ai = ALT_BUCKETS.findIndex(([, lo, hi]) => pts >= lo && pts <= hi);
+        if (ai >= 0) s.alt[ai] += 1;
       }
       s.high = Math.max(s.high, pts);
       if (t.finished) s.co.push(remStart);
@@ -127,10 +134,14 @@ export function cricketAdvanced(games, pid) {
   const s = {
     legs: 0, won: 0, darts: 0, turns: 0, marks: 0, t: 0, d: 0, sgl: 0, miss: 0,
     pts: 0, maxPts: 0, m9: 0, m7: 0, m5: 0, perNum: Object.fromEntries(CRICKET_NUMS.map((n) => [n, 0])),
+    hitsNum: Object.fromEntries(CRICKET_NUMS.map((n) => [n, 0])), maxT: 0, maxD: 0, maxS: 0,
   };
   forEachLeg(games, pid, 'cricket', ({ leg, r, idx, turns }) => {
     s.legs += 1; if (leg.ranking?.[0] === pid) s.won += 1;
     const p = r.ps[idx].pts; s.pts += p; s.maxPts = Math.max(s.maxPts, p);
+    let lt = 0; let ld = 0; let ls = 0;
+    for (const t of turns) for (const d of t.darts) if (d.marks) { if (d.mult === 3) lt += 1; else if (d.mult === 2) ld += 1; else ls += 1; }
+    s.maxT = Math.max(s.maxT, lt); s.maxD = Math.max(s.maxD, ld); s.maxS = Math.max(s.maxS, ls);
     for (const t of turns) {
       s.turns += 1;
       const m = t.darts.reduce((a, d) => a + (d.marks || 0), 0);
@@ -141,6 +152,7 @@ export function cricketAdvanced(games, pid) {
         if (!d.marks) { s.miss += 1; continue; }
         if (d.mult === 3) s.t += 1; else if (d.mult === 2) s.d += 1; else s.sgl += 1;
         s.perNum[d.seg] += d.marks;
+        s.hitsNum[d.seg] += 1;
       }
     }
   });
@@ -155,7 +167,7 @@ export function cricketAdvanced(games, pid) {
 export function shanghaiAdvanced(games, pid) {
   const s = {
     legs: 0, won: 0, shanghais: 0, pts: 0, best7: null, best20: null, darts: 0, t: 0, d: 0, sgl: 0, miss: 0,
-    num: Object.fromEntries(Array.from({ length: 20 }, (_, i) => [i + 1, { darts: 0, hits: 0, pts: 0, turns: 0 }])),
+    num: Object.fromEntries(Array.from({ length: 20 }, (_, i) => [i + 1, { darts: 0, hits: 0, pts: 0, turns: 0, sh: 0 }])),
   };
   forEachLeg(games, pid, 'shanghai', ({ g, leg, r, idx, turns }) => {
     s.legs += 1; if (leg.ranking?.[0] === pid) s.won += 1;
@@ -169,7 +181,7 @@ export function shanghaiAdvanced(games, pid) {
       if (cell) cell.turns += 1;
       for (const d of t.darts) {
         s.darts += 1;
-        if (d.shanghai) s.shanghais += 1;
+        if (d.shanghai) { s.shanghais += 1; if (cell) cell.sh += 1; }
         if (cell) { cell.darts += 1; cell.pts += d.pts || 0; }
         if (!d.hit) { s.miss += 1; continue; }
         if (cell) cell.hits += 1;

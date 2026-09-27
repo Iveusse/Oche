@@ -339,3 +339,14 @@ button, a, [role="button"] { touch-action: manipulation; }
 .celebrate .t { font-weight: 800; }
 @keyframes pop { 0% { transform: scale(.9); opacity: 0; } 70% { transform: scale(1.03); } 100% { transform: scale(1); opacity: 1; } }
 .demo-banner { background: color-mix(in srgb, var(--sky) 16%, var(--panel)); border: 1px solid var(--sky); color: var(--text); border-radius: 12px; padding: 8px 12px; font-size: 13px; }
+
+.ftable { display: flex; flex-direction: column; font-size: 13px; }
+.frow { display: grid; grid-template-columns: minmax(0, 1.5fr) repeat(var(--cols), minmax(0, 1fr)); gap: 6px; padding: 6px 0; border-bottom: 1px solid var(--line); align-items: center; }
+.frow > span:not(.fl) { text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.frow .fl { color: var(--text-2); }
+.fhead { position: sticky; top: 0; background: var(--panel); z-index: 1; border-bottom: 2px solid var(--wire); }
+.fhead > span { color: var(--muted) !important; font-size: 11px; text-transform: uppercase; letter-spacing: .5px; }
+.fsec { margin-top: 12px; padding: 6px 10px; border-radius: 8px; background: var(--card); font-weight: 800; font-size: 13px; }
+
+.frow .two { display: inline-flex; flex-direction: column; align-items: flex-end; line-height: 1.15; }
+.frow .two small { font-size: 11px; font-weight: 600; color: var(--muted); }
