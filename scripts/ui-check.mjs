@@ -207,6 +207,21 @@ await shot('19-train-checkout');
 await tapZone(20, 1);
 await shot('19b-train-checkout-apres-1');
 
+// reprise après perte du stockage local (réinstallation)
+await page.getByRole('button', { name: 'Retour' }).click();
+await page.getByRole('button', { name: 'Jouer' }).click();
+await page.getByText('Nouvelle partie').first().click();
+await page.getByRole('button', { name: /^X01/ }).click();
+await page.getByRole('button', { name: 'Lancer la partie' }).click();
+await tapZone(20, 1); await tapZone(20, 1); await tapZone(20, 1);
+await valider();
+await page.evaluate(() => { localStorage.removeItem('oche.current'); localStorage.removeItem('oche.cacheGames'); });
+await page.reload();
+await page.getByText('Partie en cours').waitFor({ timeout: 5000 });
+await page.getByText('Reprendre').click();
+await page.waitForTimeout(300);
+await shot('20-reprise');
+console.log('reprise OK, score affiché :', await page.locator('.score-card .v').first().textContent());
 console.log('saved games:', games.length, 'players:', players.length);
 console.log('ERRORS:', errors.length ? errors.join('\n') : 'none');
 await browser.close();

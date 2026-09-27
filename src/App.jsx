@@ -47,6 +47,14 @@ export default function App() {
       let merged = gs;
       for (const g of pending) merged = upsert(merged, g);
       setGames(merged); save('cacheGames', merged);
+      // partie en cours perdue sur ce téléphone (réinstallation, autre appareil) : on la récupère du serveur
+      if (!load('current', null)) {
+        const week = Date.now() - 7 * 86400000;
+        const live = merged
+          .filter((g) => g.status === 'in_progress' && new Date(g.updated_at || g.created_at).getTime() > week)
+          .sort((a, b) => new Date(b.updated_at || b.created_at) - new Date(a.updated_at || a.created_at))[0];
+        if (live) { setCurrent(live); save('current', live); }
+      }
       if (left) flash('Hors ligne : sauvegarde en attente');
     } catch (e) {
       if (e.badCode) logout();
@@ -57,10 +65,22 @@ export default function App() {
   useEffect(() => { if (code) refresh(); }, [code, refresh]);
 
   const me = players.find((p) => p.id === meId) || null;
-  const lastPlayedMap = useMemo(() => lastPlayed(games), [games]);
-  const records = useMemo(() => (me ? trainingRecords(games, me.id) : {}), [games, me]);
+  const played = useMemo(() => games.filter((g) => g.data?.legs?.some((l) => l.done)), [games]);
+  const lastPlayedMap = useMemo(() => lastPlayed(played), [played]);
+  const records = useMemo(() => (me ? trainingRecords(played, me.id) : {}), [played, me]);
 
   const setCur = (g) => { setCurrent(g); save('current', g); };
+
+  // Chaque tour validé part aussi sur le serveur : la partie en cours survit à une réinstallation
+  // et peut être reprise depuis un autre téléphone.
+  const updateGame = (g) => {
+    const prev = current;
+    setCur(g);
+    const lp = prev?.data.legs; const lg = g.data.legs;
+    const validatedChanged = !lp || lp.length !== lg.length || (lp[lp.length - 1].validated || 0) !== (lg[lg.length - 1].validated || 0)
+      || lp[lp.length - 1].continueForPlaces !== lg[lg.length - 1].continueForPlaces;
+    if (validatedChanged) persist({ ...g, updated_at: new Date().toISOString() });
+  };
 
   const persist = async (g) => {
     setGames((gs) => { const n = upsert(gs, g); save('cacheGames', n); return n; });
@@ -90,6 +110,7 @@ export default function App() {
       status: 'in_progress', data: { legs: [newLeg(mode, settings, playerIds)], legsToWin },
     };
     setCur(g);
+    persist(g);
     setView('play');
   };
 
@@ -112,7 +133,7 @@ export default function App() {
     const last = legs[legs.length - 1];
     let final = null;
     if (opts.stopTraining) {
-      if (!last.darts.length) { setCur(null); setView('tabs'); setTab('training'); return; }
+      if (!last.darts.length) { persist({ ...g, status: 'finished', data: { ...g.data, legs: [] } }); setCur(null); setView('tabs'); setTab('training'); return; }
       final = { ...g, status: 'finished', data: { ...g.data, legs: [{ ...last, done: true, ranking: last.order }] } };
       setCur(final); persist(final);
       return; // l'écran de fin d'entraînement s'affiche
@@ -123,7 +144,8 @@ export default function App() {
     } else {
       final = { ...g, status: 'finished', data: { ...g.data, legs: legs.filter((l) => l.done) } };
     }
-    if (final) persist(final);
+    // rien de joué : on clôt quand même la partie côté serveur pour qu'elle ne revienne pas
+    persist(final || { ...g, status: 'finished', data: { ...g.data, legs: [] } });
     setCur(null);
     if (opts.silent) return;
     if (opts.replay) { begin({ mode: g.mode, settings: g.settings, playerIds: g.player_ids, legsToWin: g.data.legsToWin }, true); return; }
@@ -155,7 +177,7 @@ export default function App() {
     return (
       <Play
         game={current} players={players} records={records}
-        onUpdate={setCur} onLegDone={onLegDone} onEnd={endGame}
+        onUpdate={updateGame} onLegDone={onLegDone} onEnd={endGame}
         onExit={() => { setView('tabs'); setTab('home'); }}
       />
     );
@@ -164,16 +186,16 @@ export default function App() {
   return (
     <>
       {tab === 'home' && (
-        <Home me={me} players={players} games={games} current={current}
+        <Home me={me} players={players} games={played} current={current}
           onNew={() => setView('new')} onResume={() => setView('play')}
           onProfile={() => setView('profile')} goRanking={() => setTab('ranking')} />
       )}
       {tab === 'training' && (
-        <Training me={me} games={games} onStart={startTraining} onProfile={() => setView('profile')}
+        <Training me={me} games={played} onStart={startTraining} onProfile={() => setView('profile')}
           onAtc={() => begin({ mode: 'atc', settings: { zones: ['S', 'D', 'T'], order: 'asc', bull: false, skip: false, ...(load('lastSetup', null)?.settings?.atc || {}) }, playerIds: [me.id] })} />
       )}
-      {tab === 'stats' && <Stats me={me} players={players} games={games} />}
-      {tab === 'ranking' && <Ranking me={me} players={players} games={games} />}
+      {tab === 'stats' && <Stats me={me} players={players} games={played} />}
+      {tab === 'ranking' && <Ranking me={me} players={players} games={played} />}
       <TabBar tab={tab} onTab={(t) => { setTab(t); window.scrollTo(0, 0); if (t !== 'home') refresh(); }} />
       {toast && <div className="toast" role="status">{toast}</div>}
     </>
