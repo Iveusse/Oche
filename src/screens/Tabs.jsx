@@ -7,6 +7,7 @@ import { MODE_LABEL, isTraining } from '../engine/modes.js';
 import { gameWinner, legsWon } from '../engine/runner.js';
 import { fmt1, pct, shortDate } from '../lib/store.js';
 import { modeSubtitle, modeTitle } from './Play.jsx';
+import { SettingsSheet } from './Settings.jsx';
 
 const realGames = (games) => games.filter((g) => !isTraining(g.mode));
 
@@ -31,10 +32,13 @@ export function Home({ me, players, games, current, onNew, onResume, onProfile, 
   const byId = Object.fromEntries(players.map((p) => [p.id, p]));
   const recent = realGames(games).filter((g) => g.status === 'finished').slice(-4).reverse();
   const st = useMemo(() => (me ? playerStats(filterByPeriod(games, '30j'), me.id) : null), [games, me]);
+  const [settings, setSettings] = useState(false);
   return (
     <div className="screen with-tabs">
+      {settings && <SettingsSheet onClose={() => setSettings(false)} onProfile={onProfile} />}
       <div className="between">
-        <div className="h1" style={{ fontSize: 32 }}>Oche</div>
+        <div className="h1 grow" style={{ fontSize: 32 }}>Oche</div>
+        <button className="icon-btn" aria-label="Réglages" onClick={() => setSettings(true)}><Icon.Gear /></button>
         <button onClick={onProfile} className="row" aria-label="Changer de profil"
           style={{ height: 44, padding: '0 12px 0 6px', borderRadius: 22, background: 'var(--card)', border: '1px solid var(--wire)', fontWeight: 700, gap: 8 }}>
           {me ? <Avatar player={me} /> : <span className="avatar" style={{ background: 'var(--wire)' }}>?</span>}
@@ -137,7 +141,7 @@ export function Stats({ me, players, games }) {
             {player.name}<Icon.Chevron />
           </button>
           {pickOpen && (
-            <div role="listbox" style={{ position: 'absolute', right: 0, top: 46, zIndex: 5, background: 'var(--card-2)', borderRadius: 12, padding: 6, minWidth: 160, maxHeight: 320, overflow: 'auto', boxShadow: '0 10px 30px rgba(0,0,0,.5)' }}>
+            <div role="listbox" style={{ position: 'absolute', right: 0, top: 46, zIndex: 5, background: 'var(--card-2)', borderRadius: 12, padding: 6, minWidth: 160, maxHeight: 320, overflow: 'auto', boxShadow: '0 10px 30px rgba(0,0,0,.35)' }}>
               {players.map((p) => (
                 <button key={p.id} role="option" aria-selected={p.id === pid} onClick={() => { setPid(p.id); setPickOpen(false); }} style={{ display: 'block', width: '100%', textAlign: 'left', padding: '10px 12px', borderRadius: 8, fontWeight: p.id === pid ? 800 : 500, color: p.id === pid ? 'var(--accent)' : 'var(--text)' }}>{p.name}</button>
               ))}
@@ -223,8 +227,8 @@ function StatsCompare({ a, b, games }) {
   const h2h = useMemo(() => headToHead(realGames(games), a.id, b.id), [games, a.id, b.id]);
   const CA = 'var(--accent)'; const CB = 'var(--sky)';
   const series = [
-    { name: a.name, color: '#c8f031', points: sa.series.map((p) => ({ t: new Date(p.date).getTime(), value: p.avg })) },
-    { name: b.name, color: '#5fc8ff', points: sb.series.map((p) => ({ t: new Date(p.date).getTime(), value: p.avg })) },
+    { name: a.name, color: 'var(--accent)', points: sa.series.map((p) => ({ t: new Date(p.date).getTime(), value: p.avg })) },
+    { name: b.name, color: 'var(--sky)', points: sb.series.map((p) => ({ t: new Date(p.date).getTime(), value: p.avg })) },
   ];
   return (<>
     <div className="panel">
@@ -341,7 +345,7 @@ export function Ranking({ players, games, me }) {
             </div>
             <div className="row" style={{ height: 10, borderRadius: 5, overflow: 'hidden', gap: 0 }}>
               <div style={{ width: `${(h2h.a / h2h.legs) * 100}%`, height: 10, background: 'var(--accent)' }} />
-              <div style={{ flex: 1, height: 10, background: '#4a5872' }} />
+              <div style={{ flex: 1, height: 10, background: 'var(--wire)' }} />
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0,1fr))', gap: 6, fontSize: 13 }}>
               <b>{fmt1(h2h.statsA.avg)}</b><span className="muted" style={{ textAlign: 'center' }}>Moyenne</span><b style={{ textAlign: 'right' }}>{fmt1(h2h.statsB.avg)}</b>

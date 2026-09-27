@@ -1,4 +1,4 @@
-:root {
+:root, [data-theme="neon"] {
   --bg: #0d1320;
   --panel: #151d2e;
   --card: #1a2438;
@@ -180,7 +180,7 @@ a { color: var(--accent); }
 .board-wrap svg { width: 100%; height: 100%; display: block; }
 .loupe {
   position: absolute; width: 150px; height: 150px; border-radius: 50%; overflow: hidden;
-  border: 4px solid var(--text); box-shadow: 0 10px 30px rgba(0,0,0,.6); pointer-events: none; background: #111827; z-index: 5;
+  border: 4px solid var(--text); box-shadow: 0 10px 30px rgba(0,0,0,.6); pointer-events: none; background: var(--b-miss); z-index: 5;
 }
 .loupe-label {
   position: absolute; transform: translateX(-50%); background: var(--accent); color: var(--on-accent);
@@ -221,3 +221,48 @@ button, a, [role="button"] { touch-action: manipulation; }
 .checkout-bar .chip { font-size: 16px; font-weight: 800; padding: 3px 10px; border-radius: 8px; background: var(--card); color: var(--text); }
 .checkout-bar .chip.next { background: var(--accent); color: var(--on-accent); }
 .checkout-bar .chip.done { background: transparent; color: var(--muted); text-decoration: line-through; font-weight: 600; }
+
+/* ---------- Thèmes de l'appli (data-theme sur <html> ou sur un aperçu) ---------- */
+:root, [data-theme="neon"] { --heat-blend: screen; --b-miss: #111827; }
+[data-theme="club"] {
+  --bg: #0f0f11; --panel: #18181c; --card: #212127; --card-2: #2e2e36; --line: #2a2a31; --wire: #44444f; --tab: #0a0a0c;
+  --text: #f4f4f6; --text-2: #c4c4cc; --muted: #9a9aa6; --accent: #ff4d4d; --accent-hover: #ff7070; --on-accent: #1d0404;
+  --accent-bg: #2c1515; --sky: #ffd166; --good: #6ee7b7; --bad: #ff9b8f; --b-miss: #141417; --heat-blend: screen; color-scheme: dark;
+}
+[data-theme="ocean"] {
+  --bg: #061a1e; --panel: #0b252b; --card: #0f2f36; --card-2: #174049; --line: #16393f; --wire: #2a5660; --tab: #041215;
+  --text: #e8f7f6; --text-2: #b3d6d3; --muted: #83aaa6; --accent: #2ee6c5; --accent-hover: #6ff0d9; --on-accent: #02201b;
+  --accent-bg: #0c3a36; --sky: #ffb454; --good: #7ef0b0; --bad: #ff9a85; --b-miss: #08222a; --heat-blend: screen; color-scheme: dark;
+}
+[data-theme="violet"] {
+  --bg: #130e22; --panel: #1c152f; --card: #241b3b; --card-2: #33284f; --line: #2d2446; --wire: #4a3d6e; --tab: #0d091a;
+  --text: #f3effc; --text-2: #cbc2e6; --muted: #9d92bf; --accent: #ff5fa2; --accent-hover: #ff86ba; --on-accent: #2a0414;
+  --accent-bg: #36163a; --sky: #8ec5ff; --good: #7ee8b5; --bad: #ff9b8a; --b-miss: #181129; --heat-blend: screen; color-scheme: dark;
+}
+[data-theme="clair"] {
+  --bg: #eef1f6; --panel: #ffffff; --card: #ffffff; --card-2: #e4e9f1; --line: #e1e6ee; --wire: #c3ccda; --tab: #ffffff;
+  --text: #111827; --text-2: #364152; --muted: #5d6879; --accent: #2457d6; --accent-hover: #1c47b3; --on-accent: #ffffff;
+  --accent-bg: #e2eaff; --sky: #0e7490; --good: #15803d; --bad: #c2410c; --b-miss: #dde3ec; --heat-blend: multiply; color-scheme: light;
+}
+[data-theme] { background: var(--bg); color: var(--text); }
+
+/* ---------- Thèmes de la cible (data-board) ---------- */
+:root, [data-board="classique"] {
+  --b-dark: #0b0f16; --b-light: #eef2f8; --b-ring1: #d8433b; --b-ring2: #1f9a67; --b-bull-o: #1f9a67; --b-bull-i: #d8433b; --b-wire: #34435f;
+}
+[data-board="bois"] {
+  --b-dark: #24170d; --b-light: #ecd7ad; --b-ring1: #b8322a; --b-ring2: #2f6b3a; --b-bull-o: #2f6b3a; --b-bull-i: #b8322a; --b-wire: #6b5236;
+}
+[data-board="electro"] {
+  --b-dark: #16161a; --b-light: #eaeaee; --b-ring1: #e03131; --b-ring2: #2f6fe8; --b-bull-o: #2f6fe8; --b-bull-i: #e03131; --b-wire: #3c3c46;
+}
+[data-board="daltonien"] {
+  --b-dark: #0b0f16; --b-light: #eef2f8; --b-ring1: #f28e2b; --b-ring2: #3f6fb0; --b-bull-o: #3f6fb0; --b-bull-i: #f28e2b; --b-wire: #34435f;
+}
+[data-board="mono"] {
+  --b-dark: #1c2230; --b-light: #4a5468; --b-ring1: var(--accent); --b-ring2: #9aa6ba; --b-bull-o: #9aa6ba; --b-bull-i: var(--accent); --b-wire: #0b0f16;
+}
+
+.theme-swatch { border-radius: 14px; padding: 10px; border: 2px solid transparent; display: flex; flex-direction: column; gap: 6px; align-items: center; }
+.theme-swatch.on { border-color: var(--accent); }
+.sheet > * { flex-shrink: 0; }

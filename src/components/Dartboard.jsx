@@ -13,13 +13,13 @@ function sector(r0, r1, a0, a1) {
 }
 
 const PALETTE = {
-  color: { dark: 'var(--board-dark)', light: 'var(--board-light)', red: 'var(--red)', green: 'var(--green)', bullO: 'var(--green)', bullI: 'var(--red)' },
-  grey: { dark: '#1b2436', light: '#222d42', red: '#2f3b52', green: '#253047', bullO: '#2f3b52', bullI: '#3a4760' },
+  color: { dark: 'var(--b-dark)', light: 'var(--b-light)', red: 'var(--b-ring1)', green: 'var(--b-ring2)', bullO: 'var(--b-bull-o)', bullI: 'var(--b-bull-i)', wire: 'var(--b-wire)' },
+  grey: { dark: 'var(--card)', light: 'var(--card-2)', red: 'var(--wire)', green: 'var(--line)', bullO: 'var(--wire)', bullI: 'var(--muted)', wire: 'var(--line)' },
 };
 
 export const BoardShapes = memo(function BoardShapes({ variant = 'color', numbers = true }) {
   const c = PALETTE[variant];
-  const wire = '#34435f';
+  const wire = c.wire;
   const segs = ORDER.map((n, i) => {
     const a0 = i * 18 - 9; const a1 = a0 + 18;
     const even = i % 2 === 0;
@@ -36,7 +36,7 @@ export const BoardShapes = memo(function BoardShapes({ variant = 'color', number
   });
   return (
     <g>
-      <circle r={R.miss - 0.006} fill="#111827" stroke={wire} strokeWidth="0.012" strokeDasharray="0.035 0.03" />
+      <circle r={R.miss - 0.006} fill="var(--b-miss)" stroke={wire} strokeWidth="0.012" strokeDasharray="0.035 0.03" />
       {segs}
       <circle r={R.outerBull} fill={c.bullO} stroke={wire} strokeWidth="0.004" />
       <circle r={R.innerBull} fill={c.bullI} stroke={wire} strokeWidth="0.004" />
@@ -100,10 +100,10 @@ export function Dartboard({ onHit, disabled, markers = [] }) {
         <BoardShapes />
         {markers.map((m, i) => (
           <g key={i}>
-            <circle cx={m.x} cy={m.y} r="0.035" fill="var(--accent)" stroke="#0d1320" strokeWidth="0.015" />
+            <circle cx={m.x} cy={m.y} r="0.035" fill="var(--accent)" stroke="var(--bg)" strokeWidth="0.015" />
           </g>
         ))}
-        {touch && <circle cx={touch.bx} cy={touch.by} r="0.09" fill="rgba(238,242,248,.2)" stroke="rgba(238,242,248,.7)" strokeWidth="0.01" />}
+        {touch && <circle cx={touch.bx} cy={touch.by} r="0.09" fill="var(--text)" fillOpacity="0.2" stroke="var(--text)" strokeOpacity="0.7" strokeWidth="0.01" />}
       </svg>
       {touch && (
         <>
@@ -111,10 +111,10 @@ export function Dartboard({ onHit, disabled, markers = [] }) {
             <svg viewBox={`${touch.bx - span / 2} ${touch.by - span / 2} ${span} ${span}`} width={LS - 8} height={LS - 8}>
               <BoardShapes numbers={false} />
               <circle cx={touch.bx} cy={touch.by} r="0.012" fill="none" stroke="var(--accent)" strokeWidth="0.005" />
-              <line x1={touch.bx} y1={touch.by - span} x2={touch.bx} y2={touch.by - 0.015} stroke="rgba(200,240,49,.6)" strokeWidth="0.002" />
-              <line x1={touch.bx} y1={touch.by + 0.015} x2={touch.bx} y2={touch.by + span} stroke="rgba(200,240,49,.6)" strokeWidth="0.002" />
-              <line x1={touch.bx - span} y1={touch.by} x2={touch.bx - 0.015} y2={touch.by} stroke="rgba(200,240,49,.6)" strokeWidth="0.002" />
-              <line x1={touch.bx + 0.015} y1={touch.by} x2={touch.bx + span} y2={touch.by} stroke="rgba(200,240,49,.6)" strokeWidth="0.002" />
+              <line x1={touch.bx} y1={touch.by - span} x2={touch.bx} y2={touch.by - 0.015} stroke="var(--accent)" strokeOpacity="0.6" strokeWidth="0.002" />
+              <line x1={touch.bx} y1={touch.by + 0.015} x2={touch.bx} y2={touch.by + span} stroke="var(--accent)" strokeOpacity="0.6" strokeWidth="0.002" />
+              <line x1={touch.bx - span} y1={touch.by} x2={touch.bx - 0.015} y2={touch.by} stroke="var(--accent)" strokeOpacity="0.6" strokeWidth="0.002" />
+              <line x1={touch.bx + 0.015} y1={touch.by} x2={touch.bx + span} y2={touch.by} stroke="var(--accent)" strokeOpacity="0.6" strokeWidth="0.002" />
             </svg>
           </div>
           <div className="loupe-label" style={{ left: lx, top: ly + LS / 2 + 6 }}>
@@ -130,9 +130,9 @@ export function Heatmap({ points }) {
   return (
     <svg viewBox={VB} style={{ width: '100%', maxWidth: 300, alignSelf: 'center', display: 'block' }} aria-label="Heatmap des fléchettes">
       <BoardShapes variant="grey" numbers={false} />
-      <g style={{ mixBlendMode: 'screen' }}>
+      <g style={{ mixBlendMode: 'var(--heat-blend)' }}>
         {points.map((p, i) => (
-          <circle key={i} cx={p.x} cy={p.y} r="0.045" fill="rgb(200,240,49)" opacity={Math.max(0.08, Math.min(0.5, 12 / Math.max(points.length, 1)))} />
+          <circle key={i} cx={p.x} cy={p.y} r="0.045" fill="var(--accent)" opacity={Math.max(0.08, Math.min(0.5, 12 / Math.max(points.length, 1)))} />
         ))}
       </g>
     </svg>
