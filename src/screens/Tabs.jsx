@@ -1,3 +1,4 @@
+import { GameDetail } from './GameDetail.jsx';
 import { coachAdvice } from '../engine/coach.js';
 import { RecapSheet } from './Recap.jsx';
 import { lastSession } from '../lib/recap.js';
@@ -39,6 +40,7 @@ export function Home({ me, players, games, current, team, onTeams, onNew, onResu
   const st = useMemo(() => (me ? playerStats(filterByPeriod(games, '30j'), me.id) : null), [games, me]);
   const [settings, setSettings] = useState(false);
   const [recapOpen, setRecapOpen] = useState(false);
+  const [detail, setDetail] = useState(null);
   const session = useMemo(() => lastSession(games), [games]);
   const showRecap = session && Date.now() - session.end < 48 * 3600000;
   return (
@@ -76,6 +78,7 @@ export function Home({ me, players, games, current, team, onTeams, onNew, onResu
         </button>
       )}
 
+      {detail && <GameDetail game={detail} players={players} onClose={() => setDetail(null)} />}
       {recapOpen && <RecapSheet games={games} players={players} onClose={() => setRecapOpen(false)} />}
       {showRecap && !current && (
         <button onClick={() => setRecapOpen(true)} className="card between recap-card" style={{ textAlign: 'left', padding: 16 }}>
@@ -112,13 +115,14 @@ export function Home({ me, players, games, current, team, onTeams, onNew, onResu
         {recent.map((g) => {
           const place = me && g.player_ids.includes(me.id) ? rankOf(g, me.id) : null;
           return (
-            <div key={g.id} className="list-item">
+            <button key={g.id} className="list-item" onClick={() => setDetail(g)}>
               <div className="grow">
                 <div style={{ fontSize: 14, fontWeight: 600 }}>{gameLine(g, byId)}</div>
                 <div className="small muted">{shortDate(g.created_at)} · {gameResult(g, byId)}</div>
               </div>
               {place && <span style={{ fontSize: 12, fontWeight: 700, color: place === 1 ? 'var(--accent)' : 'var(--muted)' }}>{place === 1 ? '1er' : `${place}e`}</span>}
-            </div>
+              <Icon.Right style={{ color: 'var(--muted)' }} />
+            </button>
           );
         })}
       </div>
@@ -323,13 +327,24 @@ function StatsCompare({ a, b, games }) {
 // ---------------- Classement ----------------
 
 export function Ranking({ players, games, me }) {
-  const [sortBy, setSortBy] = useState('avg');
+  const [sortBy, setSortBy] = useState('win');
+  const [period, setPeriod] = useState('all');
+  const [detail, setDetail] = useState(null);
   const byId = Object.fromEntries(players.map((p) => [p.id, p]));
-  const real = realGames(games);
-  const rows = useMemo(() => players.map((p) => ({ p, s: playerStats(real, p.id) })).filter((x) => x.s.legsPlayed > 0), [players, games]); // eslint-disable-line
-  const key = { avg: (s) => s.avg ?? -1, win: (s) => s.winRate ?? -1, co: (s) => s.checkout ?? -1, mpr: (s) => s.mpr ?? -1 }[sortBy];
-  const sorted = [...rows].sort((a, b) => key(b.s) - key(a.s));
-  const val = (s) => ({ avg: fmt1(s.avg), win: pct(s.winRate), co: pct(s.checkout), mpr: s.mpr == null ? '-' : s.mpr.toFixed(2) }[sortBy]);
+  const allReal = realGames(games);
+  const session = useMemo(() => lastSession(games), [games]);
+  const real = useMemo(() => {
+    if (period === 'session') return session ? session.games : [];
+    if (period === '30') return allReal.filter((g) => Date.now() - new Date(g.created_at).getTime() < 30 * 86400000);
+    return allReal;
+  }, [period, games, session]); // eslint-disable-line
+  const rows = useMemo(() => players.map((p) => ({ p, s: playerStats(real, p.id) })).filter((x) => x.s.legsPlayed > 0), [players, real]);
+  // assez de données pour que le chiffre veuille dire quelque chose ? sinon en bas du classement
+  const enough = { avg: (s) => s.x01Darts >= 30, win: () => true, co: (s) => s.coAttempts >= 10, mpr: (s) => s.cricketTurns >= 8 }[sortBy];
+  const key = { avg: (s) => s.avg ?? -1, win: (s) => s.legsWon * 1000 + (s.winRate ?? 0), co: (s) => s.checkout ?? -1, mpr: (s) => s.mpr ?? -1 }[sortBy];
+  const sorted = [...rows].sort((a, b) => (enough(b.s) - enough(a.s)) || key(b.s) - key(a.s));
+  const val = (s) => ({ avg: fmt1(s.avg), win: `${s.legsWon}/${s.legsPlayed}`, co: pct(s.checkout), mpr: s.mpr == null ? '-' : s.mpr.toFixed(2) }[sortBy]);
+  const RULE = { avg: 'Moyenne sur 3 fléchettes en X01 (30 fléchettes minimum)', win: 'Legs gagnés (en cas d\'égalité : le meilleur %)', co: 'Réussite des tentatives de finish en X01 (10 tentatives minimum)', mpr: 'Marques par tour au Cricket (8 tours minimum)' }[sortBy];
 
   const [a, setA] = useState(me?.id || sorted[0]?.p.id);
   const [b, setB] = useState(sorted.find((x) => x.p.id !== (me?.id || sorted[0]?.p.id))?.p.id);
@@ -339,7 +354,13 @@ export function Ranking({ players, games, me }) {
   return (
     <div className="screen with-tabs">
       <div className="h1">Classement</div>
-      <Seg options={[['avg', 'Moyenne'], ['win', 'Victoires'], ['co', 'Checkout'], ['mpr', 'Cricket']]} value={sortBy} onChange={setSortBy} />
+      <div className="chips-scroll">
+        {[['session', 'Dernière soirée'], ['30', '30 jours'], ['all', 'Tout']].map(([k, l]) => (
+          <button key={k} className={`chip-pill ${period === k ? 'on' : ''}`} onClick={() => setPeriod(k)} aria-pressed={period === k}>{l}</button>
+        ))}
+      </div>
+      <Seg options={[['win', 'Victoires'], ['avg', 'Moyenne'], ['co', 'Checkout'], ['mpr', 'Cricket']]} value={sortBy} onChange={setSortBy} />
+      <div className="small muted" style={{ marginTop: -4 }}>Classé par : {RULE}</div>
       <div className="col" style={{ gap: 8 }}>
         {sorted.length === 0 && <div className="muted small">Le classement apparaît après les premières parties.</div>}
         {sorted.map(({ p, s }, i) => (
@@ -347,7 +368,7 @@ export function Ranking({ players, games, me }) {
             <span className="num-badge" style={{ width: 30, height: 30, ...(i === 0 ? {} : { background: 'var(--card-2)', color: 'var(--text)' }) }}>{i + 1}</span>
             <div className="grow">
               <div style={{ fontSize: 16, fontWeight: 700 }}>{p.name}</div>
-              <div className="small muted">{s.gamesPlayed} parties · {pct(s.winRate)} legs gagnés</div>
+              <div className="small muted">{s.gamesPlayed} partie{s.gamesPlayed > 1 ? 's' : ''} · {pct(s.winRate)} de legs gagnés{!enough(s) ? ' · pas assez joué' : ''}</div>
             </div>
             <div style={{ fontSize: 20, fontWeight: 800 }}>{val(s)}</div>
           </div>
@@ -388,13 +409,15 @@ export function Ranking({ players, games, me }) {
       <div className="col">
         <span className="h3">Historique</span>
         {history.map((g) => (
-          <div key={g.id} className="list-item">
+          <button key={g.id} className="list-item" onClick={() => setDetail(g)}>
             <div className="grow">
               <div style={{ fontSize: 14, fontWeight: 600 }}>{gameLine(g, byId)}</div>
               <div className="small muted">{shortDate(g.created_at)} · {gameResult(g, byId)}{g.data.legs.filter((l) => l.done).length > 1 ? ` · ${g.data.legs.filter((l) => l.done).length} legs` : ''}</div>
             </div>
-          </div>
+            <Icon.Right style={{ color: 'var(--muted)' }} />
+          </button>
         ))}
+        {detail && <GameDetail game={detail} players={players} onClose={() => setDetail(null)} />}
       </div>
     </div>
   );

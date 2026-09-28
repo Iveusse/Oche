@@ -144,5 +144,20 @@ await shot('f7-apres-voix');
 const saved = games.find((g) => g.settings?.starts);
 check('handicap sauvegardé', !!saved, JSON.stringify(saved?.settings));
 
+// ---- détail d'une partie + classement ----
+await page.getByRole('button', { name: 'Retour' }).first().click().catch(() => {});
+await page.waitForTimeout(300);
+await page.getByRole('button', { name: /Classement/ }).click();
+await page.waitForTimeout(300);
+const first = await page.locator('.row.card').first().innerText();
+check('classement par legs gagnés par défaut', /Classé par : Legs gagnés/.test(await page.locator('.screen').innerText()), first.replace(/\n/g, ' '));
+await shot('f8-classement', true);
+await page.locator('.list-item').first().click();
+await page.waitForTimeout(300);
+const hasTours = await page.getByRole('button', { name: /Voir les tours|Masquer/ }).count();
+if (await page.getByRole('button', { name: 'Voir les tours' }).count()) await page.getByRole('button', { name: 'Voir les tours' }).first().click();
+await page.waitForTimeout(200);
+check('détail de partie', hasTours > 0 && (await page.locator('.gd-c').count()) > 0, `${await page.locator('.gd-c').count()} cases`);
+await shot('f9-detail');
 console.log('ERRORS:', errors.length ? errors.join('\n') : 'none');
 await browser.close();
