@@ -20,11 +20,11 @@ const mk = (mode, settings, leg) => {
 const SETUPS = {
   x01: () => ['x01', { start: 301, in: 'single', out: 'single' }],
   cricket: () => ['cricket', { points: true }],
-  shanghai: () => (rnd() < 0.8 ? ['shanghai', { from: 1, to: 7, instantWin: true }] : ['shanghai', { from: 1, to: 20, instantWin: true }]),
+  shanghai: () => (rnd() < 0.4 ? ['shanghai', { from: 1, to: 7, instantWin: true }] : ['shanghai', { from: 1, to: 20, instantWin: true }]),
   atc: () => ['atc', { zones: ['S', 'D', 'T'], order: 'asc', bull: false, skip: false }],
 };
 const MIX = { x01: 0.5, cricket: 0.2, shanghai: 0.15, atc: 0.15 };
-const N = { x01: 4000, cricket: 800, shanghai: 1500, atc: 500 };
+const N = { x01: 4000, cricket: 800, shanghai: 4000, atc: 500 };
 
 const oneLeg = (mode) => {
   const [m, s] = SETUPS[mode]();
@@ -87,13 +87,21 @@ for (const a of single) {
   const modes = a.basis === 'all' ? Object.keys(MIX) : [a.basis];
   let p = 0;
   for (const m of modes) {
-    const k = byMode[m].filter((g) => computeAchievements([g], 'a')[a.id].unlocked).length;
-    p += (a.basis === 'all' ? MIX[m] : 1) * (k / N[m]);
+    // succès propre à une variante (Shanghai 1 à 7 / 1 à 20) : proba parmi les legs de cette variante
+    const pool = a.variant ? byMode[m].filter((g) => g.settings?.to === a.variant) : byMode[m];
+    const k = pool.filter((g) => computeAchievements([g], 'a')[a.id].unlocked).length;
+    p += (a.basis === 'all' ? MIX[m] : 1) * (k / pool.length);
   }
   prob[a.id] = p;
 }
 // événements trop rares pour la simulation : calcul direct
 prob['two-180'] = Math.max(prob['two-180'] || 0, (turnsPerLeg * 0.8 * pT20 ** 3) ** 2 / 2);
+// Shanghai sur le 20 : taux de Shanghai par leg de 1 à 20, réparti sur les 20 numéros
+{
+  const legs20 = byMode.shanghai.filter((g) => g.settings.to === 20);
+  const sh = legs20.filter((g) => computeAchievements([g], 'a')['shanghai-done'].unlocked).length / legs20.length;
+  prob['shanghai-on-20'] = Math.max(prob['shanghai-on-20'] || 0, sh / 20);
+}
 prob['301-6'] = Math.max(prob['301-6'] || 0, pT20 ** 3 * pT20 ** 2 * 0.02 * 0.5);
 
 const exploits = {};

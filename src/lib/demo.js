@@ -79,7 +79,7 @@ export function generateDemo(days = 180, seed = 42) {
       let mode; let settings;
       if (roll < 0.55) { mode = 'x01'; settings = { start: rnd() < 0.8 ? 301 : 501, in: 'single', out: rnd() < 0.6 ? 'double' : 'single' }; }
       else if (roll < 0.72) { mode = 'cricket'; settings = { points: true }; }
-      else if (roll < 0.86) { mode = 'shanghai'; settings = rnd() < 0.7 ? { from: 1, to: 7, instantWin: true } : { from: 1, to: 20, instantWin: true }; }
+      else if (roll < 0.86) { mode = 'shanghai'; settings = rnd() < 0.35 ? { from: 1, to: 7, instantWin: true } : { from: 1, to: 20, instantWin: true }; }
       else { mode = 'atc'; settings = { zones: ['S', 'D', 'T'], order: 'asc', bull: false, skip: false }; }
       const others = rnd() < 0.6 ? [POTE] : [POTE, COSTAUD];
       const order = rnd() < 0.5 ? [T, ...others] : [...others, T];

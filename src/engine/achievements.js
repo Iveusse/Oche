@@ -10,7 +10,7 @@ export const TIER = { 1: 'Bronze', 2: 'Argent', 3: 'Or', 4: 'Platine' };
 // (joueur de référence ~33 de moyenne, calculé par simulation : voir scripts/calibrate.mjs)
 export const tierFromE = (e) => (e == null ? 4 : e <= 10 ? 1 : e <= 50 ? 2 : e <= 250 ? 3 : 4);
 // Rareté exprimée en legs (une partie peut enchaîner plusieurs legs)
-const BASIS_LABEL = { all: 'legs', x01: 'legs de X01', cricket: 'legs de Cricket', shanghai: 'legs de Shanghai', atc: "legs d'ATC", games: 'parties' };
+const BASIS_LABEL = { all: 'legs', x01: 'legs de X01', cricket: 'legs de Cricket', shanghai: 'legs de Shanghai', atc: "legs d'ATC", games: 'parties', shanghai7: 'parties de Shanghai 1 à 7', shanghai20: 'parties de Shanghai 1 à 20' };
 export const rarityText = (e, basis = 'all', cumulative = false) => {
   if (e == null) return null;
   const lbl = BASIS_LABEL[basis] || 'parties';
@@ -112,9 +112,17 @@ const EXPLOITS = [
   { id: 'cricket-9', basis: 'cricket', name: 'Neuf marques', desc: '3 triples sur des numéros du Cricket dans un tour', goal: (c) => [c.maxMarks >= 9 ? 1 : 0, 1], hint: (c) => best(c.maxMarks, 'Meilleur tour (marques)') },
   { id: 'whitewash', basis: 'cricket', name: 'Blanchissage', desc: 'Gagner au Cricket sans que l\'adversaire ferme un seul numéro', goal: (c) => [c.whitewash ? 1 : 0, 1] },
   { id: 'shanghai-done', basis: 'shanghai', name: 'Shanghai !', desc: 'Simple, double et triple du même numéro dans un tour', goal: (c) => [c.shanghais ? 1 : 0, 1] },
-  { id: 'shanghai-clean', basis: 'shanghai', name: 'Sans faute', desc: 'Au Shanghai de 1 à 7, toucher le bon numéro à chaque manche', goal: (c) => [c.shanghaiClean ? 1 : 0, 1] },
-  { id: 'shanghai7-40', basis: 'shanghai', name: 'Bon Shanghai', desc: '40 points ou plus sur un Shanghai de 1 à 7', goal: (c) => [c.best1to7 >= 40 ? 1 : 0, 1], hint: (c) => best(c.best1to7, 'Meilleur 1 à 7') },
-  { id: 'shanghai7-70', basis: 'shanghai', name: 'Grand Shanghai', desc: '70 points ou plus sur un Shanghai de 1 à 7', goal: (c) => [c.best1to7 >= 70 ? 1 : 0, 1], hint: (c) => best(c.best1to7, 'Meilleur 1 à 7') },
+  { id: 'shanghai-clean', basis: 'shanghai', variant: 7, name: 'Sans faute', desc: 'Au Shanghai de 1 à 7, toucher le bon numéro à chaque manche', goal: (c) => [c.shanghaiClean ? 1 : 0, 1] },
+  { id: 'shanghai7-40', basis: 'shanghai', variant: 7, name: 'Bon Shanghai', desc: '40 points ou plus sur un Shanghai de 1 à 7', goal: (c) => [c.best1to7 >= 40 ? 1 : 0, 1], hint: (c) => best(c.best1to7, 'Meilleur 1 à 7') },
+  { id: 'shanghai7-70', basis: 'shanghai', variant: 7, name: 'Grand Shanghai', desc: '70 points ou plus sur un Shanghai de 1 à 7', goal: (c) => [c.best1to7 >= 70 ? 1 : 0, 1], hint: (c) => best(c.best1to7, 'Meilleur 1 à 7') },
+  { id: 'shanghai20-250', basis: 'shanghai', variant: 20, name: 'Bon 1 à 20', desc: '250 points ou plus sur un Shanghai de 1 à 20', goal: (c) => [c.best1to20 >= 250 ? 1 : 0, 1], hint: (c) => best(c.best1to20, 'Meilleur 1 à 20') },
+  { id: 'shanghai20-300', basis: 'shanghai', variant: 20, name: 'Beau 1 à 20', desc: '300 points ou plus sur un Shanghai de 1 à 20', goal: (c) => [c.best1to20 >= 300 ? 1 : 0, 1], hint: (c) => best(c.best1to20, 'Meilleur 1 à 20') },
+  { id: 'shanghai20-350', basis: 'shanghai', variant: 20, name: 'Gros 1 à 20', desc: '350 points ou plus sur un Shanghai de 1 à 20', goal: (c) => [c.best1to20 >= 350 ? 1 : 0, 1], hint: (c) => best(c.best1to20, 'Meilleur 1 à 20') },
+  { id: 'shanghai20-400', basis: 'shanghai', variant: 20, name: 'Énorme 1 à 20', desc: '400 points ou plus sur un Shanghai de 1 à 20', goal: (c) => [c.best1to20 >= 400 ? 1 : 0, 1], hint: (c) => best(c.best1to20, 'Meilleur 1 à 20') },
+  { id: 'shanghai20-450', basis: 'shanghai', variant: 20, name: 'Monstre du 1 à 20', desc: '450 points ou plus sur un Shanghai de 1 à 20', goal: (c) => [c.best1to20 >= 450 ? 1 : 0, 1], hint: (c) => best(c.best1to20, 'Meilleur 1 à 20') },
+  { id: 'shanghai20-run15', basis: 'shanghai', variant: 20, name: 'Métronome', desc: 'Au Shanghai de 1 à 20, toucher le bon numéro 15 manches d\'affilée', goal: (c) => [Math.min(c.shRun20, 15), 15], hint: (c) => (c.shRun20 ? `Meilleure série : ${c.shRun20} manches` : null) },
+  { id: 'shanghai20-clean', basis: 'shanghai', variant: 20, name: 'Sans faute XXL', desc: 'Au Shanghai de 1 à 20, toucher le bon numéro aux 20 manches', goal: (c) => [c.shanghaiClean20 ? 1 : 0, 1], hint: (c) => (c.shRun20 ? `Meilleure série : ${c.shRun20} manches` : null) },
+  { id: 'shanghai-on-20', basis: 'shanghai', variant: 20, name: 'Shanghai royal', desc: 'Faire un Shanghai sur le 20 (simple, double et triple 20 dans le tour)', goal: (c) => [c.shanghaiOn20 ? 1 : 0, 1] },
   { id: 'atc-60', basis: 'atc', name: 'Tour de l\'horloge', desc: 'Finir un Around the Clock (simple, double ou triple) en 60 fléchettes ou moins', goal: (c) => [c.bestAtc != null && c.bestAtc <= 60 ? 1 : 0, 1], hint: (c) => best(c.bestAtc, 'Meilleur ATC (fléchettes)') },
   { id: 'atc-40', basis: 'atc', name: 'Horloger', desc: 'Finir un Around the Clock en 40 fléchettes ou moins', goal: (c) => [c.bestAtc != null && c.bestAtc <= 40 ? 1 : 0, 1], hint: (c) => best(c.bestAtc, 'Meilleur ATC (fléchettes)') },
   { id: 'atc-30', basis: 'atc', name: 'Chirurgien', desc: 'Finir un Around the Clock en 30 fléchettes ou moins', goal: (c) => [c.bestAtc != null && c.bestAtc <= 30 ? 1 : 0, 1], hint: (c) => best(c.bestAtc, 'Meilleur ATC (fléchettes)') },
@@ -139,7 +147,7 @@ for (const a of EXPLOITS) {
   a.expect = e ?? null;
   if (e != null) a.tier = tierFromE(e);
   else if (!a.tier) a.tier = 4;
-  a.rarity = rarityText(a.expect, a.basis, a.cumulative) || (a.basis && a.tier === 4 && !STREAK_E[a.id] ? 'Jamais arrivé dans les simulations : très rare' : null);
+  a.rarity = rarityText(a.expect, a.variant ? `shanghai${a.variant}` : a.basis, a.cumulative) || (a.basis && a.tier === 4 && !STREAK_E[a.id] ? 'Jamais arrivé dans les simulations : très rare' : null);
 }
 
 // Liste à plat : chaque palier de série devient un succès
@@ -163,7 +171,7 @@ function emptyCounters() {
     got26: false, threeMiss: false, night: false, early: false, streak: 0, bestStreak: 0, maxMarks: 0, maxTreblesTurn: 0,
     bestLegAvg: 0, maxGamesDay: 0, bestDayStreak: 0, bullFinish: false, shanghaiClean: false,
     highCheckout: 0, bestAtc: null, d1Finish: false, maxBullsTurn: 0, remontada: false, whitewash: false, sweep: false,
-    best1to20: 0, best1to7: 0, max180Leg: 0, bestLeg: {}, shanghaiHits: 0,
+    best1to20: 0, best1to7: 0, shRun20: 0, shanghaiClean20: false, shanghaiOn20: false, max180Leg: 0, bestLeg: {}, shanghaiHits: 0,
   };
 }
 
@@ -281,6 +289,12 @@ export function computeAchievements(games, pid) {
         if (g.settings?.from === 1 && g.settings?.to === 7) c.best1to7 = Math.max(c.best1to7, r.ps[idx].pts);
         const mine = r.turns.filter((t) => t.p === idx);
         if (g.settings?.from === 1 && g.settings?.to === 7 && mine.length === 7 && mine.every((t) => t.darts.some((d) => d.hit))) c.shanghaiClean = true;
+        if (g.settings?.from === 1 && g.settings?.to === 20) {
+          let run = 0;
+          for (const t of mine) { run = t.darts.some((d) => d.hit) ? run + 1 : 0; c.shRun20 = Math.max(c.shRun20, run); }
+          if (mine.length === 20 && mine.every((t) => t.darts.some((d) => d.hit))) c.shanghaiClean20 = true;
+          if (mine.some((t) => t.darts.some((d) => d.shanghai && d.seg === 20))) c.shanghaiOn20 = true;
+        }
       }
       check(date);
     }
