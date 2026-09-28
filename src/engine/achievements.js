@@ -236,7 +236,10 @@ export function computeAchievements(games, pid) {
         let bullsTurn = 0; let marks = 0; let trebles = 0; let missTurn = 0;
         for (const d of t.darts) {
           c.darts += 1; legDarts += 1;
-          if (!d.mult) { c.misses += 1; missTurn += 1; }
+          // hors cible : au Shanghai, « Raté » veut juste dire « pas le bon numéro » ;
+          // on ne compte que les fléchettes vraiment tapées en dehors de la cible
+          const offBoard = !d.mult && !(g.mode === 'shanghai' && typeof d.x !== 'number');
+          if (offBoard) { c.misses += 1; missTurn += 1; }
           if (d.mult === 3) { c.triples += 1; trebles += 1; if (d.seg <= 20) c.treblesHit.add(d.seg); }
           if (d.mult === 2) { c.doubles += 1; c.doublesHit.add(d.seg); }
           if (d.seg === 25 && d.mult === 2) c.bulls += 1;

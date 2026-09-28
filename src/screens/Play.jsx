@@ -186,7 +186,7 @@ export function Play({ game, players, records, history = [], onUpdate, onLegDone
 
   const blocked = r.awaiting || r.needDecision || r.over;
   // ajoute une ou plusieurs fléchettes (cible, boutons ou voix) et annonce la fin du tour
-  const addDarts = (list) => {
+  const addDarts = (list, word = '') => {
     let darts = leg.darts;
     for (const d of list) {
       const rr = runLeg(game.mode, game.settings, { ...leg, darts });
@@ -203,12 +203,13 @@ export function Play({ game, players, records, history = [], onUpdate, onLegDone
       // Seule la fin d'un leg (ou la question « on continue ? ») attend une validation.
       const nl = { ...leg, darts, validated: r2.turns.length };
       const r3 = runLeg(game.mode, game.settings, nl);
-      if (!r3.over && !r3.needDecision) { patch.validated = r2.turns.length; speak(`${said}${/[!?.]$/.test(said) ? '' : '.'} ${nextSpeech(game, nl, r3, byId)}`); }
-      else speak(said);
-    }
+      const pre = word ? `${word}. ` : '';
+      if (!r3.over && !r3.needDecision) { patch.validated = r2.turns.length; speak(`${pre}${said}${/[!?.]$/.test(said) ? '' : '.'} ${nextSpeech(game, nl, r3, byId)}`); }
+      else speak(`${pre}${said}`);
+    } else if (word) speak(word);
     setLeg(patch);
   };
-  const hit = (d) => { if (!blocked) addDarts([d]); };
+  const hit = (d, word) => { if (!blocked) addDarts([d], word); };
   const undo = () => {
     if (!leg.darts.length) return;
     const darts = leg.darts.slice(0, -1);
@@ -405,7 +406,7 @@ function ShanghaiButtons({ target, disabled, onHit, darts = [] }) {
   const [flash, setFlash] = useState(null); // dernier bouton touché, pour le retour visuel
   const timer = useRef(null);
   const press = (d, label) => {
-    onHit(d);
+    onHit(d, d.mult === 3 ? 'Triple' : d.mult === 2 ? 'Double' : d.mult === 1 ? 'Simple' : 'Raté');
     clearTimeout(timer.current);
     setFlash({ id: Date.now(), m: d.mult, label, pts: d.seg * d.mult });
     timer.current = setTimeout(() => setFlash(null), 1100);

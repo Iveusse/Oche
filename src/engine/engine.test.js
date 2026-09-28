@@ -175,3 +175,18 @@ describe('Shanghai : rester en vie', () => {
     expect(shanghaiNeed(s, R(30, 20), 0, 1)).toEqual({ kind: 'lead', gap: 10 });
   });
 });
+
+import { computeAchievements } from './achievements.js';
+describe('Mur de la cuisine', () => {
+  const g = (mode, settings, darts) => ({ id: 'g', mode, settings, player_ids: ['a'], status: 'finished', created_at: '2026-01-01T20:00:00Z',
+    data: { legs: [{ order: ['a'], darts, validated: 9, done: true, ranking: ['a'], finishedAt: '2026-01-01T20:05:00Z' }] } });
+  it('au Shanghai, « Raté » (bouton) ne compte pas, un vrai hors cible si', () => {
+    const btn = computeAchievements([g('shanghai', { from: 1, to: 1 }, [D(0, 0), D(0, 0), D(0, 0)])], 'a').__counters;
+    expect(btn.misses).toBe(0);
+    expect(btn.threeMiss).toBe(false);
+    const board = computeAchievements([g('shanghai', { from: 1, to: 1 }, [{ seg: 0, mult: 0, x: 0, y: -1.2 }, D(0, 0), D(0, 0)])], 'a').__counters;
+    expect(board.misses).toBe(1);
+    const x01 = computeAchievements([g('x01', { start: 301 }, [D(0, 0), D(0, 0), D(0, 0)])], 'a').__counters;
+    expect(x01.misses).toBe(3);
+  });
+});
