@@ -16,7 +16,7 @@ import { canListen, dartWords, parseSpeech, speak, startListening, voiceOn, setV
 function turnSpeech(mode, t, name) {
   const sum = (f) => t.darts.reduce((a, d) => a + (f(d) || 0), 0);
   if (mode === 'x01' || mode === 'train-checkout') {
-    if (t.bust) return 'Bust';
+    if (t.bust) return 'Beuste !'; // écrit « à la française » pour que la voix dise bust à l'anglaise
     if (t.finished) return `Jeu ! Bravo ${name}`;
     const pts = sum((d) => d.pts ?? dartScore(d));
     return pts === 180 ? 'Cent quatre-vingts !' : pts ? String(pts) : 'Rien';
