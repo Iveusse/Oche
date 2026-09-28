@@ -285,7 +285,7 @@ export function Play({ game, players, records, history = [], onUpdate, onLegDone
         <Seg options={[['board', 'Cible'], ['buttons', 'Boutons']]} value={input} onChange={setInput} />
       )}
       {game.mode === 'shanghai' && input === 'buttons' ? (
-        <ShanghaiButtons target={info.a} disabled={blocked} onHit={hit} />
+        <ShanghaiButtons target={info.a} disabled={blocked} onHit={hit} darts={tDarts} />
       ) : (
         <div className="board-slot">
           <Dartboard onHit={hit} disabled={blocked} markers={markers} />
@@ -361,23 +361,37 @@ function CheckoutBar({ route, done, none }) {
   );
 }
 
-function ShanghaiButtons({ target, disabled, onHit }) {
-  const btns = [[1, 'Simple', 'var(--card)'], [2, 'Double', 'var(--card)'], [3, 'Triple', 'var(--card)']];
+function ShanghaiButtons({ target, disabled, onHit, darts = [] }) {
+  const btns = [[1, 'Simple'], [2, 'Double'], [3, 'Triple']];
+  const [flash, setFlash] = useState(null); // dernier bouton touché, pour le retour visuel
+  const timer = useRef(null);
+  const press = (d, label) => {
+    onHit(d);
+    clearTimeout(timer.current);
+    setFlash({ id: Date.now(), m: d.mult, label, pts: d.seg * d.mult });
+    timer.current = setTimeout(() => setFlash(null), 1100);
+  };
+  useEffect(() => () => clearTimeout(timer.current), []);
   return (
     <div className="board-slot" style={{ containerType: 'normal' }}>
-      <div className="col" style={{ width: '100%', gap: 10 }}>
-        <div className="small muted" style={{ textAlign: 'center' }}>Fléchette sur le {target}</div>
+      <div className="col" style={{ width: '100%', gap: 10, position: 'relative' }}>
+        <div className="between">
+          <span className="small muted">Fléchette sur le {target}</span>
+          <span className="sh-dots" aria-label={`${darts.length} fléchette(s) lancée(s)`}>
+            {[0, 1, 2].map((k) => <i key={k} className={darts[k] ? (darts[k].hit ? 'hit' : 'miss') : ''} />)}
+          </span>
+        </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0,1fr))', gap: 10 }}>
           {btns.map(([m, l]) => (
-            <button key={m} aria-label={`${l} ${target}`} disabled={disabled} onClick={() => onHit({ seg: target, mult: m })}
-              style={{ height: 110, borderRadius: 18, background: 'var(--card)', border: '2px solid var(--wire)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+            <button key={`${m}-${flash?.m === m ? flash.id : 0}`} aria-label={`${l} ${target}`} disabled={disabled} onClick={() => press({ seg: target, mult: m }, `${m === 1 ? '' : m === 2 ? 'D' : 'T'}${target}`)}
+              className={`sh-btn ${flash?.m === m ? 'flash' : ''}`}>
               <span style={{ fontSize: 30, fontWeight: 800 }}>{m === 1 ? '' : m === 2 ? 'D' : 'T'}{target}</span>
               <span className="small" style={{ color: 'var(--text-2)', fontWeight: 700 }}>{l} · {target * m}</span>
             </button>
           ))}
         </div>
-        <button disabled={disabled} onClick={() => onHit({ seg: 0, mult: 0 })}
-          style={{ height: 80, borderRadius: 18, border: '2px dashed var(--muted)', fontSize: 20, fontWeight: 800 }}>Raté</button>
+        <button disabled={disabled} onClick={() => press({ seg: 0, mult: 0 }, 'Raté')} className={`sh-btn sh-miss ${flash?.m === 0 ? 'flash' : ''}`}>Raté</button>
+        {flash && <div key={flash.id} className={`sh-toast ${flash.m ? '' : 'miss'}`} role="status">{flash.m ? `${flash.label} · +${flash.pts}` : 'Raté'}</div>}
       </div>
     </div>
   );
