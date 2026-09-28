@@ -2,7 +2,7 @@
 // Principe : on estime ton niveau de scoring, puis on regarde ce qu'un joueur de ce niveau
 // réussit normalement sur ses finish (table simulée, voir scripts/coach-calibrate.mjs).
 import REF from './coachref.js';
-import { x01Advanced, cricketAdvanced, atcAdvanced } from './advanced.js';
+import { x01Advanced, cricketAdvanced, atcAdvanced, shanghaiAdvanced } from './advanced.js';
 import { oneDartFinish } from '../lib/board.js';
 import { afterReset, replayed } from './stats.js';
 
@@ -82,7 +82,7 @@ export function weakest(profile, minDarts, ratio = 0.7, max = 3) {
   return weak.length ? { weak, mean } : null;
 }
 const nm = (n) => (n === 25 ? 'bull' : String(n));
-const atcDrill = (nums, zones, label) => ({ kind: 'atc', label, settings: { zones, order: 'asc', bull: false, skip: false, nums } });
+const atcDrill = (nums, zones, label) => ({ kind: 'atc', label, settings: { zones, order: 'asc', bull: false, skip: false, ...(nums ? { nums } : {}) } });
 
 export function coachAdvice(games, pid, days = 90) {
   const since = Date.now() - days * DAY;
@@ -151,6 +151,31 @@ export function coachAdvice(games, pid, days = 90) {
     plans.push({ mode: 'Shanghai / ATC', score: 1 + (1 - wn.weak[0].acc / wn.mean), title: `Numéros faibles : ${list.map(nm).join(', ')}`,
       drill: atcDrill(list, ['S', 'D', 'T'], `Around the Clock sur ${list.length > 1 ? 'les' : 'le'} ${list.map(nm).join(', ')}`),
       text: `${ws && !wa ? 'Au Shanghai' : wa && !ws ? "À l'Around the Clock" : "Au Shanghai et à l'Around the Clock"}, tu touches ${wn.weak.map((w) => `le ${nm(w.n)} : ${pc(w.acc)}`).join(', ')} du temps, nettement moins que sur tes autres numéros (${pc(wn.mean)} en moyenne).` });
+  }
+
+  // ---- Shanghai : conseil général, même avec peu de parties ----
+  const sa = shanghaiAdvanced(gs, pid);
+  if (sa.legs >= 2 && sa.darts >= 60) {
+    const hit = sa.pct.hit ?? 0; const tri = sa.pct.t ?? 0;
+    const legsAll = sa.legs + a.legs + (cricketAdvanced(gs, pid).legs || 0) + (atcAdvanced(gs, pid).legs || 0);
+    const weight = 0.5 + 0.6 * (sa.legs / Math.max(1, legsAll)); // plus tu joues au Shanghai, plus ce conseil compte
+    // tendance (pas encore prouvée) sur les numéros les moins touchés
+    const rows = Object.entries(sa.num).filter(([, c]) => c.darts >= 9).map(([n, c]) => ({ n: Number(n), acc: c.hits / c.darts }));
+    const lows = rows.length >= 6 ? rows.filter((x) => x.acc < hit * 0.6).sort((x, y) => x.acc - y.acc).slice(0, 3) : [];
+    const lowTxt = lows.length && !wn ? ` À surveiller : ${lows.map((w) => `le ${w.n} (${pc(w.acc)})`).join(', ')}, mais c'est encore trop tôt pour être sûr.` : '';
+    if (hit < 0.3) {
+      plans.push({ mode: 'Shanghai', score: weight, title: 'Shanghai : touche plus souvent le bon numéro',
+        drill: lows.length >= 2 ? atcDrill(lows.map((w) => w.n), ['S', 'D', 'T'], `Around the Clock sur ${lows.map((w) => w.n).join(', ')}`) : atcDrill(null, ['S', 'D', 'T'], 'Around the Clock 1 → 20'),
+        text: `Tu touches le numéro de la manche ${pc(hit)} du temps (${sa.darts} fléchettes). Avant de chercher les triples, la priorité est de toucher le numéro à chaque volée : un Around the Clock travaille exactement ça.${lowTxt}` });
+    } else if (tri < 0.07) {
+      plans.push({ mode: 'Shanghai', score: weight, title: 'Shanghai : il te manque des triples',
+        drill: atcDrill(null, ['T'], 'Around the Clock en triples'),
+        text: `Tu touches le bon numéro ${pc(hit)} du temps, mais seulement ${pc(tri)} de tes fléchettes font un triple. Au Shanghai, un triple vaut 3 simples : c'est là que se gagnent les points.${lowTxt}` });
+    } else {
+      plans.push({ mode: 'Shanghai', score: weight * 0.7, title: 'Shanghai : va chercher les Shanghai',
+        drill: atcDrill(null, ['D', 'T'], 'Around the Clock doubles et triples'),
+        text: `Bonne précision (${pc(hit)} sur le numéro, ${pc(tri)} de triples). Prochaine étape : les doubles, qui te manquent pour boucler simple + double + triple dans le même tour.${lowTxt}` });
+    }
   }
 
   // ---- Cricket ----
