@@ -44,7 +44,9 @@ function nextSpeech(game, leg, r, byId) {
   }
   if (game.mode === 'shanghai') {
     const nums = shanghaiNumbers(game.settings); const round = Math.floor(r.turns.length / r.ps.length);
-    return `${who}${r.turns.length % r.ps.length === 0 && nums[round] ? `Numéro ${nums[round]}` : ''}`;
+    const nd = r.ps.length > 1 && nums[round] ? shanghaiNeed(game.settings, r, i, round) : null;
+    const extra = nd?.kind === 'need' ? `. Il te faut ${nd.need} points` : nd?.kind === 'dead' && nd.shanghai ? '. Il te faut un Shanghai' : '';
+    return `${who}${r.turns.length % r.ps.length === 0 && nums[round] ? `Numéro ${nums[round]}` : ''}${extra}`;
   }
   return who;
 }
@@ -76,6 +78,31 @@ function dartsOf(r, idx) {
   return r.turns.filter((t) => t.p === idx).reduce((a, t) => a + t.darts.length, 0) + (r.current?.p === idx ? r.current.darts.length : 0);
 }
 const targetLabel = (t) => (t === 25 ? 'Bull' : t);
+
+// fléchette en bref : au Shanghai S/D/T/R (le numéro est connu), ailleurs T20, 5, R…
+function shortDart(mode, d) {
+  if (!d.mult) return 'R';
+  if (mode === 'shanghai') return d.hit ? (d.mult === 3 ? 'T' : d.mult === 2 ? 'D' : 'S') : 'R';
+  if (d.hit === false) return 'R';
+  return dartLabel(d);
+}
+const lastTurnOf = (r, idx) => [...r.turns].reverse().find((t) => t.p === idx);
+
+// Shanghai : combien il faut marquer ce tour pour pouvoir encore rattraper le premier
+export function shanghaiNeed(settings, r, idx, round) {
+  const nums = shanghaiNumbers(settings);
+  const me = r.ps[idx].pts;
+  const lead = Math.max(...r.ps.map((p, j) => (j === idx ? -Infinity : p.pts)));
+  if (!Number.isFinite(lead)) return null;
+  const gap = lead - me;
+  if (gap < 0) return { kind: 'lead', gap: -gap };
+  const future = nums.slice(round + 1).reduce((a, n) => a + 9 * n, 0);
+  const need = gap - future;
+  const max = 9 * (nums[round] || 0);
+  if (need <= 0) return { kind: 'safe', gap };
+  if (need <= max) return { kind: 'need', need, gap };
+  return { kind: 'dead', gap, shanghai: settings.instantWin !== false };
+}
 
 function cardInfo(game, r, ps, idx) {
   const leg = game.data.legs[game.data.legs.length - 1];
@@ -217,6 +244,13 @@ export function Play({ game, players, records, history = [], onUpdate, onLegDone
     const nums = shanghaiNumbers(s);
     const round = shown ? shown.round : Math.floor(r.turns.length / r.ps.length);
     info = { b: `Manche ${Math.min(round + 1, nums.length)}/${nums.length}`, a: nums[Math.min(round, nums.length - 1)] };
+    if (!shown?.darts?.length || r.current) {
+      const nd = r.ps.length > 1 ? shanghaiNeed(s, r, thrower, Math.min(round, nums.length - 1)) : null;
+      if (nd?.kind === 'need') hint = `Pour rester en vie : au moins ${nd.need} pts${tDarts.length ? ' de plus' : ''} ce tour`;
+      else if (nd?.kind === 'dead') hint = nd.shanghai ? 'Plus rattrapable aux points : seul un Shanghai peut te sauver !' : 'Plus rattrapable aux points';
+      else if (nd?.kind === 'lead') hint = `En tête de ${nd.gap} pts`;
+      else if (nd?.kind === 'safe') hint = `${nd.gap} pts de retard sur le premier`;
+    }
   } else if (game.mode === 'cricket') {
     info = { b: 'Points', a: tps.pts };
   } else if (game.mode === 'train-focus20') {
@@ -271,6 +305,11 @@ export function Play({ game, players, records, history = [], onUpdate, onLegDone
                 <div className="n">{byId[p.id]?.name || '?'}</div>
                 <div className="v">{ci.v}</div>
                 <div className="s">{ci.s}</div>
+                {(() => { const lt = lastTurnOf(r, i); return lt ? (
+                  <div className="last-turn" aria-label="Tour précédent">
+                    {lt.darts.map((d, k) => <b key={k} className={shortDart(game.mode, d) === 'R' ? 'r' : ''}>{shortDart(game.mode, d)}</b>)}
+                  </div>
+                ) : null; })()}
               </div>
             );
           })}
@@ -304,7 +343,7 @@ export function Play({ game, players, records, history = [], onUpdate, onLegDone
         })}
         {info && <div className="info-box"><div className="b">{info.b}</div><div className="a">{info.a}</div></div>}
       </div>
-      <div className="small" style={{ minHeight: 16, color: shown?.bust ? 'var(--bad)' : 'var(--text-2)', textAlign: 'center' }}>
+      <div className="small" style={{ minHeight: 16, color: shown?.bust || /Shanghai peut|Plus rattrapable/.test(hint || '') ? 'var(--bad)' : /rester en vie/.test(hint || '') ? 'var(--sky)' : 'var(--text-2)', fontWeight: /rester en vie|Shanghai peut/.test(hint || '') ? 700 : 400, textAlign: 'center' }}>
         {hint || (tDarts.length ? `Tour : ${turnPts}` : `${lastTurn && r.ps.length > 1 ? `${byId[r.ps[lastTurn.p].id]?.name} : ${lastTurn.bust ? 'bust' : game.mode === 'cricket' ? `${lastTurn.darts.reduce((a, d) => a + (d.marks || 0), 0)} marque(s)` : lastTurn.darts.reduce((a, d) => a + (d.pts ?? dartScore(d)), 0)} · ` : ''}À ${byId[tps.id]?.name || '?'} de jouer`)}
       </div>
       {listening && heard && <div className="small heard" aria-live="polite">{heard}</div>}

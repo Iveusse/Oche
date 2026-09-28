@@ -160,3 +160,18 @@ describe('saisie vocale', () => {
     expect(p("d'accord 5")).toBe('1x5');
   });
 });
+
+import { shanghaiNeed } from '../screens/Play.jsx';
+describe('Shanghai : rester en vie', () => {
+  const s = { from: 1, to: 3, instantWin: true };
+  const R = (a, b) => ({ ps: [{ pts: a }, { pts: b }] });
+  it('calcule le minimum à marquer', () => {
+    // manche 3 (dernière, numéro 3) : 10 de retard -> 10 pts ce tour
+    expect(shanghaiNeed(s, R(5, 15), 0, 2)).toEqual({ kind: 'need', need: 10, gap: 10 });
+    // 40 de retard en dernière manche : max 27 -> seul un Shanghai
+    expect(shanghaiNeed(s, R(0, 40), 0, 2).kind).toBe('dead');
+    // manche 2 : il reste 27 pts possibles après, 20 de retard -> tranquille
+    expect(shanghaiNeed(s, R(0, 20), 0, 1).kind).toBe('safe');
+    expect(shanghaiNeed(s, R(30, 20), 0, 1)).toEqual({ kind: 'lead', gap: 10 });
+  });
+});
