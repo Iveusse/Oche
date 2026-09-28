@@ -259,7 +259,7 @@ export function Play({ game, players, records, history = [], onUpdate, onLegDone
       const nl = { ...leg, darts, validated: r2.turns.length };
       const r3 = runLeg(game.mode, game.settings, nl);
       const pre = word ? `${word}. ` : '';
-      if (!r3.over && !r3.needDecision) { patch.validated = r2.turns.length; speak(`${pre}${said}${/[!?.]$/.test(said) ? '' : '.'} ${nextSpeech(game, nl, r3, byId)}`); }
+      if (!r3.over && !r3.needDecision) { patch.validated = r2.turns.length; speak([`${pre}${said}`, nextSpeech(game, nl, r3, byId)]); }
       else speak(`${pre}${said}`);
     } else if (word) speak(word);
     setLeg(patch);

@@ -20,16 +20,28 @@ if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
 let quietUntil = 0; // la reconnaissance ignore ce qu'elle entend pendant qu'on parle
 export const isSpeaking = () => ('speechSynthesis' in window && window.speechSynthesis.speaking) || Date.now() < quietUntil;
 
-export function speak(text, force = false, queue = false) {
-  if (!text || (!force && !voiceOn()) || !('speechSynthesis' in window)) return;
-  const u = new SpeechSynthesisUtterance(text);
-  u.lang = 'fr-FR';
-  const v = pickVoice(); if (v) u.voice = v;
-  u.rate = 1.05;
-  u.onend = () => { quietUntil = Date.now() + 700; };
-  quietUntil = Math.max(quietUntil, Date.now()) + 400 + text.length * 90;
+// Parle. Avec un tableau de phrases, marque une petite pause entre chacune
+// (ex. « Raté. 6 points » ... pause ... « Nico. Le 7 »).
+let seq = 0;
+export function speak(text, force = false, queue = false, gap = 700) {
+  const parts = (Array.isArray(text) ? text : [text]).map((t) => (t || '').trim()).filter(Boolean);
+  if (!parts.length || (!force && !voiceOn()) || !('speechSynthesis' in window)) return;
+  const id = queue ? seq : ++seq;
   if (!queue) window.speechSynthesis.cancel();
-  window.speechSynthesis.speak(u);
+  const say = (i) => {
+    if (id !== seq || i >= parts.length) return;
+    const u = new SpeechSynthesisUtterance(parts[i]);
+    u.lang = 'fr-FR';
+    const v = pickVoice(); if (v) u.voice = v;
+    u.rate = 1.05;
+    u.onend = () => {
+      quietUntil = Date.now() + 700 + (i < parts.length - 1 ? gap : 0);
+      if (i < parts.length - 1) setTimeout(() => say(i + 1), gap);
+    };
+    quietUntil = Math.max(quietUntil, Date.now()) + 400 + parts[i].length * 90;
+    window.speechSynthesis.speak(u);
+  };
+  say(0);
 }
 
 export const dartWords = (d) => {

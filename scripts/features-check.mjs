@@ -125,8 +125,10 @@ await page.waitForTimeout(800); await page.evaluate(() => window.__say('valider'
 await page.waitForTimeout(150);
 await page.waitForTimeout(800); await page.evaluate(() => window.__say('T20 T20 T20'));
 await page.waitForTimeout(150);
+await page.waitForTimeout(900);
 const spoken = await page.evaluate(() => window.__spoken);
-check('annonces (tour + joueur suivant, sans valider)', spoken.some((s) => /^65\. Nico\. Reste 501/.test(s)) && spoken.some((s) => /^Cent quatre-vingts ! Yves\. Reste 236/.test(s)), JSON.stringify(spoken));
+const i65 = spoken.indexOf('65'); const i180 = spoken.indexOf('Cent quatre-vingts !');
+check('annonces : score du tour, pause, joueur suivant', i65 >= 0 && spoken[i65 + 1] === 'Nico. Reste 501' && i180 >= 0 && spoken[i180 + 1] === 'Yves. Reste 236', JSON.stringify(spoken));
 await page.waitForTimeout(800); await page.evaluate(() => window.__say('valider'));
 await page.waitForTimeout(150);
 // Yves à 236 : pas de finish ; on descend à 40 pour entendre la route
