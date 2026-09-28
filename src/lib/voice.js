@@ -46,7 +46,7 @@ export function speak(text, force = false, queue = false, gap = 700) {
 
 export const dartWords = (d) => {
   if (!d.mult) return 'raté';
-  if (d.seg === 25) return d.mult === 2 ? 'bull' : '25';
+  if (d.seg === 25) return d.mult === 2 ? 'boul' : '25';
   return d.mult === 3 ? `triple ${d.seg}` : d.mult === 2 ? `double ${d.seg}` : String(d.seg);
 };
 
@@ -118,7 +118,7 @@ const NUM = {
 };
 const MULT = { triple: 3, triples: 3, tripler: 3, trible: 3, t: 3, double: 2, doubles: 2, d: 2, simple: 1, simples: 1, s: 1 };
 const MISS = new Set(['rate', 'rater', 'rates', 'raté', 'zero', 'dehors', 'hors', 'manque', 'out', 'rien', 'dans le mur', 'mur', 'loupe']);
-const BULL = new Set(['bull', 'bulle', 'boule', 'bool', 'centre', 'mouche']);
+const BULL = new Set(['bull', 'boul', 'bulle', 'boule', 'bool', 'centre', 'mouche']);
 
 // renvoie { darts: [...], cmd: 'validate' | 'undo' | null }
 export function parseSpeech(text, { target } = {}) {

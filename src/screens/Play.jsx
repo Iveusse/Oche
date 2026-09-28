@@ -57,7 +57,7 @@ function nextSpeech(game, leg, r, byId) {
   }
   if (game.mode === 'atc' || game.mode === 'train-atc' || game.mode === 'train-doubles') {
     const t = leg.targets?.[ps.pos];
-    return t == null ? who : `${who}Cible ${game.mode === 'train-doubles' ? (t === 25 ? 'bull' : `double ${t}`) : (t === 25 ? 'bull' : t)}`;
+    return t == null ? who : `${who}Cible ${game.mode === 'train-doubles' ? (t === 25 ? 'boul' : `double ${t}`) : (t === 25 ? 'boul' : t)}`;
   }
   if (game.mode === 'shanghai') {
     // chaque joueur entend son numéro, et ce qu'il lui faut pour rester en vie
