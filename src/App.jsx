@@ -270,6 +270,7 @@ function TeamApp({ team, onTeams, onInvalid, onRenamed }) {
       )}
       {tab === 'training' && (
         <Training me={me} games={played} onStart={startTraining} onProfile={() => setView('profile')}
+          onCustom={(mode, settings) => { if (!me) { setView('profile'); return; } begin({ mode, settings, playerIds: [me.id] }); }}
           onAtc={() => begin({ mode: 'atc', settings: { zones: ['S', 'D', 'T'], order: 'asc', bull: false, skip: false, ...(load('lastSetup', null)?.settings?.atc || {}) }, playerIds: [me.id] })} />
       )}
       {demo && (tab === 'stats' || tab === 'ranking') && (

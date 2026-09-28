@@ -203,3 +203,16 @@ describe('Mur de la cuisine', () => {
     expect(x01.misses).toBe(3);
   });
 });
+
+import { weakest } from './coach.js';
+describe('coach : points faibles', () => {
+  it('repère un double nettement raté, ignore le bull et le hasard', () => {
+    const p = {};
+    for (const n of [20, 16, 8, 10, 12, 18]) p[n] = { darts: 60, hits: 9 };
+    p[16] = { darts: 60, hits: 1 };
+    p[25] = { darts: 40, hits: 0 };
+    expect(weakest(p, 12, 0.6).weak.map((w) => w.n)).toEqual([16]);
+    p[16] = { darts: 60, hits: 7 }; // un peu en dessous : hasard
+    expect(weakest(p, 12, 0.6)).toBeNull();
+  });
+});

@@ -57,7 +57,8 @@ function atcZoneOk(d, target, zones) {
 }
 
 export function atcTargets(settings, rng = Math.random) {
-  let t = Array.from({ length: 20 }, (_, i) => i + 1);
+  // numéros choisis (ex. entraînement du coach sur tes numéros faibles), sinon 1 à 20
+  let t = settings.nums?.length ? settings.nums.filter((n) => n !== 25) : Array.from({ length: 20 }, (_, i) => i + 1);
   if (settings.order === 'desc') t.reverse();
   if (settings.order === 'random') {
     for (let i = t.length - 1; i > 0; i--) {
@@ -65,7 +66,7 @@ export function atcTargets(settings, rng = Math.random) {
       [t[i], t[j]] = [t[j], t[i]];
     }
   }
-  if (settings.bull) t.push(25);
+  if (settings.bull || settings.nums?.includes(25)) t.push(25);
   return t;
 }
 

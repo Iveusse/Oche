@@ -61,7 +61,9 @@ export function modeSubtitle(game) {
   const legNo = game.data.legs.length;
   switch (game.mode) {
     case 'x01': return `${hasHandicap(s) ? 'Handicap · ' : ''}${s.in === s.out ? `${RULE[s.in]} in / out` : `${RULE[s.in]} in · ${RULE[s.out]} out`} · Leg ${legNo}`;
-    case 'atc': return `${(s.zones || []).join(' + ')} · ${s.order === 'desc' ? '20 → 1' : s.order === 'random' ? 'aléatoire' : '1 → 20'}${s.bull ? ' + bull' : ''} · Leg ${legNo}`;
+    case 'atc': return s.nums?.length
+      ? `${(s.zones || []).join(' + ')} · ${s.nums.map((n) => (n === 25 ? 'bull' : n)).join(', ')} · Leg ${legNo}`
+      : `${(s.zones || []).join(' + ')} · ${s.order === 'desc' ? '20 → 1' : s.order === 'random' ? 'aléatoire' : '1 → 20'}${s.bull ? ' + bull' : ''} · Leg ${legNo}`;
     case 'shanghai': return `${s.from} à ${s.to} · Leg ${legNo}`;
     case 'cricket': return `${s.points === false ? 'Sans points' : 'Avec points'} · Leg ${legNo}`;
     default: return 'Entraînement';

@@ -443,41 +443,50 @@ export function trainingRecords(games, pid) {
   return rec;
 }
 
-function CoachCard({ coach, onStart, onAtc }) {
+function CoachCard({ coach, onStart, onAtc, onCustom }) {
   const [more, setMore] = useState(false);
   if (!coach.ready) {
     return (
       <div className="card coach col">
         <div className="row" style={{ gap: 8 }}><span className="coach-badge">Coach</span><span className="small muted">sur tes {coach.days} derniers jours</span></div>
-        <div className="small" style={{ color: 'var(--text-2)', lineHeight: 1.45 }}>Pas encore assez de parties pour te donner un conseil fiable. Encore {coach.need} et je te dis où tu perds des points.</div>
+        <div className="small" style={{ color: 'var(--text-2)', lineHeight: 1.45 }}>Pas encore assez de parties pour te donner un conseil fiable. Il me faut encore : {coach.need}.</div>
       </div>
     );
   }
-  const drill = DRILLS.find((d) => d[0] === coach.main.drill);
+  const launch = (d) => (d.kind === 'drill' ? onStart(d.id) : onCustom('atc', d.settings));
+  const label = (d) => (d.kind === 'drill' ? DRILLS.find((x) => x[0] === d.id)?.[1] : d.label);
+  const { main, others, tips, levels } = coach;
   return (
     <div className="card coach col">
-      <div className="row" style={{ gap: 8 }}><span className="coach-badge">Coach</span><span className="small muted">X01 et Shanghai, {coach.days} derniers jours</span></div>
-      <div style={{ fontSize: 18, fontWeight: 800 }}>{coach.main.title}</div>
-      <div className="coach-levels">
-        <div><span className="small muted">Scoring</span><b className={coach.main.kind === 'scoring' ? 'weak' : ''}>niveau {Math.round(coach.lvlScore)}</b></div>
-        <div><span className="small muted">Finish</span><b className={coach.main.kind === 'finish' ? 'weak' : ''}>niveau {Math.round(coach.lvlFin)}</b></div>
-      </div>
-      <div className="small" style={{ color: 'var(--text-2)', lineHeight: 1.45 }}>{coach.main.text}</div>
-      {drill && <button className="btn btn-primary" onClick={() => onStart(drill[0])}>Lancer : {drill[1]}</button>}
-      {coach.tips.length > 0 && (<>
+      <div className="row" style={{ gap: 8 }}><span className="coach-badge">Coach</span><span className="small muted">tous modes, {coach.days} derniers jours</span></div>
+      <div style={{ fontSize: 18, fontWeight: 800 }}>{main.title}</div>
+      {main.mode === 'X01' && levels && (
+        <div className="coach-levels">
+          <div><span className="small muted">Scoring</span><b className={levels.weak === 'scoring' ? 'weak' : ''}>niveau {Math.round(levels.lvlScore)}</b></div>
+          <div><span className="small muted">Finish</span><b className={levels.weak === 'finish' ? 'weak' : ''}>niveau {Math.round(levels.lvlFin)}</b></div>
+        </div>
+      )}
+      <div className="small" style={{ color: 'var(--text-2)', lineHeight: 1.45 }}>{main.text}</div>
+      <button className="btn btn-primary" onClick={() => launch(main.drill)}>Lancer : {label(main.drill)}</button>
+      {(others.length > 0 || tips.length > 0) && (<>
         <button className="small" style={{ color: 'var(--accent)', fontWeight: 700, textAlign: 'left', minHeight: 32 }} onClick={() => setMore(!more)} aria-expanded={more}>
-          {more ? 'Masquer' : `${coach.tips.length} autre${coach.tips.length > 1 ? 's' : ''} conseil${coach.tips.length > 1 ? 's' : ''}`}
+          {more ? 'Masquer' : `${others.length + tips.length} autre${others.length + tips.length > 1 ? 's' : ''} piste${others.length + tips.length > 1 ? 's' : ''}`}
         </button>
-        {more && coach.tips.map((t) => (
-          <div key={t} className="small coach-tip">{t}{/Around the Clock/.test(t) && onAtc && <button className="coach-link" onClick={onAtc}>Lancer un ATC</button>}</div>
+        {more && others.map((o) => (
+          <div key={o.title} className="coach-tip">
+            <div style={{ fontWeight: 800, color: 'var(--text)' }}>{o.title}</div>
+            <div className="small" style={{ marginTop: 2 }}>{o.text}</div>
+            <button className="coach-link" onClick={() => launch(o.drill)}>Lancer : {label(o.drill)}</button>
+          </div>
         ))}
+        {more && tips.map((t) => <div key={t} className="small coach-tip">{t}</div>)}
       </>)}
-      <div className="small muted" style={{ lineHeight: 1.4 }}>« Niveau 30 » = ce que réussit en moyenne un joueur à 30 de moyenne, d'après une simulation. C'est une estimation, pas une vérité.</div>
+      <div className="small muted" style={{ lineHeight: 1.4 }}>Le coach ne signale un point faible que quand l'écart est trop grand pour être du hasard. « Niveau 30 » = ce que réussit en moyenne un joueur à 30 de moyenne (d'après une simulation).</div>
     </div>
   );
 }
 
-export function Training({ me, games, onStart, onAtc, onProfile }) {
+export function Training({ me, games, onStart, onAtc, onCustom, onProfile }) {
   const [chart, setChart] = useState('train-doubles');
   const rec = useMemo(() => (me ? trainingRecords(games, me.id) : {}), [games, me]);
   const coach = useMemo(() => (me ? coachAdvice(games, me.id) : null), [games, me]);
@@ -503,7 +512,7 @@ export function Training({ me, games, onStart, onAtc, onProfile }) {
         <div className="h1">Entraînement</div>
         <div className="small muted">Tes sessions solo, comptées dans tes stats</div>
       </div>
-      {coach && <CoachCard coach={coach} onStart={onStart} onAtc={onAtc} />}
+      {coach && <CoachCard coach={coach} onStart={onStart} onAtc={onAtc} onCustom={onCustom} />}
       <div className="card col" style={{ padding: 16, gap: 12, border: '1px solid var(--card-2)' }}>
         <div>
           <div style={{ fontSize: 18, fontWeight: 800 }}>Session libre</div>
