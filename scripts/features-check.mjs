@@ -119,13 +119,14 @@ await page.waitForTimeout(800); await page.evaluate(() => window.__say('triple v
 await page.waitForTimeout(150);
 await shot('f6-voix');
 const strip = await page.locator('.dart-box .a').allInnerTexts();
-check('voix -> fléchettes', strip.join(' ') === 'T20 5 Hors', strip.join(' '));
+const line = await page.getByText(/Yves : 65 · À Nico de jouer/).count();
+check('voix -> fléchettes, tour passé tout seul', line > 0 && strip.join(' ') === '- - -', strip.join(' '));
 await page.waitForTimeout(800); await page.evaluate(() => window.__say('valider'));
 await page.waitForTimeout(150);
 await page.waitForTimeout(800); await page.evaluate(() => window.__say('T20 T20 T20'));
 await page.waitForTimeout(150);
 const spoken = await page.evaluate(() => window.__spoken);
-check('annonces', spoken.includes('65') && spoken.some((s) => /Nico\. Reste 501/.test(s)) && spoken.includes('Cent quatre-vingts !'), JSON.stringify(spoken));
+check('annonces (tour + joueur suivant, sans valider)', spoken.some((s) => /^65\. Nico\. Reste 501/.test(s)) && spoken.some((s) => /^Cent quatre-vingts ! Yves\. Reste 236/.test(s)), JSON.stringify(spoken));
 await page.waitForTimeout(800); await page.evaluate(() => window.__say('valider'));
 await page.waitForTimeout(150);
 // Yves à 236 : pas de finish ; on descend à 40 pour entendre la route

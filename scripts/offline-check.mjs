@@ -41,7 +41,7 @@ await page.getByRole('button', { name: 'Lancer la partie' }).click();
 await page.getByRole('button', { name: 'Hors cible' }).click();
 await page.getByRole('button', { name: 'Hors cible' }).click();
 await page.getByRole('button', { name: 'Hors cible' }).click();
-await page.getByRole('button', { name: 'Valider' }).click();
+if (await page.getByRole('button', { name: /^Valider/ }).count()) await page.getByRole('button', { name: /^Valider/ }).click();
 const pending = await page.evaluate(() => Object.keys(JSON.parse(localStorage.getItem('oche.pending') || '{}')).length);
 console.log('Tour joué hors ligne, en attente :', pending, '| envoyés :', saved.length);
 await ctx.setOffline(false);

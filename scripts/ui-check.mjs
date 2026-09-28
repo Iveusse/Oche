@@ -92,7 +92,7 @@ async function tapZone(seg, mult) {
   await page.mouse.up();
   await page.waitForTimeout(30);
 }
-const valider = () => page.getByRole('button', { name: 'Valider' }).click();
+const valider = async () => { await page.waitForTimeout(50); const b = page.getByRole('button', { name: /^Valider/ }); if (await b.count()) await b.click(); };
 
 await page.goto(BASE);
 await shot('01-code');
@@ -186,7 +186,7 @@ await page.getByRole('button', { name: 'Double 1' }).click();
 await page.getByRole('button', { name: 'Triple 1' }).click();
 await page.waitForTimeout(100);
 await shot('14-shanghai');
-await page.getByRole('button', { name: 'Valider' }).click();
+await valider();
 await page.waitForTimeout(300);
 await shot('14b-shanghai-fin');
 await page.getByRole('button', { name: 'Terminer la partie' }).click();

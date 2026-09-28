@@ -168,8 +168,18 @@ export function Play({ game, players, records, history = [], onUpdate, onLegDone
     }
     if (darts === leg.darts) return;
     const r2 = runLeg(game.mode, game.settings, { ...leg, darts });
-    if (!r.awaiting && r2.awaiting) { const t = r2.turns[r2.turns.length - 1]; speak(turnSpeech(game.mode, t, byId[r2.ps[t.p].id]?.name || '')); }
-    setLeg({ darts });
+    const patch = { darts };
+    if (!r.awaiting && r2.awaiting) {
+      const t = r2.turns[r2.turns.length - 1];
+      const said = turnSpeech(game.mode, t, byId[r2.ps[t.p].id]?.name || '');
+      // tour fini : on passe au joueur suivant tout seul (la flèche retour permet de corriger).
+      // Seule la fin d'un leg (ou la question « on continue ? ») attend une validation.
+      const nl = { ...leg, darts, validated: r2.turns.length };
+      const r3 = runLeg(game.mode, game.settings, nl);
+      if (!r3.over && !r3.needDecision) { patch.validated = r2.turns.length; speak(`${said}${/[!?.]$/.test(said) ? '' : '.'} ${nextSpeech(game, nl, r3, byId)}`); }
+      else speak(said);
+    }
+    setLeg(patch);
   };
   const hit = (d) => { if (!blocked) addDarts([d]); };
   const undo = () => {
@@ -295,7 +305,7 @@ export function Play({ game, players, records, history = [], onUpdate, onLegDone
         {info && <div className="info-box"><div className="b">{info.b}</div><div className="a">{info.a}</div></div>}
       </div>
       <div className="small" style={{ minHeight: 16, color: shown?.bust ? 'var(--bad)' : 'var(--text-2)', textAlign: 'center' }}>
-        {hint || (tDarts.length ? `Tour : ${turnPts}` : `À ${byId[tps.id]?.name || '?'} de jouer`)}
+        {hint || (tDarts.length ? `Tour : ${turnPts}` : `${lastTurn && r.ps.length > 1 ? `${byId[r.ps[lastTurn.p].id]?.name} : ${lastTurn.bust ? 'bust' : game.mode === 'cricket' ? `${lastTurn.darts.reduce((a, d) => a + (d.marks || 0), 0)} marque(s)` : lastTurn.darts.reduce((a, d) => a + (d.pts ?? dartScore(d)), 0)} · ` : ''}À ${byId[tps.id]?.name || '?'} de jouer`)}
       </div>
       {listening && heard && <div className="small heard" aria-live="polite">{heard}</div>}
 
@@ -308,7 +318,7 @@ export function Play({ game, players, records, history = [], onUpdate, onLegDone
         {!(game.mode === 'shanghai' && input === 'buttons') && (
           <button className="btn grow" style={{ border: '1px dashed var(--muted)', fontWeight: 700, fontSize: 15 }} disabled={blocked} onClick={() => hit({ seg: 0, mult: 0 })}>Hors cible</button>
         )}
-        <button className="btn btn-primary grow" disabled={!r.awaiting} onClick={validate}>Valider</button>
+        {r.awaiting && <button className="btn btn-primary grow" onClick={validate}>Valider la fin</button>}
       </div>
 
       {finisher && !r.awaiting && (
