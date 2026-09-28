@@ -114,8 +114,10 @@ export const shanghai = {
     }
     return { info };
   },
-  status({ turns, n, settings, instantWin }) {
+  status({ turns, n, settings, instantWin, leg }) {
     if (instantWin) return { over: true, needDecision: false };
+    // partie arrêtée parce que plus personne ne pouvait rattraper le premier
+    if (leg?.stoppedAt != null && turns.reduce((a, t) => a + t.darts.length, 0) >= leg.stoppedAt) return { over: true, needDecision: false };
     return { over: turns.length >= n * shanghaiNumbers(settings).length, needDecision: false };
   },
   rankKey: (ps) => ps.pts,

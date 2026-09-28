@@ -2,10 +2,12 @@
 import { chromium } from '/home/claude/.npm-global/lib/node_modules/playwright/index.mjs';
 const BASE = 'http://127.0.0.1:4173';
 const saved = [];
+let netDown = false;
 const players = [{ id: 'p1', name: 'Yves', color: '#5fc8ff' }, { id: 'p2', name: 'Nico', color: '#ff9f5a' }];
 const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
 const ctx = await browser.newContext({ viewport: { width: 393, height: 852 } });
 await ctx.route('**/rest/v1/rpc/**', async (route) => {
+  if (netDown) return route.abort('internetdisconnected');
   const fn = route.request().url().split('/rpc/')[1];
   const body = JSON.parse(route.request().postData() || '{}');
   const json = (d) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(d) });
@@ -29,7 +31,7 @@ await page.reload(); // prise de contrôle par le service worker
 await page.waitForTimeout(800);
 console.log('SW actif :', await page.evaluate(() => !!navigator.serviceWorker.controller));
 
-await ctx.setOffline(true);
+await ctx.setOffline(true); netDown = true;
 await page.reload();
 await page.getByText('Nouvelle partie').first().waitFor({ timeout: 5000 });
 console.log('Ouverture hors ligne : OK');
@@ -42,9 +44,11 @@ await page.getByRole('button', { name: 'Hors cible' }).click();
 await page.getByRole('button', { name: 'Hors cible' }).click();
 await page.getByRole('button', { name: 'Hors cible' }).click();
 if (await page.getByRole('button', { name: /^Valider/ }).count()) await page.getByRole('button', { name: /^Valider/ }).click();
+page.on('pageerror', (e) => console.log('PAGEERR', String(e)));
+await page.screenshot({ path: process.argv[2] + '/off.png' });
 const pending = await page.evaluate(() => Object.keys(JSON.parse(localStorage.getItem('oche.pending') || '{}')).length);
 console.log('Tour joué hors ligne, en attente :', pending, '| envoyés :', saved.length);
-await ctx.setOffline(false);
+await ctx.setOffline(false); netDown = false;
 await page.evaluate(() => window.dispatchEvent(new Event('online')));
 await page.waitForTimeout(1500);
 const left = await page.evaluate(() => Object.keys(JSON.parse(localStorage.getItem('oche.pending') || '{}')).length);

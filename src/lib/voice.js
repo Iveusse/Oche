@@ -20,15 +20,15 @@ if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
 let quietUntil = 0; // la reconnaissance ignore ce qu'elle entend pendant qu'on parle
 export const isSpeaking = () => ('speechSynthesis' in window && window.speechSynthesis.speaking) || Date.now() < quietUntil;
 
-export function speak(text, force = false) {
+export function speak(text, force = false, queue = false) {
   if (!text || (!force && !voiceOn()) || !('speechSynthesis' in window)) return;
   const u = new SpeechSynthesisUtterance(text);
   u.lang = 'fr-FR';
   const v = pickVoice(); if (v) u.voice = v;
   u.rate = 1.05;
   u.onend = () => { quietUntil = Date.now() + 700; };
-  quietUntil = Date.now() + 400 + text.length * 90;
-  window.speechSynthesis.cancel();
+  quietUntil = Math.max(quietUntil, Date.now()) + 400 + text.length * 90;
+  if (!queue) window.speechSynthesis.cancel();
   window.speechSynthesis.speak(u);
 }
 
@@ -42,25 +42,60 @@ export const dartWords = (d) => {
 const SR = typeof window !== 'undefined' ? (window.SpeechRecognition || window.webkitSpeechRecognition) : null;
 export const canListen = !!SR;
 
-export function startListening(onAlternatives, onState) {
+// Écoute « au fil de l'eau » : sur iPhone, la reconnaissance renvoie souvent des résultats
+// jamais marqués « finaux ». On prend donc le texte dès qu'il n'a plus bougé pendant ~0,9 s.
+// Si iOS coupe l'écoute et refuse de la relancer seul, on le signale (un tap sur le micro relance).
+const ERRORS = {
+  'not-allowed': 'Micro refusé : autorise le micro pour Oche (Réglages de l\'iPhone > Safari > Micro) et vérifie que la Dictée est activée (Réglages > Général > Clavier).',
+  'service-not-allowed': 'La reconnaissance vocale est bloquée : active la Dictée (Réglages > Général > Clavier > Dictée), puis réessaie.',
+  'audio-capture': 'Aucun micro disponible.',
+  network: 'La reconnaissance vocale a besoin d\'internet.',
+};
+export function startListening(onAlternatives, onState, onInfo = () => {}) {
   const rec = new SR();
   rec.lang = 'fr-FR';
   rec.continuous = true;
-  rec.interimResults = false;
+  rec.interimResults = true;
   rec.maxAlternatives = 3;
-  let active = true;
+  let active = true; let done = 0; let timer = null; let last = null; let restarts = 0; let prevFull = '';
+  const flush = () => {
+    timer = null;
+    if (!last || isSpeaking()) { last = null; return; }
+    const alts = last; last = null;
+    onAlternatives(alts);
+  };
   rec.onresult = (e) => {
-    for (let i = e.resultIndex; i < e.results.length; i++) {
-      if (!e.results[i].isFinal || isSpeaking()) continue;
-      onAlternatives(Array.from(e.results[i]).map((a) => a.transcript));
-    }
+    restarts = 0;
+    // texte complet depuis le début de l'écoute, on ne garde que la partie pas encore traitée
+    const full = Array.from(e.results).map((r) => r[0].transcript).join(' ');
+    // le moteur a repris son texte à zéro (certains iPhone le font) : on repart de zéro aussi
+    if (full.length < done || !full.startsWith(prevFull.slice(0, done))) done = 0;
+    prevFull = full;
+    const alts = Array.from(e.results[e.results.length - 1]).map((a) => a.transcript);
+    const fresh = full.slice(done).trim();
+    if (!fresh) return;
+    if (isSpeaking()) { done = full.length; return; }
+    onInfo(`… ${fresh}`);
+    last = [fresh, ...alts.filter((a) => a.trim() && a.trim() !== fresh)];
+    const isFinal = e.results[e.results.length - 1].isFinal;
+    clearTimeout(timer);
+    const len = full.length;
+    timer = setTimeout(() => { done = len; flush(); }, isFinal ? 150 : 900);
   };
   rec.onerror = (e) => {
-    if (e.error === 'not-allowed' || e.error === 'service-not-allowed') { active = false; onState(false, 'Micro refusé : autorise-le dans les réglages de l\'iPhone.'); }
+    if (e.error === 'no-speech' || e.error === 'aborted') return;
+    if (ERRORS[e.error]) { active = false; onState(false, ERRORS[e.error]); return; }
+    onInfo(`Micro : ${e.error}`);
   };
-  rec.onend = () => { if (active) { try { rec.start(); } catch { active = false; onState(false); } } else onState(false); };
+  rec.onend = () => {
+    done = 0; prevFull = '';
+    if (!active) { onState(false); return; }
+    restarts += 1;
+    if (restarts > 3) { active = false; onState(false, 'Le micro s\'est coupé : touche-le pour reprendre.'); return; }
+    try { rec.start(); } catch { active = false; onState(false, 'Le micro s\'est coupé : touche-le pour reprendre.'); }
+  };
   try { rec.start(); onState(true); } catch { onState(false, 'Impossible de lancer le micro.'); }
-  return () => { active = false; try { rec.stop(); } catch { /* déjà arrêté */ } };
+  return () => { active = false; clearTimeout(timer); try { rec.stop(); } catch { /* déjà arrêté */ } };
 }
 
 // ---------- compréhension de « triple vingt, cinq, raté » ----------

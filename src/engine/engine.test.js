@@ -161,18 +161,31 @@ describe('saisie vocale', () => {
   });
 });
 
-import { shanghaiNeed } from '../screens/Play.jsx';
+import { shanghaiNeed, shanghaiDecided } from '../screens/Play.jsx';
 describe('Shanghai : rester en vie', () => {
   const s = { from: 1, to: 3, instantWin: true };
-  const R = (a, b) => ({ ps: [{ pts: a }, { pts: b }] });
-  it('calcule le minimum à marquer', () => {
-    // manche 3 (dernière, numéro 3) : 10 de retard -> 10 pts ce tour
-    expect(shanghaiNeed(s, R(5, 15), 0, 2)).toEqual({ kind: 'need', need: 10, gap: 10 });
-    // 40 de retard en dernière manche : max 27 -> seul un Shanghai
-    expect(shanghaiNeed(s, R(0, 40), 0, 2).kind).toBe('dead');
-    // manche 2 : il reste 27 pts possibles après, 20 de retard -> tranquille
-    expect(shanghaiNeed(s, R(0, 20), 0, 1).kind).toBe('safe');
-    expect(shanghaiNeed(s, R(30, 20), 0, 1)).toEqual({ kind: 'lead', gap: 10 });
+  // état minimal : points, tours déjà joués par joueur, tour en cours
+  const R = (a, b, doneA, doneB, cur = null) => ({
+    ps: [{ pts: a }, { pts: b }],
+    turns: [...Array(doneA).fill({ p: 0, darts: [] }), ...Array(doneB).fill({ p: 1, darts: [] })],
+    current: cur,
+  });
+  it('dit simple / double / triple / Shanghai', () => {
+    // dernière manche (le 3), 3 de retard -> un simple ; 6 -> un double ; 9 -> un triple
+    expect(shanghaiNeed(s, R(12, 15, 2, 3), 0)).toMatchObject({ kind: 'need', text: 'un simple' });
+    expect(shanghaiNeed(s, R(9, 15, 2, 3), 0)).toMatchObject({ kind: 'need', text: 'un double' });
+    expect(shanghaiNeed(s, R(6, 15, 2, 3), 0)).toMatchObject({ kind: 'need', text: 'un triple' });
+    expect(shanghaiNeed(s, R(0, 18, 2, 3), 0)).toMatchObject({ kind: 'need', text: 'un Shanghai (ou 2 triples)' });
+    // 40 de retard, max 27 sur le 3 : seul un Shanghai
+    expect(shanghaiNeed(s, R(0, 40, 2, 3), 0).kind).toBe('shanghai');
+    expect(shanghaiNeed({ ...s, instantWin: false }, R(0, 40, 2, 3), 0).kind).toBe('dead');
+    // 1 fléchette restante, un simple 3 déjà touché, besoin de 9 : Shanghai encore possible ? non (manquent D et T)
+    expect(shanghaiNeed(s, R(3, 15, 2, 3, { p: 0, darts: [{ hit: true, mult: 1 }, { hit: false, mult: 0 }] }), 0).kind).toBe('dead');
+    expect(shanghaiNeed(s, R(30, 20, 1, 1), 0)).toMatchObject({ kind: 'lead', gap: 10 });
+  });
+  it('voit quand plus personne ne peut rattraper le premier', () => {
+    expect(shanghaiDecided(s, R(0, 40, 2, 3))).toEqual({ leader: 1 });
+    expect(shanghaiDecided(s, R(20, 40, 2, 3))).toBeNull();
   });
 });
 

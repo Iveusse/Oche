@@ -43,10 +43,13 @@ function nextSpeech(game, leg, r, byId) {
     return t == null ? who : `${who}Cible ${game.mode === 'train-doubles' ? (t === 25 ? 'bull' : `double ${t}`) : (t === 25 ? 'bull' : t)}`;
   }
   if (game.mode === 'shanghai') {
-    const nums = shanghaiNumbers(game.settings); const round = Math.floor(r.turns.length / r.ps.length);
-    const nd = r.ps.length > 1 && nums[round] ? shanghaiNeed(game.settings, r, i, round) : null;
-    const extra = nd?.kind === 'need' ? `. Il te faut ${nd.need} points` : nd?.kind === 'dead' && nd.shanghai ? '. Il te faut un Shanghai' : '';
-    return `${who}${r.turns.length % r.ps.length === 0 && nums[round] ? `Numéro ${nums[round]}` : ''}${extra}`;
+    // chaque joueur entend son numéro, et ce qu'il lui faut pour rester en vie
+    const nums = shanghaiNumbers(game.settings);
+    const num = nums[r.turns.filter((t) => t.p === i).length];
+    if (!num) return who;
+    const nd = shanghaiNeed(game.settings, r, i);
+    const extra = nd?.kind === 'need' ? `. Pour rester en vie : ${nd.text}` : nd?.kind === 'shanghai' ? '. Seul un Shanghai peut te sauver' : '';
+    return `${who}Le ${num}${extra}`;
   }
   return who;
 }
@@ -88,20 +91,52 @@ function shortDart(mode, d) {
 }
 const lastTurnOf = (r, idx) => [...r.turns].reverse().find((t) => t.p === idx);
 
-// Shanghai : combien il faut marquer ce tour pour pouvoir encore rattraper le premier
-export function shanghaiNeed(settings, r, idx, round) {
+// ---------- Shanghai : rester en vie ----------
+const MARKS_TEXT = { 1: 'un simple', 2: 'un double', 3: 'un triple', 4: 'triple + simple', 5: 'triple + double', 6: 'un Shanghai (ou 2 triples)', 7: 'triple, triple, simple', 8: 'triple, triple, double', 9: '3 triples' };
+
+// Points max qu'un joueur peut encore marquer (tour en cours compris)
+function shanghaiRoom(nums, r, j) {
+  const done = r.turns.filter((t) => t.p === j).length;
+  const thrown = r.current?.p === j ? r.current.darts.length : 0;
+  return nums.slice(done).reduce((a, n) => a + 9 * n, 0) - 3 * (nums[done] || 0) * thrown;
+}
+
+// Ce qu'il faut au joueur j pour pouvoir encore rattraper le premier (en supposant que le premier ne marque plus)
+export function shanghaiNeed(settings, r, j) {
   const nums = shanghaiNumbers(settings);
-  const me = r.ps[idx].pts;
-  const lead = Math.max(...r.ps.map((p, j) => (j === idx ? -Infinity : p.pts)));
+  const me = r.ps[j].pts;
+  const others = r.ps.map((p, k) => (k === j ? -Infinity : p.pts));
+  const lead = Math.max(...others);
   if (!Number.isFinite(lead)) return null;
   const gap = lead - me;
   if (gap < 0) return { kind: 'lead', gap: -gap };
-  const future = nums.slice(round + 1).reduce((a, n) => a + 9 * n, 0);
-  const need = gap - future;
-  const max = 9 * (nums[round] || 0);
-  if (need <= 0) return { kind: 'safe', gap };
-  if (need <= max) return { kind: 'need', need, gap };
-  return { kind: 'dead', gap, shanghai: settings.instantWin !== false };
+  const done = r.turns.filter((t) => t.p === j).length;
+  const n = nums[done];
+  if (!n) return { kind: 'over', gap };
+  const cur = r.current?.p === j ? r.current.darts : [];
+  const left = 3 - cur.length;
+  const after = nums.slice(done + 1).reduce((a, x) => a + 9 * x, 0);
+  const needPts = gap - after;
+  if (needPts <= 0) return { kind: 'safe', gap };
+  const m = Math.ceil(needPts / n);
+  const hitMults = new Set(cur.filter((d) => d.hit && d.mult).map((d) => d.mult));
+  const missing = [1, 2, 3].filter((k) => !hitMults.has(k)).length;
+  const shanghai = settings.instantWin !== false && missing <= left;
+  if (m <= 3 * left) return { kind: 'need', m, text: m >= 6 && shanghai ? (m === 6 ? MARKS_TEXT[6] : 'un Shanghai') : MARKS_TEXT[m], gap };
+  if (shanghai) return { kind: 'shanghai', gap };
+  return { kind: 'dead', gap };
+}
+
+// Plus personne ne peut rattraper le premier aux points ?
+export function shanghaiDecided(settings, r) {
+  if (r.ps.length < 2 || r.over) return null;
+  const nums = shanghaiNumbers(settings);
+  const lead = Math.max(...r.ps.map((p) => p.pts));
+  const leaders = r.ps.map((p, j) => (p.pts === lead ? j : -1)).filter((j) => j >= 0);
+  if (leaders.length > 1) return null;
+  const L = leaders[0];
+  const ok = r.ps.every((p, j) => j === L || lead - p.pts > shanghaiRoom(nums, r, j));
+  return ok ? { leader: L } : null;
 }
 
 function cardInfo(game, r, ps, idx) {
@@ -158,9 +193,9 @@ export function Play({ game, players, records, history = [], onUpdate, onLegDone
   const stopRef = useRef(null);
   const voiceRef = useRef(() => {});
   const toggleListen = () => {
-    if (listening) { stopRef.current?.(); stopRef.current = null; setListening(false); return; }
-    setHeard('Parle : « triple vingt, cinq, raté », puis « valider »');
-    stopRef.current = startListening((alts) => voiceRef.current(alts), (on, err) => { setListening(on); if (err) setHeard(err); });
+    if (listening) { stopRef.current?.(); stopRef.current = null; setListening(false); setHeard(''); return; }
+    setHeard('J\'écoute : dis par exemple « triple vingt, cinq, raté »');
+    stopRef.current = startListening((alts) => voiceRef.current(alts), (on, err) => { setListening(on); if (err) setHeard(err); else if (!on) setHeard(''); }, (info) => setHeard(info));
   };
   useEffect(() => () => stopRef.current?.(), []);
   useEffect(() => { if (leg.done && stopRef.current) { stopRef.current(); stopRef.current = null; setListening(false); } }, [leg.done]);
@@ -177,6 +212,18 @@ export function Play({ game, players, records, history = [], onUpdate, onLegDone
       onLegDone({ ...game, data: { ...game.data, legs: [...legs.slice(0, -1), nl] } });
     }
   }, [leg, r]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Shanghai : dès que plus personne ne peut rattraper le premier aux points, on le dit une fois
+  const decidedSaid = useRef(false);
+  const [hideDecided, setHideDecided] = useState(false);
+  useEffect(() => { setHideDecided(false); decidedSaid.current = false; }, [legs.length]);
+  const decided = game.mode === 'shanghai' && !leg.done && !r.current && !r.awaiting && hideDecided === false ? shanghaiDecided(game.settings, r) : null;
+  useEffect(() => {
+    if (!decided || decidedSaid.current) return;
+    decidedSaid.current = true;
+    const name = byId[r.ps[decided.leader].id]?.name || '';
+    speak(`Plus personne ne peut rattraper ${name} aux points${game.settings.instantWin !== false ? ', sauf avec un Shanghai' : ''}. Vous pouvez terminer la partie.`, false, true);
+  }, [decided]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (leg.done) {
     return training
@@ -245,10 +292,11 @@ export function Play({ game, players, records, history = [], onUpdate, onLegDone
     const nums = shanghaiNumbers(s);
     const round = shown ? shown.round : Math.floor(r.turns.length / r.ps.length);
     info = { b: `Manche ${Math.min(round + 1, nums.length)}/${nums.length}`, a: nums[Math.min(round, nums.length - 1)] };
-    if (!shown?.darts?.length || r.current) {
-      const nd = r.ps.length > 1 ? shanghaiNeed(s, r, thrower, Math.min(round, nums.length - 1)) : null;
-      if (nd?.kind === 'need') hint = `Pour rester en vie : au moins ${nd.need} pts${tDarts.length ? ' de plus' : ''} ce tour`;
-      else if (nd?.kind === 'dead') hint = nd.shanghai ? 'Plus rattrapable aux points : seul un Shanghai peut te sauver !' : 'Plus rattrapable aux points';
+    if (!r.awaiting && !r.over) {
+      const nd = r.ps.length > 1 ? shanghaiNeed(s, r, thrower) : null;
+      if (nd?.kind === 'need') hint = `Pour rester en vie : ${nd.text}${tDarts.length ? ' (avec les fléchettes qui restent)' : ''}`;
+      else if (nd?.kind === 'shanghai') hint = 'Seul un Shanghai peut te sauver !';
+      else if (nd?.kind === 'dead') hint = 'Plus possible de rattraper le premier';
       else if (nd?.kind === 'lead') hint = `En tête de ${nd.gap} pts`;
       else if (nd?.kind === 'safe') hint = `${nd.gap} pts de retard sur le premier`;
     }
@@ -321,6 +369,15 @@ export function Play({ game, players, records, history = [], onUpdate, onLegDone
 
       {checkout && <CheckoutBar {...checkout} />}
 
+      {decided && (
+        <div className="decided" role="status">
+          <div><b>{byId[r.ps[decided.leader].id]?.name}</b> ne peut plus être rattrapé aux points{s.instantWin !== false ? ' (sauf Shanghai)' : ''}.</div>
+          <div className="decided-actions">
+            <button className="btn btn-primary" onClick={() => setLeg({ stoppedAt: leg.darts.length })}>Terminer la partie</button>
+            <button className="btn btn-ghost" onClick={() => { decidedSaid.current = 'hidden'; setHideDecided(r.turns.length); }}>Continuer</button>
+          </div>
+        </div>
+      )}
       {game.mode === 'shanghai' && (
         <Seg options={[['board', 'Cible'], ['buttons', 'Boutons']]} value={input} onChange={setInput} />
       )}
@@ -344,13 +401,15 @@ export function Play({ game, players, records, history = [], onUpdate, onLegDone
         })}
         {info && <div className="info-box"><div className="b">{info.b}</div><div className="a">{info.a}</div></div>}
       </div>
-      <div className="small" style={{ minHeight: 16, color: shown?.bust || /Shanghai peut|Plus rattrapable/.test(hint || '') ? 'var(--bad)' : /rester en vie/.test(hint || '') ? 'var(--sky)' : 'var(--text-2)', fontWeight: /rester en vie|Shanghai peut/.test(hint || '') ? 700 : 400, textAlign: 'center' }}>
+      <div className="small" style={{ minHeight: 16, color: shown?.bust || /Shanghai peut|Plus possible/.test(hint || '') ? 'var(--bad)' : /rester en vie/.test(hint || '') ? 'var(--sky)' : 'var(--text-2)', fontWeight: /rester en vie|Shanghai peut|Plus possible/.test(hint || '') ? 700 : 400, textAlign: 'center' }}>
         {hint || (tDarts.length ? `Tour : ${turnPts}` : `${lastTurn && r.ps.length > 1 ? `${byId[r.ps[lastTurn.p].id]?.name} : ${lastTurn.bust ? 'bust' : game.mode === 'cricket' ? `${lastTurn.darts.reduce((a, d) => a + (d.marks || 0), 0)} marque(s)` : lastTurn.darts.reduce((a, d) => a + (d.pts ?? dartScore(d)), 0)} · ` : ''}À ${byId[tps.id]?.name || '?'} de jouer`)}
       </div>
-      {listening && heard && <div className="small heard" aria-live="polite">{heard}</div>}
+      {heard && <div className="small heard" aria-live="polite">{heard}</div>}
 
       <div className="actions">
-        <button className="icon-btn" style={{ width: 56, height: 56, borderRadius: 14, border: '1px solid var(--wire)' }} aria-label="Annuler la dernière fléchette" onClick={undo} disabled={!leg.darts.length}><Icon.Undo /></button>
+        {(game.mode === 'shanghai' && input === 'buttons' && !r.awaiting)
+          ? <button className="btn grow" style={{ border: '1px solid var(--wire)', fontWeight: 700 }} aria-label="Annuler la dernière fléchette" onClick={undo} disabled={!leg.darts.length}><Icon.Undo />Annuler la dernière</button>
+          : <button className="icon-btn" style={{ width: 56, height: 56, borderRadius: 14, border: '1px solid var(--wire)' }} aria-label="Annuler la dernière fléchette" onClick={undo} disabled={!leg.darts.length}><Icon.Undo /></button>}
         {canListen && (
           <button className={`icon-btn mic ${listening ? 'on' : ''}`} style={{ width: 56, height: 56, borderRadius: 14, border: '1px solid var(--wire)' }}
             aria-label={listening ? 'Arrêter la saisie à la voix' : 'Saisir à la voix'} aria-pressed={listening} onClick={toggleListen}><Icon.Mic /></button>
@@ -414,14 +473,14 @@ function ShanghaiButtons({ target, disabled, onHit, darts = [] }) {
   useEffect(() => () => clearTimeout(timer.current), []);
   return (
     <div className="board-slot" style={{ containerType: 'normal' }}>
-      <div className="col" style={{ width: '100%', gap: 10, position: 'relative' }}>
+      <div className="col sh-pad" style={{ width: '100%', gap: 10, position: 'relative' }}>
         <div className="between">
           <span className="small muted">Fléchette sur le {target}</span>
           <span className="sh-dots" aria-label={`${darts.length} fléchette(s) lancée(s)`}>
             {[0, 1, 2].map((k) => <i key={k} className={darts[k] ? (darts[k].hit ? 'hit' : 'miss') : ''} />)}
           </span>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0,1fr))', gap: 10 }}>
+        <div className="sh-grid">
           {btns.map(([m, l]) => (
             <button key={`${m}-${flash?.m === m ? flash.id : 0}`} aria-label={`${l} ${target}`} disabled={disabled} onClick={() => press({ seg: target, mult: m }, `${m === 1 ? '' : m === 2 ? 'D' : 'T'}${target}`)}
               className={`sh-btn ${flash?.m === m ? 'flash' : ''}`}>

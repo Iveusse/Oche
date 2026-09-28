@@ -414,3 +414,13 @@ button, a, [role="button"] { touch-action: manipulation; }
 .last-turn { display: flex; gap: 3px; margin-top: 4px; flex-wrap: wrap; }
 .last-turn b { font-size: 11px; font-weight: 800; padding: 1px 5px; border-radius: 5px; background: var(--bg); color: var(--text-2); line-height: 1.4; }
 .last-turn b.r { color: var(--bad); }
+
+/* Shanghai : boutons qui occupent toute la place, bannière « plus rattrapable » */
+.sh-pad { height: 100%; }
+.sh-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; flex: 1 1 auto; min-height: 110px; max-height: 240px; }
+.sh-grid .sh-btn { height: auto; min-height: 110px; }
+.sh-miss { flex: 0 1 auto; min-height: 72px; max-height: 120px; height: 26%; }
+.decided { display: flex; flex-direction: column; gap: 10px; padding: 12px 14px; border-radius: 14px; background: color-mix(in srgb, var(--accent) 12%, var(--card)); border: 1px solid var(--accent); font-size: 14px; line-height: 1.4; }
+.decided .btn { height: 44px; }
+.decided-actions { display: grid; grid-template-columns: 2fr 1fr; gap: 8px; }
+.decided-actions .btn { width: 100%; min-width: 0; padding: 0 8px; }
