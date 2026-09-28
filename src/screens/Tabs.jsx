@@ -453,7 +453,7 @@ function CoachCard({ coach, onStart, onAtc, onCustom }) {
       </div>
     );
   }
-  const launch = (d) => (d.kind === 'drill' ? onStart(d.id) : onCustom('atc', d.settings));
+  const launch = (d) => (d.kind === 'drill' ? onStart(d.id) : onCustom('train-atc', d.settings));
   const label = (d) => (d.kind === 'drill' ? DRILLS.find((x) => x[0] === d.id)?.[1] : d.label);
   const { main, others, tips, levels } = coach;
   return (

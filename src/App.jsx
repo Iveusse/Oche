@@ -13,7 +13,7 @@ import { generateDemo } from './lib/demo.js';
 
 function newLeg(mode, settings, order) {
   const leg = { order, darts: [], validated: 0, continueForPlaces: null };
-  if (mode === 'atc') leg.targets = atcTargets(settings);
+  if (mode === 'atc' || mode === 'train-atc') leg.targets = atcTargets(settings);
   if (mode === 'train-doubles') leg.targets = atcTargets({ order: 'asc', bull: true });
   if (mode === 'train-checkout') leg.targets = checkoutTargets();
   return leg;

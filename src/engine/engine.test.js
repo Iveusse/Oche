@@ -216,3 +216,19 @@ describe('coach : points faibles', () => {
     expect(weakest(p, 12, 0.6)).toBeNull();
   });
 });
+
+describe('Around the Clock ciblé (coach)', () => {
+  it('se termine seul et ne débloque aucun succès d\'ATC', () => {
+    const settings = { zones: ['S', 'D', 'T'], nums: [8, 4] };
+    const leg0 = { order: ['a'], targets: [8, 4], darts: [D(8, 1), D(4, 1)], validated: 9, continueForPlaces: null };
+    const r = runLeg('train-atc', settings, leg0);
+    expect(r.over).toBe(true);
+    const g = { id: 'g', mode: 'train-atc', settings, player_ids: ['a'], status: 'finished', created_at: '2026-01-01T20:00:00Z', data: { legs: [{ ...leg0, done: true, ranking: ['a'], finishedAt: '2026-01-01T20:01:00Z' }] } };
+    const c = computeAchievements([g], 'a').__counters;
+    expect(c.bestAtc).toBeNull();
+    expect(c.byMode.atc).toBe(0);
+    // ancien format (mode atc + numéros choisis) : pas de record d'ATC non plus
+    const old = computeAchievements([{ ...g, mode: 'atc' }], 'a').__counters;
+    expect(old.bestAtc).toBeNull();
+  });
+});

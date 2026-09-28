@@ -55,7 +55,7 @@ function numberProfiles(gs, pid) {
         if (t.p !== idx) continue;
         t.darts.forEach((d, k) => {
           // Shanghai (on vise le triple) et ATC (souvent le simple) ne se comparent pas : profils séparés
-          if (g.mode === 'shanghai' || g.mode === 'atc') { if (d.target != null) add(nums[g.mode], d.target, d.hit); }
+          if (g.mode === 'shanghai' || g.mode === 'atc' || g.mode === 'train-atc') { if (d.target != null) add(nums[g.mode === 'shanghai' ? 'shanghai' : 'atc'], d.target, d.hit); }
           if (g.mode === 'train-doubles' && d.target != null) add(dbl, d.target, d.hit);
           if (g.mode === 'x01' && (g.settings?.out || 'single') === 'double' && d.opened && oneDartFinish(d.remBefore, 'double')) {
             const target = d.remBefore === 50 ? 25 : d.remBefore / 2;
@@ -82,7 +82,7 @@ export function weakest(profile, minDarts, ratio = 0.7, max = 3) {
   return weak.length ? { weak, mean } : null;
 }
 const nm = (n) => (n === 25 ? 'bull' : String(n));
-const atcDrill = (nums, zones, label) => ({ kind: 'atc', label, settings: { zones, order: 'asc', bull: false, skip: false, ...(nums ? { nums } : {}) } });
+const atcDrill = (nums, zones, label) => ({ kind: 'train-atc', label, settings: { zones, order: 'asc', bull: false, skip: false, ...(nums ? { nums } : {}) } });
 
 export function coachAdvice(games, pid, days = 90) {
   const since = Date.now() - days * DAY;

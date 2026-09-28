@@ -285,7 +285,7 @@ export function computeAchievements(games, pid) {
       if (g.mode === 'x01' && legDarts >= 9) c.bestLegAvg = Math.max(c.bestLegAvg, (legPts / legDarts) * 3);
       if (g.mode === 'x01' && won) { const st = startOf(g, pid); c.bestLeg[st] = c.bestLeg[st] == null ? legDarts : Math.min(c.bestLeg[st], legDarts); }
       if (g.mode === 'x01' && won && wasBehind) c.remontada = true;
-      if (g.mode === 'atc' && r.ps[idx].finished) c.bestAtc = c.bestAtc == null ? legDarts : Math.min(c.bestAtc, legDarts);
+      if (g.mode === 'atc' && !g.settings?.nums?.length && (leg.targets?.length || 0) >= 20 && r.ps[idx].finished) c.bestAtc = c.bestAtc == null ? legDarts : Math.min(c.bestAtc, legDarts);
       if (g.mode === 'cricket' && won && r.ps.every((p, j) => j === idx || CRICKET_NUMS.every((n) => p.marks[n] < 3))) c.whitewash = true;
       if (g.mode === 'shanghai') {
         if (g.settings?.from === 1 && g.settings?.to === 20) c.best1to20 = Math.max(c.best1to20, r.ps[idx].pts);

@@ -139,6 +139,7 @@ export function trainingResult(game) {
   const ps = r.ps[0];
   const darts = r.turns.reduce((a, t) => a + t.darts.length, 0);
   switch (game.mode) {
+    case 'train-atc': return r.over ? { value: darts, label: `${darts} fl.`, better: 'low' } : null;
     case 'train-doubles': return r.over ? { value: darts, label: `${darts} fl.`, better: 'low' } : null;
     case 'train-focus20': return r.over ? { value: ps.pts, label: `${ps.pts} pts`, better: 'high' } : null;
     case 'train-checkout': return r.over ? { value: ps.succ, label: `${ps.succ} / 20`, better: 'high' } : null;

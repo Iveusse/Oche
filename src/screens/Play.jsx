@@ -27,6 +27,23 @@ function turnSpeech(mode, t, name) {
   if (h || t.darts.some((d) => 'hit' in d)) return h ? `${h} touché${h > 1 ? 's' : ''}` : 'Rien';
   return String(sum((d) => d.pts ?? dartScore(d)));
 }
+function rerouteSpeech(game, before, after) {
+  if (game.mode !== 'x01' && game.mode !== 'train-checkout') return null;
+  const cur = before.current; const cur2 = after.current;
+  if (!cur2 || cur2.bust) return null;
+  const p = cur2.p;
+  const out = game.mode === 'x01' ? (game.settings.out || 'single') : 'double';
+  const thrown = cur ? cur.darts.length : 0;
+  const psB = before.ps[p]; const psA = after.ps[p];
+  if (game.mode === 'x01' && !psA.opened) return null;
+  const routeB = psB.rem <= 170 ? suggestCheckout(psB.rem, out, 3 - thrown) : null;
+  if (!routeB) return null; // on n'était pas sur un finish
+  const d = cur2.darts[cur2.darts.length - 1];
+  if (d.seg === routeB[0].seg && d.mult === routeB[0].mult) return null; // fléchette conforme : rien à dire
+  const routeA = suggestCheckout(psA.rem, out, 3 - cur2.darts.length);
+  return routeA ? `Reste ${psA.rem}. ${routeA.map(dartWords).join(', ')}` : null;
+}
+
 function nextSpeech(game, leg, r, byId) {
   const name = (i) => byId[r.ps[i]?.id]?.name || '';
   if (r.over) return r.ranking?.length > 1 ? `Leg pour ${byId[r.ranking[0]]?.name || ''}` : '';
@@ -38,7 +55,7 @@ function nextSpeech(game, leg, r, byId) {
     const route = ps.rem <= 170 && (game.mode !== 'x01' || ps.opened) ? suggestCheckout(ps.rem, out, 3) : null;
     return `${who}Reste ${ps.rem}${route ? `. ${route.map(dartWords).join(', ')}` : ''}`;
   }
-  if (game.mode === 'atc' || game.mode === 'train-doubles') {
+  if (game.mode === 'atc' || game.mode === 'train-atc' || game.mode === 'train-doubles') {
     const t = leg.targets?.[ps.pos];
     return t == null ? who : `${who}Cible ${game.mode === 'train-doubles' ? (t === 25 ? 'bull' : `double ${t}`) : (t === 25 ? 'bull' : t)}`;
   }
@@ -66,6 +83,7 @@ export function modeSubtitle(game) {
       : `${(s.zones || []).join(' + ')} · ${s.order === 'desc' ? '20 → 1' : s.order === 'random' ? 'aléatoire' : '1 → 20'}${s.bull ? ' + bull' : ''} · Leg ${legNo}`;
     case 'shanghai': return `${s.from} à ${s.to} · Leg ${legNo}`;
     case 'cricket': return `${s.points === false ? 'Sans points' : 'Avec points'} · Leg ${legNo}`;
+    case 'train-atc': return `Entraînement · ${(s.zones || []).join(' + ')} · ${(s.nums || []).map((n) => (n === 25 ? 'bull' : n)).join(', ') || '1 → 20'}`;
     default: return 'Entraînement';
   }
 }
@@ -183,8 +201,12 @@ export function Play({ game, players, records, history = [], onUpdate, onLegDone
   const leg = legs[legs.length - 1];
   const r = useMemo(() => runLeg(game.mode, game.settings, leg), [game, leg]);
   const [menu, setMenu] = useState(false);
-  const [input, setInputState] = useState(() => load('shanghaiInput', 'board'));
-  const setInput = (v) => { setInputState(v); save('shanghaiInput', v); };
+  // saisie : cible ou boutons, mémorisé par mode (X01, Cricket, Shanghai…)
+  const PAD_MODES = ['shanghai', 'x01', 'cricket', 'train-checkout', 'atc'];
+  const inputKey = game.mode === 'shanghai' ? 'shanghaiInput' : `input.${game.mode}`;
+  const [input, setInputState] = useState(() => (PAD_MODES.includes(game.mode) ? load(inputKey, 'board') : 'board'));
+  const setInput = (v) => { setInputState(v); save(inputKey, v); };
+  const buttons = input === 'buttons' && PAD_MODES.includes(game.mode);
   const training = isTraining(game.mode);
   useWakeLock(true);
   // pendant le jeu, la page ne doit jamais « rebondir » (sinon iOS prend les taps pour du défilement)
@@ -261,7 +283,13 @@ export function Play({ game, players, records, history = [], onUpdate, onLegDone
       const pre = word ? `${word}. ` : '';
       if (!r3.over && !r3.needDecision) { patch.validated = r2.turns.length; speak([`${pre}${said}`, nextSpeech(game, nl, r3, byId)]); }
       else speak(`${pre}${said}`);
-    } else if (word) speak(word);
+    } else {
+      // finish en cours : si la fléchette n'est pas celle conseillée mais qu'on peut encore finir, on annonce la nouvelle route
+      const re = rerouteSpeech(game, r, r2);
+      if (word && re) speak([word, re]);
+      else if (re) speak(re);
+      else if (word) speak(word);
+    }
     setLeg(patch);
   };
   const hit = (d, word) => { if (!blocked) addDarts([d], word); };
@@ -293,7 +321,7 @@ export function Play({ game, players, records, history = [], onUpdate, onLegDone
   if (game.mode === 'x01') {
     info = { b: 'Reste', a: tps.rem };
     if (shown?.bust) hint = 'Bust ! Le score revient à celui du début du tour.';
-  } else if (game.mode === 'atc' || game.mode === 'train-doubles') {
+  } else if (game.mode === 'atc' || game.mode === 'train-atc' || game.mode === 'train-doubles') {
     const t = leg.targets[tps.pos];
     info = { b: 'Cible', a: tps.finished ? '✓' : game.mode === 'train-doubles' ? (t === 25 ? 'Bull' : `D${t}`) : targetLabel(t) };
   } else if (game.mode === 'shanghai') {
@@ -386,11 +414,13 @@ export function Play({ game, players, records, history = [], onUpdate, onLegDone
           </div>
         </div>
       )}
-      {game.mode === 'shanghai' && (
+      {PAD_MODES.includes(game.mode) && (
         <Seg options={[['board', 'Cible'], ['buttons', 'Boutons']]} value={input} onChange={setInput} />
       )}
-      {game.mode === 'shanghai' && input === 'buttons' ? (
+      {buttons && game.mode === 'shanghai' ? (
         <ShanghaiButtons target={info.a} disabled={blocked} onHit={hit} darts={tDarts} />
+      ) : buttons ? (
+        <NumberPad disabled={blocked} onHit={hit} darts={tDarts} />
       ) : (
         <div className="board-slot">
           <Dartboard onHit={hit} disabled={blocked} markers={markers} />
@@ -415,14 +445,14 @@ export function Play({ game, players, records, history = [], onUpdate, onLegDone
       {heard && <div className="small heard" aria-live="polite">{heard}</div>}
 
       <div className="actions">
-        {(game.mode === 'shanghai' && input === 'buttons' && !r.awaiting)
+        {(buttons && !r.awaiting)
           ? <button className="btn grow" style={{ border: '1px solid var(--wire)', fontWeight: 700 }} aria-label="Annuler la dernière fléchette" {...tap(undo)} disabled={!leg.darts.length}><Icon.Undo />Annuler la dernière</button>
           : <button className="icon-btn" style={{ width: 56, height: 56, borderRadius: 14, border: '1px solid var(--wire)' }} aria-label="Annuler la dernière fléchette" {...tap(undo)} disabled={!leg.darts.length}><Icon.Undo /></button>}
         {canListen && (
           <button className={`icon-btn mic ${listening ? 'on' : ''}`} style={{ width: 56, height: 56, borderRadius: 14, border: '1px solid var(--wire)' }}
             aria-label={listening ? 'Arrêter la saisie à la voix' : 'Saisir à la voix'} aria-pressed={listening} onClick={toggleListen}><Icon.Mic /></button>
         )}
-        {!(game.mode === 'shanghai' && input === 'buttons') && (
+        {!buttons && (
           <button className="btn grow" style={{ border: '1px dashed var(--muted)', fontWeight: 700, fontSize: 15 }} disabled={blocked} {...tap(() => hit({ seg: 0, mult: 0 }))}>Hors cible</button>
         )}
         {r.awaiting && <button className="btn btn-primary grow" onClick={validate}>Valider la fin</button>}
@@ -463,6 +493,47 @@ function CheckoutBar({ route, done, none }) {
       <div className="row" style={{ gap: 6, flexWrap: 'wrap' }}>
         {done.map((d, i) => <span key={`d${i}`} className="chip done">{dartLabel(d)}</span>)}
         {route.map((d, i) => <span key={`r${i}`} className={`chip ${i === 0 ? 'next' : ''}`}>{dartLabel(d)}</span>)}
+      </div>
+    </div>
+  );
+}
+
+// Clavier de saisie : Double / Triple (optionnels) puis le numéro. Bull = 50, 25 = demi-bull.
+function NumberPad({ disabled, onHit, darts = [] }) {
+  const [mod, setMod] = useState(1);
+  const [flash, setFlash] = useState(null);
+  const timer = useRef(null);
+  useEffect(() => () => clearTimeout(timer.current), []);
+  const press = (d) => {
+    onHit(d);
+    setMod(1);
+    clearTimeout(timer.current);
+    setFlash({ id: Date.now(), label: d.mult ? dartLabel(d) : 'Raté', pts: d.mult ? dartScore(d) : 0, miss: !d.mult });
+    timer.current = setTimeout(() => setFlash(null), 1000);
+  };
+  const toggle = (m) => setMod(mod === m ? 1 : m);
+  const prefix = mod === 3 ? 'T' : mod === 2 ? 'D' : '';
+  return (
+    <div className="board-slot" style={{ containerType: 'normal' }}>
+      <div className="col np" style={{ position: 'relative' }}>
+        <div className="np-mods">
+          <button className={`np-mod ${mod === 2 ? 'on' : ''}`} aria-pressed={mod === 2} disabled={disabled} {...tap(() => toggle(2))}>Double</button>
+          <button className={`np-mod ${mod === 3 ? 'on t' : ''}`} aria-pressed={mod === 3} disabled={disabled} {...tap(() => toggle(3))}>Triple</button>
+          <span className="sh-dots" aria-label={`${darts.length} fléchette(s)`}>{[0, 1, 2].map((k) => <i key={k} className={darts[k] ? (darts[k].mult ? 'hit' : 'miss') : ''} />)}</span>
+        </div>
+        <div className="np-grid">
+          {Array.from({ length: 20 }, (_, i) => i + 1).map((n) => (
+            <button key={n} className="np-key" disabled={disabled} aria-label={`${prefix}${n}`} {...tap(() => press({ seg: n, mult: mod }))}>
+              {prefix && <small>{prefix}</small>}{n}
+            </button>
+          ))}
+        </div>
+        <div className="np-last">
+          <button className="np-key" disabled={disabled || mod === 3} aria-label={mod === 2 ? 'Bull 50' : '25'} {...tap(() => press({ seg: 25, mult: mod === 2 ? 2 : 1 }))}>{mod === 2 ? 'Bull' : '25'}</button>
+          <button className="np-key" disabled={disabled} aria-label="Bull 50" {...tap(() => press({ seg: 25, mult: 2 }))}>Bull</button>
+          <button className="np-key miss" disabled={disabled} aria-label="Raté" {...tap(() => press({ seg: 0, mult: 0 }))}>Raté</button>
+        </div>
+        {flash && <div key={flash.id} className={`sh-toast ${flash.miss ? 'miss' : ''}`} role="status">{flash.miss ? 'Raté' : `${flash.label} · ${flash.pts}`}</div>}
       </div>
     </div>
   );

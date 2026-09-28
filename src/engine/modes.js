@@ -204,9 +204,18 @@ export const trainCheckout = {
   rankKey: (ps) => ps.succ,
 };
 
+// Around the Clock d'entraînement (proposé par le coach, sur des numéros choisis) : ne compte ni
+// dans les stats d'ATC ni dans les succès, seulement comme entraînement
+export const trainAtc = {
+  ...atc,
+  race: false,
+  status: ({ finishedOrder }) => ({ over: finishedOrder.length > 0, needDecision: false }),
+};
+
 export const MODES = {
   x01, cricket, atc, shanghai,
   'train-free': trainFree,
+  'train-atc': trainAtc,
   'train-doubles': trainDoubles,
   'train-focus20': trainFocus20,
   'train-checkout': trainCheckout,
@@ -215,7 +224,7 @@ export const MODES = {
 export const MODE_LABEL = {
   x01: 'X01', cricket: 'Cricket', atc: 'Around the Clock', shanghai: 'Shanghai',
   'train-free': 'Session libre', 'train-doubles': 'Tour des doubles',
-  'train-focus20': 'Focus 20', 'train-checkout': 'Checkouts 41-100',
+  'train-focus20': 'Focus 20', 'train-checkout': 'Checkouts 41-100', 'train-atc': 'Around the Clock ciblé',
 };
 
 export const isTraining = (mode) => mode.startsWith('train-');
