@@ -96,3 +96,22 @@ export function TopBar({ title, sub, onBack, right }) {
     </div>
   );
 }
+
+// Tap tolérant pour les boutons de jeu : sur iPhone, un doigt qui bouge d'un pixel pendant l'appui
+// transforme le tap en « défilement » et le clic est perdu. On déclenche donc au relâcher du doigt
+// (tant qu'il n'a pas glissé de plus de ~24 px), et on ignore le clic qui suit.
+let tapDown = null; let tapAt = 0;
+export function tap(fn) {
+  return {
+    onPointerDown: (e) => { if (e.pointerType !== 'mouse') tapDown = { x: e.clientX, y: e.clientY }; },
+    onPointerUp: (e) => {
+      if (e.pointerType === 'mouse' || !tapDown || e.currentTarget.disabled) return;
+      const moved = Math.hypot(e.clientX - tapDown.x, e.clientY - tapDown.y);
+      tapDown = null;
+      if (moved > 24) return;
+      tapAt = Date.now();
+      fn(e);
+    },
+    onClick: (e) => { if (Date.now() - tapAt < 700) return; fn(e); },
+  };
+}

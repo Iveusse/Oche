@@ -424,3 +424,10 @@ button, a, [role="button"] { touch-action: manipulation; }
 .decided .btn { height: 44px; }
 .decided-actions { display: grid; grid-template-columns: 2fr 1fr; gap: 8px; }
 .decided-actions .btn { width: 100%; min-width: 0; padding: 0 8px; }
+
+/* écran de jeu : aucun défilement ni rebond possible */
+html.playing, html.playing body { overflow: hidden; overscroll-behavior: none; }
+html.playing body { position: fixed; inset: 0; width: 100%; }
+.play { overscroll-behavior: none; touch-action: none; }
+.play .sheet, .play .sheet * { touch-action: pan-y; }
+.sh-btn, .actions .btn, .actions .icon-btn { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }

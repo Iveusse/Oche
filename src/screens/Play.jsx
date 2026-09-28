@@ -3,7 +3,7 @@ import { runLeg, legsWon } from '../engine/runner.js';
 import { MODE_LABEL, CRICKET_NUMS, isTraining, shanghaiNumbers, atcTargets, startOf, hasHandicap } from '../engine/modes.js';
 import { dartLabel, dartScore, suggestCheckout } from '../lib/board.js';
 import { Dartboard } from '../components/Dartboard.jsx';
-import { Icon, Seg, Sheet, Switch, TopBar } from '../components/ui.jsx';
+import { Icon, Seg, Sheet, Switch, TopBar, tap } from '../components/ui.jsx';
 import { PlayerOrder, shuffle } from '../components/PlayerOrder.jsx';
 import { trainingResult } from '../engine/stats.js';
 import { bestLegDarts, computeAchievements, newlyUnlocked, TIER } from '../engine/achievements.js';
@@ -185,6 +185,12 @@ export function Play({ game, players, records, history = [], onUpdate, onLegDone
   const setInput = (v) => { setInputState(v); save('shanghaiInput', v); };
   const training = isTraining(game.mode);
   useWakeLock(true);
+  // pendant le jeu, la page ne doit jamais « rebondir » (sinon iOS prend les taps pour du défilement)
+  useEffect(() => {
+    if (leg.done) return undefined; // l'écran de fin de leg, lui, doit pouvoir défiler
+    document.documentElement.classList.add('playing');
+    return () => document.documentElement.classList.remove('playing');
+  }, [leg.done]);
   const takeMs = usePlayClock(!leg.done);
   const withTime = (l) => ({ ...l, activeMs: (l.activeMs || 0) + takeMs() });
   const [voice, setVoice] = useState(voiceOn);
@@ -408,14 +414,14 @@ export function Play({ game, players, records, history = [], onUpdate, onLegDone
 
       <div className="actions">
         {(game.mode === 'shanghai' && input === 'buttons' && !r.awaiting)
-          ? <button className="btn grow" style={{ border: '1px solid var(--wire)', fontWeight: 700 }} aria-label="Annuler la dernière fléchette" onClick={undo} disabled={!leg.darts.length}><Icon.Undo />Annuler la dernière</button>
-          : <button className="icon-btn" style={{ width: 56, height: 56, borderRadius: 14, border: '1px solid var(--wire)' }} aria-label="Annuler la dernière fléchette" onClick={undo} disabled={!leg.darts.length}><Icon.Undo /></button>}
+          ? <button className="btn grow" style={{ border: '1px solid var(--wire)', fontWeight: 700 }} aria-label="Annuler la dernière fléchette" {...tap(undo)} disabled={!leg.darts.length}><Icon.Undo />Annuler la dernière</button>
+          : <button className="icon-btn" style={{ width: 56, height: 56, borderRadius: 14, border: '1px solid var(--wire)' }} aria-label="Annuler la dernière fléchette" {...tap(undo)} disabled={!leg.darts.length}><Icon.Undo /></button>}
         {canListen && (
           <button className={`icon-btn mic ${listening ? 'on' : ''}`} style={{ width: 56, height: 56, borderRadius: 14, border: '1px solid var(--wire)' }}
             aria-label={listening ? 'Arrêter la saisie à la voix' : 'Saisir à la voix'} aria-pressed={listening} onClick={toggleListen}><Icon.Mic /></button>
         )}
         {!(game.mode === 'shanghai' && input === 'buttons') && (
-          <button className="btn grow" style={{ border: '1px dashed var(--muted)', fontWeight: 700, fontSize: 15 }} disabled={blocked} onClick={() => hit({ seg: 0, mult: 0 })}>Hors cible</button>
+          <button className="btn grow" style={{ border: '1px dashed var(--muted)', fontWeight: 700, fontSize: 15 }} disabled={blocked} {...tap(() => hit({ seg: 0, mult: 0 }))}>Hors cible</button>
         )}
         {r.awaiting && <button className="btn btn-primary grow" onClick={validate}>Valider la fin</button>}
       </div>
@@ -482,14 +488,14 @@ function ShanghaiButtons({ target, disabled, onHit, darts = [] }) {
         </div>
         <div className="sh-grid">
           {btns.map(([m, l]) => (
-            <button key={`${m}-${flash?.m === m ? flash.id : 0}`} aria-label={`${l} ${target}`} disabled={disabled} onClick={() => press({ seg: target, mult: m }, `${m === 1 ? '' : m === 2 ? 'D' : 'T'}${target}`)}
+            <button key={`${m}-${flash?.m === m ? flash.id : 0}`} aria-label={`${l} ${target}`} disabled={disabled} {...tap(() => press({ seg: target, mult: m }, `${m === 1 ? '' : m === 2 ? 'D' : 'T'}${target}`))}
               className={`sh-btn ${flash?.m === m ? 'flash' : ''}`}>
               <span style={{ fontSize: 30, fontWeight: 800 }}>{m === 1 ? '' : m === 2 ? 'D' : 'T'}{target}</span>
               <span className="small" style={{ color: 'var(--text-2)', fontWeight: 700 }}>{l} · {target * m}</span>
             </button>
           ))}
         </div>
-        <button disabled={disabled} onClick={() => press({ seg: 0, mult: 0 }, 'Raté')} className={`sh-btn sh-miss ${flash?.m === 0 ? 'flash' : ''}`}>Raté</button>
+        <button disabled={disabled} {...tap(() => press({ seg: 0, mult: 0 }, 'Raté'))} className={`sh-btn sh-miss ${flash?.m === 0 ? 'flash' : ''}`}>Raté</button>
         {flash && <div key={flash.id} className={`sh-toast ${flash.m ? '' : 'miss'}`} role="status">{flash.m ? `${flash.label} · +${flash.pts}` : 'Raté'}</div>}
       </div>
     </div>
