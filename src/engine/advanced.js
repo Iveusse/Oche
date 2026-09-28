@@ -1,6 +1,6 @@
 // Stats avancées par mode, calculées à partir des legs rejoués.
 import { replayed, afterReset } from './stats.js';
-import { CRICKET_NUMS, shanghaiNumbers } from './modes.js';
+import { CRICKET_NUMS, shanghaiNumbers, startOf } from './modes.js';
 import { oneDartFinish } from '../lib/board.js';
 
 const avg = (a, b) => (b ? a / b : null);
@@ -64,11 +64,11 @@ export const ALT_BUCKETS = [
 ];
 
 export function x01Advanced(games, pid, start = 'all') {
-  const gs = start === 'all' ? games : games.filter((g) => String(g.settings?.start) === String(start));
+  const gs = start === 'all' ? games : games.filter((g) => String(startOf(g, pid)) === String(start));
   const s = {
     legs: 0, won: 0, darts: 0, pts: 0, byOut: { single: [0, 0], double: [0, 0], master: [0, 0] },
     first: { 9: [0, 0], 12: [0, 0], 15: [0, 0] }, until: { 100: [0, 0], 170: [0, 0] },
-    wonDarts: 0, co: [], coAtt: 0, coHit: 0, dblAtt: 0, dblHit: 0,
+    wonDarts: 0, co: [], coAtt: 0, coHit: 0, dblAtt: 0, dblHit: 0, coBy: { single: [0, 0], double: [0, 0], master: [0, 0] },
     bestLeg: null, bestLegAvg: null, high: 0, buckets: TURN_BUCKETS.map(() => 0), alt: ALT_BUCKETS.map(() => 0), turns: 0,
     round: Array.from({ length: 10 }, () => [0, 0]), remAfter: { 3: [0, 0], 6: [0, 0], 9: [0, 0], 12: [0, 0], 15: [0, 0] },
   };
@@ -78,7 +78,7 @@ export function x01Advanced(games, pid, start = 'all') {
     const won = leg.ranking?.[0] === pid;
     if (won) s.won += 1;
     let legD = 0; let legP = 0; let dartsSoFar = 0;
-    const start0 = turns[0]?.darts[0]?.remBefore ?? g.settings?.start;
+    const start0 = turns[0]?.darts[0]?.remBefore ?? startOf(g, pid);
     const remAfterTurn = [];
     for (const t of turns) {
       const pts = t.bust ? 0 : t.darts.reduce((a, d) => a + (d.pts || 0), 0);
@@ -102,6 +102,7 @@ export function x01Advanced(games, pid, start = 'all') {
         if (!d.opened || !oneDartFinish(d.remBefore, out)) return;
         const hit = t.finished && k === t.darts.length - 1;
         s.coAtt += 1; if (hit) s.coHit += 1;
+        s.coBy[out][0] += 1; if (hit) s.coBy[out][1] += 1;
         if (out === 'double') { s.dblAtt += 1; if (hit) s.dblHit += 1; }
       });
       dartsSoFar += n;

@@ -3,7 +3,7 @@ import { Seg } from '../components/ui.jsx';
 import { Delta, HBars, HeatStrip, Ring, Sparkline, StackBar, VBars } from '../components/Charts.jsx';
 import { ALT_BUCKETS, TURN_BUCKETS, atcAdvanced, cricketAdvanced, shanghaiAdvanced, x01Advanced } from '../engine/advanced.js';
 import { playerStats } from '../engine/stats.js';
-import { CRICKET_NUMS } from '../engine/modes.js';
+import { CRICKET_NUMS, startOf } from '../engine/modes.js';
 
 const DAY = 86400000;
 const PERIODS = [['7', '7 j'], ['30', '30 j'], ['90', '3 mois'], ['365', '1 an'], ['all', 'Tout']];
@@ -183,7 +183,7 @@ function X01View({ games, prevGames, allGames, period, pid }) {
   const a = useMemo(() => x01Advanced(games, pid, start), [games, pid, start]);
   const b = useMemo(() => (prevGames ? x01Advanced(prevGames, pid, start) : null), [prevGames, pid, start]);
   const all = useMemo(() => x01Advanced(allGames, pid, start), [allGames, pid, start]);
-  const series = useMemo(() => playerStats(games.filter((g) => g.mode === 'x01' && (start === 'all' || String(g.settings?.start) === start)), pid).series.slice(-20).map((p) => p.avg), [games, pid, start]);
+  const series = useMemo(() => playerStats(games.filter((g) => g.mode === 'x01' && (start === 'all' || String(startOf(g, pid)) === start)), pid).series.slice(-20).map((p) => p.avg), [games, pid, start]);
   return (<>
     <Seg options={[['all', 'Tous'], ['301', '301'], ['501', '501'], ['701', '701']]} value={start} onChange={setStart} />
     {!a.legs ? <Empty what="leg de X01" /> : (<>

@@ -1,15 +1,53 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { runLeg, legsWon } from '../engine/runner.js';
-import { MODE_LABEL, CRICKET_NUMS, isTraining, shanghaiNumbers, atcTargets } from '../engine/modes.js';
+import { MODE_LABEL, CRICKET_NUMS, isTraining, shanghaiNumbers, atcTargets, startOf, hasHandicap } from '../engine/modes.js';
 import { dartLabel, dartScore, suggestCheckout } from '../lib/board.js';
 import { Dartboard } from '../components/Dartboard.jsx';
-import { Icon, Seg, Sheet, TopBar } from '../components/ui.jsx';
+import { Icon, Seg, Sheet, Switch, TopBar } from '../components/ui.jsx';
 import { PlayerOrder, shuffle } from '../components/PlayerOrder.jsx';
 import { trainingResult } from '../engine/stats.js';
 import { bestLegDarts, computeAchievements, newlyUnlocked, TIER } from '../engine/achievements.js';
 import { Medal } from './Achievements.jsx';
 import { load, save } from '../lib/store.js';
 import { usePlayClock, useWakeLock } from '../lib/playclock.js';
+import { canListen, dartWords, parseSpeech, speak, startListening, voiceOn, setVoiceOn } from '../lib/voice.js';
+
+// ---------- annonces vocales ----------
+function turnSpeech(mode, t, name) {
+  const sum = (f) => t.darts.reduce((a, d) => a + (f(d) || 0), 0);
+  if (mode === 'x01' || mode === 'train-checkout') {
+    if (t.bust) return 'Bust';
+    if (t.finished) return `Jeu ! Bravo ${name}`;
+    const pts = sum((d) => d.pts ?? dartScore(d));
+    return pts === 180 ? 'Cent quatre-vingts !' : pts ? String(pts) : 'Rien';
+  }
+  if (mode === 'cricket') { const m = sum((d) => d.marks); return m ? `${m} marque${m > 1 ? 's' : ''}` : 'Rien'; }
+  if (mode === 'shanghai') { if (t.darts.some((d) => d.shanghai)) return 'Shanghai !'; const p = sum((d) => d.pts); return p ? `${p} point${p > 1 ? 's' : ''}` : 'Rien'; }
+  const h = t.darts.filter((d) => d.hit).length;
+  if (h || t.darts.some((d) => 'hit' in d)) return h ? `${h} touché${h > 1 ? 's' : ''}` : 'Rien';
+  return String(sum((d) => d.pts ?? dartScore(d)));
+}
+function nextSpeech(game, leg, r, byId) {
+  const name = (i) => byId[r.ps[i]?.id]?.name || '';
+  if (r.over) return r.ranking?.length > 1 ? `Leg pour ${byId[r.ranking[0]]?.name || ''}` : '';
+  if (r.needDecision) return 'On continue pour les places ?';
+  const i = r.cur; const ps = r.ps[i]; const solo = r.ps.length === 1;
+  const who = solo ? '' : `${name(i)}. `;
+  if (game.mode === 'x01' || game.mode === 'train-checkout') {
+    const out = game.mode === 'x01' ? (game.settings.out || 'single') : 'double';
+    const route = ps.rem <= 170 && (game.mode !== 'x01' || ps.opened) ? suggestCheckout(ps.rem, out, 3) : null;
+    return `${who}Reste ${ps.rem}${route ? `. ${route.map(dartWords).join(', ')}` : ''}`;
+  }
+  if (game.mode === 'atc' || game.mode === 'train-doubles') {
+    const t = leg.targets?.[ps.pos];
+    return t == null ? who : `${who}Cible ${game.mode === 'train-doubles' ? (t === 25 ? 'bull' : `double ${t}`) : (t === 25 ? 'bull' : t)}`;
+  }
+  if (game.mode === 'shanghai') {
+    const nums = shanghaiNumbers(game.settings); const round = Math.floor(r.turns.length / r.ps.length);
+    return `${who}${r.turns.length % r.ps.length === 0 && nums[round] ? `Numéro ${nums[round]}` : ''}`;
+  }
+  return who;
+}
 
 const RULE = { single: 'Simple', double: 'Double', master: 'Master' };
 
@@ -17,7 +55,7 @@ export function modeSubtitle(game) {
   const s = game.settings || {};
   const legNo = game.data.legs.length;
   switch (game.mode) {
-    case 'x01': return `${s.in === s.out ? `${RULE[s.in]} in / out` : `${RULE[s.in]} in · ${RULE[s.out]} out`} · Leg ${legNo}`;
+    case 'x01': return `${hasHandicap(s) ? 'Handicap · ' : ''}${s.in === s.out ? `${RULE[s.in]} in / out` : `${RULE[s.in]} in · ${RULE[s.out]} out`} · Leg ${legNo}`;
     case 'atc': return `${(s.zones || []).join(' + ')} · ${s.order === 'desc' ? '20 → 1' : s.order === 'random' ? 'aléatoire' : '1 → 20'}${s.bull ? ' + bull' : ''} · Leg ${legNo}`;
     case 'shanghai': return `${s.from} à ${s.to} · Leg ${legNo}`;
     case 'cricket': return `${s.points === false ? 'Sans points' : 'Avec points'} · Leg ${legNo}`;
@@ -87,6 +125,18 @@ export function Play({ game, players, records, history = [], onUpdate, onLegDone
   useWakeLock(true);
   const takeMs = usePlayClock(!leg.done);
   const withTime = (l) => ({ ...l, activeMs: (l.activeMs || 0) + takeMs() });
+  const [voice, setVoice] = useState(voiceOn);
+  const [listening, setListening] = useState(false);
+  const [heard, setHeard] = useState('');
+  const stopRef = useRef(null);
+  const voiceRef = useRef(() => {});
+  const toggleListen = () => {
+    if (listening) { stopRef.current?.(); stopRef.current = null; setListening(false); return; }
+    setHeard('Parle : « triple vingt, cinq, raté », puis « valider »');
+    stopRef.current = startListening((alts) => voiceRef.current(alts), (on, err) => { setListening(on); if (err) setHeard(err); });
+  };
+  useEffect(() => () => stopRef.current?.(), []);
+  useEffect(() => { if (leg.done && stopRef.current) { stopRef.current(); stopRef.current = null; setListening(false); } }, [leg.done]);
 
   const setLeg = (patch) => {
     const nl = withTime({ ...leg, ...patch });
@@ -108,7 +158,20 @@ export function Play({ game, players, records, history = [], onUpdate, onLegDone
   }
 
   const blocked = r.awaiting || r.needDecision || r.over;
-  const hit = (d) => { if (!blocked) setLeg({ darts: [...leg.darts, d] }); };
+  // ajoute une ou plusieurs fléchettes (cible, boutons ou voix) et annonce la fin du tour
+  const addDarts = (list) => {
+    let darts = leg.darts;
+    for (const d of list) {
+      const rr = runLeg(game.mode, game.settings, { ...leg, darts });
+      if (rr.awaiting || rr.needDecision || rr.over) break;
+      darts = [...darts, d];
+    }
+    if (darts === leg.darts) return;
+    const r2 = runLeg(game.mode, game.settings, { ...leg, darts });
+    if (!r.awaiting && r2.awaiting) { const t = r2.turns[r2.turns.length - 1]; speak(turnSpeech(game.mode, t, byId[r2.ps[t.p].id]?.name || '')); }
+    setLeg({ darts });
+  };
+  const hit = (d) => { if (!blocked) addDarts([d]); };
   const undo = () => {
     if (!leg.darts.length) return;
     const darts = leg.darts.slice(0, -1);
@@ -117,7 +180,12 @@ export function Play({ game, players, records, history = [], onUpdate, onLegDone
     if (r2.finishedOrder.length === 0) patch.continueForPlaces = null;
     setLeg(patch);
   };
-  const validate = () => setLeg({ validated: r.turns.length });
+  const validate = () => {
+    if (!r.awaiting) return;
+    const nl = { ...leg, validated: r.turns.length };
+    speak(nextSpeech(game, nl, runLeg(game.mode, game.settings, nl), byId));
+    setLeg({ validated: r.turns.length });
+  };
 
   const lastTurn = r.turns[r.turns.length - 1];
   const shown = r.current || (r.awaiting ? lastTurn : null);
@@ -164,6 +232,17 @@ export function Play({ game, players, records, history = [], onUpdate, onLegDone
   }
 
   const markers = tDarts.filter((d) => typeof d.x === 'number');
+
+  // saisie vocale : la fonction est remise à jour à chaque rendu (état courant)
+  voiceRef.current = (alts) => {
+    const target = typeof info?.a === 'number' ? info.a : (typeof info?.a === 'string' && /^D?(\d+)$/.test(info.a) ? Number(info.a.replace('D', '')) : undefined);
+    const parsed = alts.map((t) => ({ t, ...parseSpeech(t, { target }) })).find((x) => x.darts.length || x.cmd);
+    if (!parsed) { setHeard(`Pas compris : « ${alts[0]} »`); return; }
+    setHeard(`Entendu : « ${parsed.t} »`);
+    if (parsed.darts.length) addDarts(parsed.darts);
+    else if (parsed.cmd === 'validate') validate();
+    else if (parsed.cmd === 'undo') undo();
+  };
   const finisher = r.needDecision ? r.ps[r.finishedOrder[0]] : null;
 
   return (
@@ -218,9 +297,14 @@ export function Play({ game, players, records, history = [], onUpdate, onLegDone
       <div className="small" style={{ minHeight: 16, color: shown?.bust ? 'var(--bad)' : 'var(--text-2)', textAlign: 'center' }}>
         {hint || (tDarts.length ? `Tour : ${turnPts}` : `À ${byId[tps.id]?.name || '?'} de jouer`)}
       </div>
+      {listening && heard && <div className="small heard" aria-live="polite">{heard}</div>}
 
       <div className="actions">
         <button className="icon-btn" style={{ width: 56, height: 56, borderRadius: 14, border: '1px solid var(--wire)' }} aria-label="Annuler la dernière fléchette" onClick={undo} disabled={!leg.darts.length}><Icon.Undo /></button>
+        {canListen && (
+          <button className={`icon-btn mic ${listening ? 'on' : ''}`} style={{ width: 56, height: 56, borderRadius: 14, border: '1px solid var(--wire)' }}
+            aria-label={listening ? 'Arrêter la saisie à la voix' : 'Saisir à la voix'} aria-pressed={listening} onClick={toggleListen}><Icon.Mic /></button>
+        )}
         {!(game.mode === 'shanghai' && input === 'buttons') && (
           <button className="btn grow" style={{ border: '1px dashed var(--muted)', fontWeight: 700, fontSize: 15 }} disabled={blocked} onClick={() => hit({ seg: 0, mult: 0 })}>Hors cible</button>
         )}
@@ -236,6 +320,10 @@ export function Play({ game, players, records, history = [], onUpdate, onLegDone
       {menu && (
         <Sheet onClose={() => setMenu(false)} label="Options">
           <div className="h2">Options</div>
+          <div className="between">
+            <div className="grow"><div style={{ fontWeight: 700 }}>Annonces vocales</div><div className="small muted">Score du tour, reste et finish conseillé</div></div>
+            <Switch on={voice} onChange={(v) => { setVoice(v); setVoiceOn(v); }} label="Annonces vocales" />
+          </div>
           {training ? (
             <button className="btn btn-primary" onClick={() => { setMenu(false); onEnd(game, { stopTraining: true }); }}>Terminer la session</button>
           ) : (
@@ -344,11 +432,12 @@ function Celebrations({ game, byId, history }) {
       const r = runLeg(game.mode, game.settings, leg);
       const idx = leg.order.indexOf(winner);
       const n = r.turns.filter((t) => t.p === idx).reduce((a, t) => a + t.darts.length, 0);
-      const prev = bestLegDarts(before, winner, game.settings.start);
+      const st = startOf(game, winner);
+      const prev = bestLegDarts(before, winner, st);
       const who = byId[winner]?.name;
-      if (prev == null) out.push({ key: 'rec', kind: 'record', title: `Premier ${game.settings.start} gagné par ${who}`, text: `${n} fléchettes : c'est le record à battre.` });
-      else if (n < prev) out.push({ key: 'rec', kind: 'record', title: `Record battu pour ${who} !`, text: `${game.settings.start} gagné en ${n} fléchettes, l'ancien record était ${prev}.` });
-      else if (n === prev) out.push({ key: 'rec', kind: 'record', title: `Record égalé par ${who}`, text: `${game.settings.start} en ${n} fléchettes, comme son meilleur leg.` });
+      if (prev == null) out.push({ key: 'rec', kind: 'record', title: `Premier ${st} gagné par ${who}`, text: `${n} fléchettes : c'est le record à battre.` });
+      else if (n < prev) out.push({ key: 'rec', kind: 'record', title: `Record battu pour ${who} !`, text: `${st} gagné en ${n} fléchettes, l'ancien record était ${prev}.` });
+      else if (n === prev) out.push({ key: 'rec', kind: 'record', title: `Record égalé par ${who}`, text: `${st} en ${n} fléchettes, comme son meilleur leg.` });
     }
     for (const id of leg.order) {
       const nu = newlyUnlocked(computeAchievements(before, id), computeAchievements(after, id));

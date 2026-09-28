@@ -10,6 +10,8 @@ export const Icon = {
   X: (p) => <svg width="18" height="18" viewBox="0 0 24 24" strokeWidth="2.2" {...S} {...p}><path d="M6 6l12 12M18 6L6 18" /></svg>,
   Grip: (p) => <svg width="18" height="18" viewBox="0 0 24 24" strokeWidth="2.2" {...S} {...p}><path d="M5 9h14M5 15h14" /></svg>,
   Shuffle: (p) => <svg width="18" height="18" viewBox="0 0 24 24" strokeWidth="2.2" {...S} {...p}><path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5" /></svg>,
+  Mic: (p) => <svg width="22" height="22" viewBox="0 0 24 24" strokeWidth="2.2" {...S} {...p}><rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5 11a7 7 0 0 0 14 0M12 18v3" /></svg>,
+  Share: (p) => <svg width="22" height="22" viewBox="0 0 24 24" strokeWidth="2.2" {...S} {...p}><path d="M12 3v12M7 8l5-5 5 5" /><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7" /></svg>,
   Undo: (p) => <svg width="22" height="22" viewBox="0 0 24 24" strokeWidth="2.2" {...S} {...p}><path d="M9 14L4 9l5-5" /><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" /></svg>,
   Check: (p) => <svg width="14" height="14" viewBox="0 0 24 24" strokeWidth="3" {...S} {...p}><path d="M5 12l5 5 9-10" /></svg>,
   More: (p) => <svg width="20" height="20" viewBox="0 0 24 24" strokeWidth="2.6" {...S} {...p}><circle cx="5" cy="12" r="1" /><circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" /></svg>,
@@ -51,12 +53,12 @@ export function Switch({ on, onChange, label }) {
   return <button className={`switch ${on ? 'on' : ''}`} role="switch" aria-checked={on} aria-label={label} onClick={() => onChange(!on)} />;
 }
 
-export function Stepper({ value, onChange, min = 1, max = 99, format = (v) => v, label }) {
+export function Stepper({ value, onChange, min = 1, max = 99, step = 1, format = (v) => v, label }) {
   return (
     <div className="stepper">
-      <button aria-label={`Moins ${label || ''}`} onClick={() => onChange(Math.max(min, value - 1))} disabled={value <= min}>&minus;</button>
+      <button aria-label={`Moins ${label || ''}`} onClick={() => onChange(Math.max(min, value - step))} disabled={value <= min}>&minus;</button>
       <span>{format(value)}</span>
-      <button aria-label={`Plus ${label || ''}`} onClick={() => onChange(Math.min(max, value + 1))} disabled={value >= max}>+</button>
+      <button aria-label={`Plus ${label || ''}`} onClick={() => onChange(Math.min(max, value + step))} disabled={value >= max}>+</button>
     </div>
   );
 }

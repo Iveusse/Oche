@@ -18,9 +18,13 @@ function raceStatus({ finishedOrder, n, leg }) {
   return { over: finishedOrder.length >= n - 1, needDecision: false };
 }
 
+// Score de départ d'un joueur (handicap possible : settings.starts = { idJoueur: 701 })
+export const startOf = (g, pid) => Number(g.settings?.starts?.[pid] ?? g.settings?.start) || 501;
+export const hasHandicap = (settings) => !!settings?.starts && Object.values(settings.starts).some((v) => Number(v) !== Number(settings.start));
+
 export const x01 = {
   race: true,
-  init: (s) => ({ rem: s.start || 501, opened: (s.in || 'single') === 'single' }),
+  init: (s, leg, i) => ({ rem: Number(s.starts?.[leg?.order?.[i]] ?? s.start) || 501, opened: (s.in || 'single') === 'single' }),
   dart(ps, d, { settings }) {
     const inRule = settings.in || 'single';
     const out = settings.out || 'single';

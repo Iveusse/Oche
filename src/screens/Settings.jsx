@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Sheet, Switch } from '../components/ui.jsx';
+import { voiceOn, setVoiceOn } from '../lib/voice.js';
 import { BoardShapes } from '../components/Dartboard.jsx';
 import { BOARDS, THEMES, getLook, setLook } from '../lib/theme.js';
 
@@ -42,6 +43,7 @@ function ResetZone({ players, onReset }) {
 
 export function SettingsSheet({ onClose, onProfile, demo, onDemo, players = [], onResetPlayer }) {
   const [look, setLookState] = useState(getLook());
+  const [voice, setVoice] = useState(voiceOn);
   const pick = (patch) => { const next = { ...look, ...patch }; setLookState(next); setLook(next); };
 
   return (
@@ -85,6 +87,14 @@ export function SettingsSheet({ onClose, onProfile, demo, onDemo, players = [], 
           ))}
         </div>
         <span className="small muted">"Daltonien" remplace le rouge et le vert par de l'orange et du bleu, plus faciles à distinguer.</span>
+      </div>
+
+      <div className="between panel" style={{ background: 'var(--card)', flexDirection: 'row', alignItems: 'center' }}>
+        <div className="grow">
+          <div style={{ fontWeight: 700 }}>Annonces vocales</div>
+          <div className="small muted" style={{ lineHeight: 1.4 }}>L'appli annonce le score de chaque tour, le reste et le finish conseillé. Pense à monter le son (le bouton silence de l'iPhone coupe la voix).</div>
+        </div>
+        <Switch on={voice} onChange={(v) => { setVoice(v); setVoiceOn(v); }} label="Annonces vocales" />
       </div>
 
       <div className="between panel" style={{ background: 'var(--card)', flexDirection: 'row', alignItems: 'center' }}>

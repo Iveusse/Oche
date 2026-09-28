@@ -1,7 +1,7 @@
 // Succès : calculés à partir de l'historique, dans l'ordre chronologique.
 // Deux familles : des séries à paliers (1, 10, 50...) et des exploits uniques.
 import { replayed, afterReset } from './stats.js';
-import { isTraining, shanghaiNumbers, CRICKET_NUMS } from './modes.js';
+import { isTraining, shanghaiNumbers, CRICKET_NUMS, startOf, hasHandicap } from './modes.js';
 import RARITY from './rarity.js';
 
 export const TIER = { 1: 'Bronze', 2: 'Argent', 3: 'Or', 4: 'Platine' };
@@ -224,13 +224,13 @@ export function computeAchievements(games, pid) {
       const date = leg.finishedAt || g.created_at;
       let legDarts = 0; let legPts = 0; let leg180 = 0;
       // suivi du retard en X01 (remontada)
-      const rems = leg.order.map(() => Number(g.settings?.start) || 501);
+      const rems = leg.order.map((p) => startOf(g, p));
       let wasBehind = false;
       for (const t of r.turns) {
         if (g.mode === 'x01') {
           const pts = t.bust ? 0 : t.darts.reduce((a, d) => a + (d.pts || 0), 0);
           rems[t.p] -= pts;
-          if (rems[idx] - Math.min(...rems.filter((_, j) => j !== idx)) >= 100) wasBehind = true;
+          if (!hasHandicap(g.settings) && rems[idx] - Math.min(...rems.filter((_, j) => j !== idx)) >= 100) wasBehind = true;
         }
         if (t.p !== idx) continue;
         let bullsTurn = 0; let marks = 0; let trebles = 0; let missTurn = 0;
@@ -280,7 +280,7 @@ export function computeAchievements(games, pid) {
         if (won) { c.legsWon += 1; c.winsByMode[g.mode] = (c.winsByMode[g.mode] || 0) + 1; c.streak += 1; c.bestStreak = Math.max(c.bestStreak, c.streak); } else c.streak = 0;
       }
       if (g.mode === 'x01' && legDarts >= 9) c.bestLegAvg = Math.max(c.bestLegAvg, (legPts / legDarts) * 3);
-      if (g.mode === 'x01' && won) { const st = Number(g.settings?.start); c.bestLeg[st] = c.bestLeg[st] == null ? legDarts : Math.min(c.bestLeg[st], legDarts); }
+      if (g.mode === 'x01' && won) { const st = startOf(g, pid); c.bestLeg[st] = c.bestLeg[st] == null ? legDarts : Math.min(c.bestLeg[st], legDarts); }
       if (g.mode === 'x01' && won && wasBehind) c.remontada = true;
       if (g.mode === 'atc' && r.ps[idx].finished) c.bestAtc = c.bestAtc == null ? legDarts : Math.min(c.bestAtc, legDarts);
       if (g.mode === 'cricket' && won && r.ps.every((p, j) => j === idx || CRICKET_NUMS.every((n) => p.marks[n] < 3))) c.whitewash = true;
@@ -317,7 +317,7 @@ export function newlyUnlocked(before, after) {
 export function bestLegDarts(games, pid, start, excludeGameId) {
   let bestN = null;
   for (const g of afterReset(games, pid)) {
-    if (g.mode !== 'x01' || g.id === excludeGameId || Number(g.settings?.start) !== Number(start) || !g.player_ids.includes(pid)) continue;
+    if (g.mode !== 'x01' || g.id === excludeGameId || startOf(g, pid) !== Number(start) || !g.player_ids.includes(pid)) continue;
     for (const { leg, r } of replayed(g)) {
       if (leg.ranking?.[0] !== pid || leg.order.length < 2) continue;
       const idx = leg.order.indexOf(pid);

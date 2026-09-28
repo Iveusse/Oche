@@ -134,3 +134,29 @@ describe('stats', () => {
     expect(s.legsWon).toBe(1);
   });
 });
+
+describe('handicap', () => {
+  it('chaque joueur part de son propre score', () => {
+    const s = { start: 501, in: 'single', out: 'single', starts: { a: 301, b: 501 } };
+    const r = runLeg('x01', s, leg(['a', 'b'], [D(20, 3), D(20, 3), D(20, 3), D(20, 1)]));
+    expect(r.ps[0].rem).toBe(121);
+    expect(r.ps[1].rem).toBe(481);
+  });
+});
+
+import { parseSpeech } from '../lib/voice.js';
+describe('saisie vocale', () => {
+  const p = (t, o) => parseSpeech(t, o).darts.map((d) => `${d.mult}x${d.seg}`).join(' ');
+  it('comprend les formulations courantes', () => {
+    expect(p('triple vingt, cinq, raté')).toBe('3x20 1x5 0x0');
+    expect(p('Triple 20 double 16 bull')).toBe('3x20 2x16 2x25');
+    expect(p('T20 T19 D12')).toBe('3x20 3x19 2x12');
+    expect(p('dix-huit, hors cible, vingt-cinq')).toBe('1x18 0x0 1x25');
+    expect(p('simple bull')).toBe('1x25');
+    expect(p('double dix sept')).toBe('2x17');
+    expect(p('simple double triple', { target: 4 })).toBe('1x4 2x4 3x4');
+    expect(parseSpeech('valider').cmd).toBe('validate');
+    expect(parseSpeech('annuler').cmd).toBe('undo');
+    expect(p("d'accord 5")).toBe('1x5');
+  });
+});

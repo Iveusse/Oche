@@ -1,3 +1,6 @@
+import { coachAdvice } from '../engine/coach.js';
+import { RecapSheet } from './Recap.jsx';
+import { lastSession } from '../lib/recap.js';
 import React, { useMemo, useState } from 'react';
 import { Avatar, Icon, Seg } from '../components/ui.jsx';
 import { Heatmap } from '../components/Dartboard.jsx';
@@ -35,6 +38,9 @@ export function Home({ me, players, games, current, onNew, onResume, onProfile, 
   const recent = realGames(games).filter((g) => g.status === 'finished').slice(-4).reverse();
   const st = useMemo(() => (me ? playerStats(filterByPeriod(games, '30j'), me.id) : null), [games, me]);
   const [settings, setSettings] = useState(false);
+  const [recapOpen, setRecapOpen] = useState(false);
+  const session = useMemo(() => lastSession(games), [games]);
+  const showRecap = session && Date.now() - session.end < 48 * 3600000;
   return (
     <div className="screen with-tabs">
       {settings && <SettingsSheet onClose={() => setSettings(false)} onProfile={onProfile} demo={demo} onDemo={onDemo} players={players} onResetPlayer={onResetPlayer} />}
@@ -64,6 +70,18 @@ export function Home({ me, players, games, current, onNew, onResume, onProfile, 
           </div>
           <div style={{ fontSize: 16, fontWeight: 700 }}>{gameLine(current, byId)}</div>
           <div className="small muted">{modeSubtitle(current)}</div>
+        </button>
+      )}
+
+      {recapOpen && <RecapSheet games={games} players={players} onClose={() => setRecapOpen(false)} />}
+      {showRecap && !current && (
+        <button onClick={() => setRecapOpen(true)} className="card between recap-card" style={{ textAlign: 'left', padding: 16 }}>
+          <div>
+            <div className="label">{new Date(session.end).toDateString() === new Date().toDateString() ? 'Ce soir' : 'Dernière soirée'}</div>
+            <div style={{ fontSize: 16, fontWeight: 700 }}>Récap de la soirée</div>
+            <div className="small muted">{session.games.length} partie{session.games.length > 1 ? 's' : ''} · classement, moments forts, succès</div>
+          </div>
+          <Icon.Share style={{ color: 'var(--accent)' }} />
         </button>
       )}
 
@@ -399,9 +417,44 @@ export function trainingRecords(games, pid) {
   return rec;
 }
 
+function CoachCard({ coach, onStart, onAtc }) {
+  const [more, setMore] = useState(false);
+  if (!coach.ready) {
+    return (
+      <div className="card coach col">
+        <div className="row" style={{ gap: 8 }}><span className="coach-badge">Coach</span><span className="small muted">sur tes {coach.days} derniers jours</span></div>
+        <div className="small" style={{ color: 'var(--text-2)', lineHeight: 1.45 }}>Pas encore assez de parties pour te donner un conseil fiable. Encore {coach.need} et je te dis où tu perds des points.</div>
+      </div>
+    );
+  }
+  const drill = DRILLS.find((d) => d[0] === coach.main.drill);
+  return (
+    <div className="card coach col">
+      <div className="row" style={{ gap: 8 }}><span className="coach-badge">Coach</span><span className="small muted">X01 et Shanghai, {coach.days} derniers jours</span></div>
+      <div style={{ fontSize: 18, fontWeight: 800 }}>{coach.main.title}</div>
+      <div className="coach-levels">
+        <div><span className="small muted">Scoring</span><b className={coach.main.kind === 'scoring' ? 'weak' : ''}>niveau {Math.round(coach.lvlScore)}</b></div>
+        <div><span className="small muted">Finish</span><b className={coach.main.kind === 'finish' ? 'weak' : ''}>niveau {Math.round(coach.lvlFin)}</b></div>
+      </div>
+      <div className="small" style={{ color: 'var(--text-2)', lineHeight: 1.45 }}>{coach.main.text}</div>
+      {drill && <button className="btn btn-primary" onClick={() => onStart(drill[0])}>Lancer : {drill[1]}</button>}
+      {coach.tips.length > 0 && (<>
+        <button className="small" style={{ color: 'var(--accent)', fontWeight: 700, textAlign: 'left', minHeight: 32 }} onClick={() => setMore(!more)} aria-expanded={more}>
+          {more ? 'Masquer' : `${coach.tips.length} autre${coach.tips.length > 1 ? 's' : ''} conseil${coach.tips.length > 1 ? 's' : ''}`}
+        </button>
+        {more && coach.tips.map((t) => (
+          <div key={t} className="small coach-tip">{t}{/Around the Clock/.test(t) && onAtc && <button className="coach-link" onClick={onAtc}>Lancer un ATC</button>}</div>
+        ))}
+      </>)}
+      <div className="small muted" style={{ lineHeight: 1.4 }}>« Niveau 30 » = ce que réussit en moyenne un joueur à 30 de moyenne, d'après une simulation. C'est une estimation, pas une vérité.</div>
+    </div>
+  );
+}
+
 export function Training({ me, games, onStart, onAtc, onProfile }) {
   const [chart, setChart] = useState('train-doubles');
   const rec = useMemo(() => (me ? trainingRecords(games, me.id) : {}), [games, me]);
+  const coach = useMemo(() => (me ? coachAdvice(games, me.id) : null), [games, me]);
   const series = useMemo(() => {
     if (!me) return [];
     return afterReset(games, me.id).filter((g) => g.mode === chart && g.player_ids.includes(me.id))
@@ -424,6 +477,7 @@ export function Training({ me, games, onStart, onAtc, onProfile }) {
         <div className="h1">Entraînement</div>
         <div className="small muted">Tes sessions solo, comptées dans tes stats</div>
       </div>
+      {coach && <CoachCard coach={coach} onStart={onStart} onAtc={onAtc} />}
       <div className="card col" style={{ padding: 16, gap: 12, border: '1px solid var(--card-2)' }}>
         <div>
           <div style={{ fontSize: 18, fontWeight: 800 }}>Session libre</div>

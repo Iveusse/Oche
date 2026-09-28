@@ -14,7 +14,7 @@ await ctx.route('**/rest/v1/rpc/**', (route) => {
 });
 const page = await ctx.newPage();
 const errs = []; page.on('pageerror', (e) => errs.push(String(e)));
-await page.goto('http://127.0.0.1:4173');
+await page.goto('http://localhost:4173');
 await page.getByLabel('Code du groupe').fill('x');
 await page.getByRole('button', { name: 'Entrer' }).click();
 await page.getByRole('button', { name: /Yves/ }).first().click();

@@ -44,9 +44,13 @@ export function NewGame({ players, games, meId, lastPlayedMap, onBack, onStart, 
   const s = all[mode];
   const set = (patch) => setAll({ ...all, [mode]: { ...s, ...patch } });
 
+  const handicap = mode === 'x01' && !!s.handicap;
+  const startFor = (id) => Number(s.starts?.[id] ?? s.start);
   const start = () => {
     save('lastSetup', { mode, settings: all, ids });
-    onStart({ mode, settings: s, playerIds: ids, legsToWin });
+    const { handicap: h, starts, ...rest } = s;
+    const settings = mode === 'x01' && h ? { ...rest, starts: Object.fromEntries(ids.map((id) => [id, startFor(id)])) } : rest;
+    onStart({ mode, settings, playerIds: ids, legsToWin });
   };
 
   return (
@@ -74,6 +78,7 @@ export function NewGame({ players, games, meId, lastPlayedMap, onBack, onStart, 
           <SettingRow title="Départ"><Seg options={[[301, '301'], [501, '501'], [701, '701']]} value={s.start} onChange={(v) => set({ start: v })} /></SettingRow>
           <SettingRow title="Entrée"><Seg options={[['single', 'Simple'], ['double', 'Double'], ['master', 'Master']]} value={s.in} onChange={(v) => set({ in: v })} /></SettingRow>
           <SettingRow title="Sortie"><Seg options={[['single', 'Simple'], ['double', 'Double'], ['master', 'Master']]} value={s.out} onChange={(v) => set({ out: v })} /></SettingRow>
+          <SettingRow title="Handicap" sub="Un score de départ différent par joueur (ex. 301 pour les kids, 501 pour les grands)"><Switch on={!!s.handicap} onChange={(v) => set({ handicap: v })} label="Handicap" /></SettingRow>
           <SettingRow title="Premier à"><Stepper value={legsToWin} onChange={setLegsToWin} max={11} label="de legs" format={(v) => `${v} leg${v > 1 ? 's' : ''}`} /></SettingRow>
         </>)}
 
@@ -134,6 +139,19 @@ export function NewGame({ players, games, meId, lastPlayedMap, onBack, onStart, 
           <span className="small muted">glisse pour changer l'ordre</span>
         </div>
         <PlayerOrder ids={ids} players={players} meId={meId} onChange={setIds} />
+        {handicap && ids.length > 0 && (
+          <div className="panel" style={{ gap: 8 }}>
+            <div className="label">Départ de chacun</div>
+            {ids.map((id) => (
+              <div key={id} className="between">
+                <span style={{ fontWeight: 600 }}>{players.find((p) => p.id === id)?.name}</span>
+                <Stepper value={startFor(id)} min={101} max={1001} step={100} label={`départ ${players.find((p) => p.id === id)?.name}`}
+                  onChange={(v) => set({ starts: { ...(s.starts || {}), [id]: v } })} />
+              </div>
+            ))}
+            <span className="small muted">Les records et succès « 301 en X fléchettes » comptent le départ de chaque joueur.</span>
+          </div>
+        )}
         <div className="row" style={{ gap: 8 }}>
           <button className="btn btn-dashed grow" onClick={() => setPicker(true)}><Icon.Plus />Ajouter</button>
           <button className="btn btn-sky grow" disabled={ids.length < 2} onClick={() => setIds(shuffle(ids))}><Icon.Shuffle />Ordre aléatoire</button>
