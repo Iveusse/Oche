@@ -97,7 +97,7 @@ function colsFor(cur, prev, all, period) {
 const X01_SECTIONS = [
   ['Général', [
     ['Legs', (a) => a.legs], ['Legs gagnés', (a) => a.won], ['% de victoire', (a) => pc(a.winRate)], ['Fléchettes', (a) => n0(a.darts)],
-    ['Fléch. / leg gagné', (a) => f1(a.dartsPerLeg)], ['Temps de jeu', (a) => dur(a.duration.total)], ['Temps / partie', (a) => dur(a.duration.avg)],
+    ['Fléch. / leg gagné', (a) => f1(a.dartsPerLeg)], ['Temps de jeu', (a) => dur(a.duration.total)], ['Temps / partie', (a) => dur(a.duration.avg)], ['Temps / leg', (a) => dur(a.duration.perLeg)],
   ]],
   ['Moyenne 3 fléchettes', [
     ['Toutes', (a) => f1(a.avgAll)], ['Sortie simple', (a) => f1(a.avgOut.single)], ['Sortie double', (a) => f1(a.avgOut.double)], ['Sortie master', (a) => f1(a.avgOut.master)],
@@ -195,7 +195,7 @@ function X01View({ games, prevGames, allGames, period, pid }) {
           <Mini k="Leg le plus court" v={a.bestLeg ?? '-'} s="fléchettes" />
           <Mini k="Meilleur leg" v={f1(a.bestLegAvg)} s="de moyenne" />
           <Mini k="Meilleur tour" v={a.high || '-'} />
-          <Mini k="Temps de jeu" v={dur(a.duration.total)} s={a.duration.avg ? `${dur(a.duration.avg)} / partie` : ''} />
+          <Mini k="Temps de jeu" v={dur(a.duration.total)} s={a.duration.perLeg ? `${dur(a.duration.perLeg)} / leg` : ''} />
         </div>
       </Card>
 

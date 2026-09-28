@@ -34,15 +34,23 @@ function forEachLeg(games, pid, mode, fn) {
 }
 
 function duration(games, pid, mode) {
-  let total = 0; let n = 0;
+  // Temps de jeu actif (chrono en jeu, écran allumé) quand il existe ;
+  // sinon, pour les vieilles parties, écart création -> fin du dernier leg.
+  let total = 0; let n = 0; let legsN = 0;
   for (const g of afterReset(games, pid)) {
     if (g.mode !== mode || !g.player_ids.includes(pid)) continue;
-    const ends = g.data.legs.map((l) => l.finishedAt).filter(Boolean).sort();
-    if (!ends.length) continue;
-    const ms = new Date(ends[ends.length - 1]) - new Date(g.created_at);
-    if (ms > 0 && ms < 6 * 3600000) { total += ms; n += 1; }
+    const done = g.data.legs.filter((l) => l.done);
+    if (!done.length) continue;
+    let ms;
+    if (done.every((l) => typeof l.activeMs === 'number')) ms = done.reduce((a, l) => a + l.activeMs, 0);
+    else {
+      const ends = done.map((l) => l.finishedAt).filter(Boolean).sort();
+      if (!ends.length) continue;
+      ms = new Date(ends[ends.length - 1]) - new Date(g.created_at);
+    }
+    if (ms > 0 && ms < 6 * 3600000) { total += ms; n += 1; legsN += done.length; }
   }
-  return { total, avg: avg(total, n) };
+  return { total, avg: avg(total, n), perLeg: avg(total, legsN) };
 }
 
 export const TURN_BUCKETS = [

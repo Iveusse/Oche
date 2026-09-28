@@ -73,6 +73,7 @@ async function mock(route) {
 const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
 const ctx = await browser.newContext({ viewport: { width: +(process.env.VW || 390), height: +(process.env.VH || 844) }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
 const page = await ctx.newPage();
+await ctx.addInitScript(() => { const orig = navigator.wakeLock; Object.defineProperty(navigator, 'wakeLock', { configurable: true, value: { request: async (t) => { window.__wl = (window.__wl || 0) + 1; return { released: false, release: async () => {} }; } } }); });
 const errors = [];
 page.on('pageerror', (e) => errors.push(String(e)));
 page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
@@ -247,5 +248,7 @@ await page.getByRole('button', { name: 'OK' }).click();
 await page.getByText('Reprendre').click();
 await shot('26-jeu-club-pub');
 console.log('saved games:', games.length, 'players:', players.length);
+console.log('activeMs par leg:', games.slice(12).map((g) => (g.data?.legs || []).map((l) => l.activeMs)));
+console.log('wake lock:', await page.evaluate(() => window.__wl || 0));
 console.log('ERRORS:', errors.length ? errors.join('\n') : 'none');
 await browser.close();

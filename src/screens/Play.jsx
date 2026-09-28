@@ -9,6 +9,7 @@ import { trainingResult } from '../engine/stats.js';
 import { bestLegDarts, computeAchievements, newlyUnlocked, TIER } from '../engine/achievements.js';
 import { Medal } from './Achievements.jsx';
 import { load, save } from '../lib/store.js';
+import { usePlayClock, useWakeLock } from '../lib/playclock.js';
 
 const RULE = { single: 'Simple', double: 'Double', master: 'Master' };
 
@@ -83,16 +84,19 @@ export function Play({ game, players, records, history = [], onUpdate, onLegDone
   const [input, setInputState] = useState(() => load('shanghaiInput', 'board'));
   const setInput = (v) => { setInputState(v); save('shanghaiInput', v); };
   const training = isTraining(game.mode);
+  useWakeLock(true);
+  const takeMs = usePlayClock(!leg.done);
+  const withTime = (l) => ({ ...l, activeMs: (l.activeMs || 0) + takeMs() });
 
   const setLeg = (patch) => {
-    const nl = { ...leg, ...patch };
+    const nl = withTime({ ...leg, ...patch });
     onUpdate({ ...game, data: { ...game.data, legs: [...legs.slice(0, -1), nl] } });
   };
 
   // leg terminé et validé -> on fige le résultat
   useEffect(() => {
     if (!leg.done && r.over && !r.awaiting) {
-      const nl = { ...leg, done: true, ranking: r.ranking, finishedAt: new Date().toISOString() };
+      const nl = withTime({ ...leg, done: true, ranking: r.ranking, finishedAt: new Date().toISOString() });
       onLegDone({ ...game, data: { ...game.data, legs: [...legs.slice(0, -1), nl] } });
     }
   }, [leg, r]); // eslint-disable-line react-hooks/exhaustive-deps

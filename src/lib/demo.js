@@ -62,6 +62,8 @@ export function generateDemo(days = 180, seed = 42) {
     }
     const r = runLeg(mode, settings, leg);
     leg.validated = r.turns.length; leg.done = true; leg.ranking = r.ranking;
+    // temps actif réaliste : 5 à 9 s par fléchette (lancer, retirer, saisir)
+    leg.activeMs = Math.round(leg.darts.length * (5000 + rnd() * 4000));
     return leg;
   };
 
@@ -83,11 +85,12 @@ export function generateDemo(days = 180, seed = 42) {
       const order = rnd() < 0.5 ? [T, ...others] : [...others, T];
       const legsN = mode === 'x01' ? 1 + Math.floor(rnd() * 3) : 1;
       const legs = [];
-      let ord = order;
+      let ord = order; let clock = date.getTime();
       for (let l = 0; l < legsN; l++) {
         const extra = mode === 'atc' ? { targets: atcTargets(settings, rnd) } : {};
         const leg = play(mode, settings, ord, t, extra);
-        leg.finishedAt = new Date(date.getTime() + (l + 1) * 9 * 60000).toISOString();
+        clock += leg.activeMs + 60000;
+        leg.finishedAt = new Date(clock).toISOString();
         legs.push(leg);
         ord = [...ord.slice(1), ord[0]];
       }
@@ -97,7 +100,7 @@ export function generateDemo(days = 180, seed = 42) {
     if (rnd() < 0.25) {
       const date = new Date(start + day * 86400000 + 18 * 3600000);
       const leg = play('train-doubles', {}, [T], t, { targets: atcTargets({ order: 'asc', bull: true }) });
-      leg.finishedAt = date.toISOString();
+      leg.finishedAt = new Date(date.getTime() + leg.activeMs).toISOString();
       games.push({ id: `demo-g${n++}`, mode: 'train-doubles', settings: {}, player_ids: [T], status: 'finished', created_at: date.toISOString(), data: { legs: [leg], legsToWin: 1 }, demo: true });
     }
   }
