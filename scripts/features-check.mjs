@@ -28,6 +28,7 @@ async function mock(route) {
   const fn = route.request().url().split('/rpc/')[1]?.split('?')[0];
   const body = JSON.parse(route.request().postData() || '{}');
   const json = (d, status = 200) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(d) });
+  if (fn === 'oche_join') return json(body.p_code === 'test' ? { id: 'team-test', name: 'Test', has_admin: false } : null);
   if (fn === 'oche_check') return json(body.p_code === 'test');
   if (fn === 'oche_players') return json(players);
   if (fn === 'oche_games') return json(games);
@@ -59,8 +60,10 @@ const shot = (n, full = false) => page.screenshot({ path: `${OUT}/${n}.png`, ful
 const check = (label, ok, extra = '') => console.log(`${ok ? 'OK  ' : 'FAIL'} ${label} ${extra}`);
 
 await page.goto(BASE);
-await page.getByLabel('Code du groupe').fill('test');
-await page.getByRole('button', { name: 'Entrer' }).click();
+await page.getByText('Rejoindre une équipe').click();
+await page.getByLabel("Code de l'équipe").fill('test');
+await page.getByRole('button', { name: 'Continuer' }).click();
+await page.getByRole('button', { name: 'Rejoindre' }).click();
 await page.getByText('Qui es-tu ?').waitFor();
 await page.getByRole('button', { name: /Yves/ }).first().click();
 await page.getByText('Nouvelle partie').first().waitFor();

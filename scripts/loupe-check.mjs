@@ -5,13 +5,15 @@ const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromi
 const ctx = await browser.newContext({ viewport: { width: 393, height: 852 }, deviceScaleFactor: 2 });
 await ctx.route('**/rest/v1/rpc/**', (route) => {
   const fn = route.request().url().split('/rpc/')[1];
-  const d = fn === 'oche_check' ? true : fn === 'oche_players' ? [{ id: 'p1', name: 'Yves', color: '#5fc8ff' }, { id: 'p2', name: 'Nico', color: '#ff9f5a' }] : fn === 'oche_games' ? [] : null;
+  const d = fn === 'oche_join' ? { id: 'team-x', name: 'Test', has_admin: false } : fn === 'oche_check' ? true : fn === 'oche_players' ? [{ id: 'p1', name: 'Yves', color: '#5fc8ff' }, { id: 'p2', name: 'Nico', color: '#ff9f5a' }] : fn === 'oche_games' ? [] : null;
   return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(d) });
 });
 const page = await ctx.newPage();
 await page.goto('http://127.0.0.1:4173');
-await page.getByLabel('Code du groupe').fill('x');
-await page.getByRole('button', { name: 'Entrer' }).click();
+await page.getByText('Rejoindre une équipe').click();
+await page.getByLabel("Code de l'équipe").fill('x');
+await page.getByRole('button', { name: 'Continuer' }).click();
+await page.getByRole('button', { name: 'Rejoindre' }).click();
 await page.getByRole('button', { name: /Yves/ }).first().click();
 await page.getByText('Nouvelle partie').first().click();
 await page.getByRole('button', { name: 'Lancer la partie' }).click();

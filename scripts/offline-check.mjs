@@ -9,6 +9,7 @@ await ctx.route('**/rest/v1/rpc/**', async (route) => {
   const fn = route.request().url().split('/rpc/')[1];
   const body = JSON.parse(route.request().postData() || '{}');
   const json = (d) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(d) });
+  if (fn === 'oche_join') return json({ id: 'team-x', name: 'Test', has_admin: false });
   if (fn === 'oche_check') return json(true);
   if (fn === 'oche_players') return json(players);
   if (fn === 'oche_games') return json([]);
@@ -18,8 +19,10 @@ await ctx.route('**/rest/v1/rpc/**', async (route) => {
 const page = await ctx.newPage();
 page.on('dialog', (d) => d.accept());
 await page.goto(BASE);
-await page.getByLabel('Code du groupe').fill('x');
-await page.getByRole('button', { name: 'Entrer' }).click();
+await page.getByText('Rejoindre une équipe').click();
+await page.getByLabel("Code de l'équipe").fill('x');
+await page.getByRole('button', { name: 'Continuer' }).click();
+await page.getByRole('button', { name: 'Rejoindre' }).click();
 await page.getByRole('button', { name: /Yves/ }).first().click();
 await page.waitForFunction(() => navigator.serviceWorker.controller !== null || navigator.serviceWorker.ready, null, { timeout: 5000 });
 await page.reload(); // prise de contrôle par le service worker

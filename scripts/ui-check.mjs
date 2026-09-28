@@ -56,6 +56,7 @@ async function mock(route) {
   const fn = url.split('/rpc/')[1]?.split('?')[0];
   const body = JSON.parse(route.request().postData() || '{}');
   const json = (d, status = 200) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(d) });
+  if (fn === 'oche_join') return json(body.p_code === 'test' ? { id: 'team-test', name: 'Test', has_admin: false } : null);
   if (fn === 'oche_check') return json(body.p_code === 'test');
   if (body.p_code !== 'test') return json({ message: 'bad_code', code: 'P0001' }, 400);
   if (fn === 'oche_players') return json([...players].sort((a, b) => a.name.localeCompare(b.name)));
@@ -95,9 +96,11 @@ const valider = () => page.getByRole('button', { name: 'Valider' }).click();
 
 await page.goto(BASE);
 await shot('01-code');
-await page.getByLabel('Code du groupe').fill('test');
-await page.getByRole('button', { name: 'Entrer' }).click();
-await page.getByText('Qui es-tu ?').waitFor();
+await page.getByText('Rejoindre une équipe').click();
+await page.getByLabel("Code de l'équipe").fill('test');
+await page.getByRole('button', { name: 'Continuer' }).click();
+await page.getByRole('button', { name: 'Rejoindre' }).click();
+await page.getByText('Qui es-tu ?').waitFor({ timeout: 5000 }).catch(async (e) => { await shot('dbg-login'); console.log('DBG', await page.locator('body').innerText()); throw e; });
 await page.waitForTimeout(300);
 await shot('02-profil');
 await page.getByRole('button', { name: /Yves/ }).first().click();

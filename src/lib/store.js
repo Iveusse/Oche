@@ -1,21 +1,44 @@
 const P = 'oche.';
+// Données propres à une équipe : rangées sous oche.t.<idEquipe>.<clé>
+const SCOPED = new Set(['profile', 'profileSkipped', 'cachePlayers', 'cacheGames', 'current', 'lastSetup']);
+let scope = null;
+export const setScope = (teamId) => { scope = teamId; };
+export const getScope = () => scope;
+const keyOf = (key, team = scope) => (SCOPED.has(key) && team ? `${P}t.${team}.${key}` : P + key);
 
-export function load(key, fallback) {
+export function load(key, fallback, team) {
   try {
-    const v = localStorage.getItem(P + key);
+    const v = localStorage.getItem(keyOf(key, team));
     return v == null ? fallback : JSON.parse(v);
   } catch {
     return fallback;
   }
 }
 
-export function save(key, value) {
+export function save(key, value, team) {
   try {
-    if (value === undefined || value === null) localStorage.removeItem(P + key);
-    else localStorage.setItem(P + key, JSON.stringify(value));
+    const k = keyOf(key, team);
+    if (value === undefined || value === null) localStorage.removeItem(k);
+    else localStorage.setItem(k, JSON.stringify(value));
   } catch {
     /* stockage indisponible (navigation privée) */
   }
+}
+
+// ancienne version (un seul groupe) : on range ses données dans la 1re équipe
+export function adoptLegacy(teamId) {
+  for (const key of SCOPED) {
+    try {
+      const v = localStorage.getItem(P + key);
+      if (v != null && localStorage.getItem(keyOf(key, teamId)) == null) localStorage.setItem(keyOf(key, teamId), v);
+      localStorage.removeItem(P + key);
+    } catch { /* rien */ }
+  }
+}
+
+// quitter une équipe sur ce téléphone : on oublie ses données locales
+export function forgetTeam(teamId) {
+  for (const key of SCOPED) { try { localStorage.removeItem(keyOf(key, teamId)); } catch { /* rien */ } }
 }
 
 export function uuid() {

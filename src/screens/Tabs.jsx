@@ -33,7 +33,7 @@ function gameResult(g, byId) {
   return w ? `${byId[w]?.name} gagne` : 'égalité';
 }
 
-export function Home({ me, players, games, current, onNew, onResume, onProfile, goRanking, demo, onDemo, onResetPlayer }) {
+export function Home({ me, players, games, current, team, onTeams, onNew, onResume, onProfile, goRanking, demo, onDemo, onResetPlayer }) {
   const byId = Object.fromEntries(players.map((p) => [p.id, p]));
   const recent = realGames(games).filter((g) => g.status === 'finished').slice(-4).reverse();
   const st = useMemo(() => (me ? playerStats(filterByPeriod(games, '30j'), me.id) : null), [games, me]);
@@ -45,7 +45,10 @@ export function Home({ me, players, games, current, onNew, onResume, onProfile, 
     <div className="screen with-tabs">
       {settings && <SettingsSheet onClose={() => setSettings(false)} onProfile={onProfile} demo={demo} onDemo={onDemo} players={players} onResetPlayer={onResetPlayer} />}
       <div className="between">
-        <div className="h1 grow" style={{ fontSize: 32 }}>Oche</div>
+        <div className="grow" style={{ minWidth: 0 }}>
+          <div className="h1" style={{ fontSize: 32 }}>Oche</div>
+          {team && <button className="team-pill" onClick={onTeams} aria-label={`Équipe ${team.name}, changer d'équipe`}><span>{team.name}</span><Icon.Chevron /></button>}
+        </div>
         <button className="icon-btn" aria-label="Réglages" onClick={() => setSettings(true)}><Icon.Gear /></button>
         <button onClick={onProfile} className="row" aria-label="Changer de profil"
           style={{ height: 44, padding: '0 12px 0 6px', borderRadius: 22, background: 'var(--card)', border: '1px solid var(--wire)', fontWeight: 700, gap: 8 }}>

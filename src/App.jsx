@@ -1,10 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { addPlayer, fetchGames, fetchPlayers, flushPending, getCode, resetPlayer, saveGame, setCode } from './lib/api.js';
-import { load, save, uuid, PLAYER_COLORS } from './lib/store.js';
+import { addPlayer, clearLegacyCode, dropTeam, fetchGames, fetchPlayers, flushPending, getCode, getTeamId, getTeams, joinTeam, legacyCode, patchTeam, rememberTeam, resetPlayer, saveGame, setTeamId } from './lib/api.js';
+import { adoptLegacy, forgetTeam, load, save, setScope, uuid, PLAYER_COLORS } from './lib/store.js';
 import { atcTargets, checkoutTargets, isTraining } from './engine/modes.js';
 import { lastPlayed, setResets } from './engine/stats.js';
 import { TabBar } from './components/ui.jsx';
-import { CodeScreen, ProfileScreen } from './screens/Setup.jsx';
+import { ProfileScreen } from './screens/Setup.jsx';
+import { TeamSheet, Welcome } from './screens/Teams.jsx';
 import { NewGame } from './screens/NewGame.jsx';
 import { Play } from './screens/Play.jsx';
 import { Home, Ranking, Stats, Training, trainingRecords } from './screens/Tabs.jsx';
@@ -24,8 +25,60 @@ const upsert = (list, g) => {
   const next = [...list]; next[i] = g; return next;
 };
 
+// ---------- racine : choix de l'équipe ----------
 export default function App() {
-  const [code, setCodeState] = useState(getCode());
+  const [teamId, setTid] = useState(getTeamId);
+  const [, bump] = useState(0);
+  const [legacy, setLegacy] = useState(() => (!getTeamId() && legacyCode() ? 'wait' : null));
+  const [notice, setNotice] = useState('');
+  const [adding, setAdding] = useState(false);
+  const [menu, setMenu] = useState(false);
+
+  // ancienne version (un seul code de groupe) : on retrouve l'équipe et on y range les données du téléphone
+  useEffect(() => {
+    if (legacy !== 'wait') return;
+    joinTeam(legacyCode()).then((t) => {
+      if (t) { adoptLegacy(t.id); rememberTeam({ id: t.id, name: t.name, code: legacyCode() }); setTid(t.id); }
+      clearLegacyCode(); setLegacy(null);
+    }).catch(() => setLegacy('error'));
+  }, [legacy]);
+
+  const choose = (t) => { rememberTeam(t); setAdding(false); setMenu(false); setNotice(''); setTid(t.id); };
+  const switchTo = (id) => { setTeamId(id); setMenu(false); setTid(id); window.scrollTo(0, 0); };
+  const leave = (id) => { forgetTeam(id); dropTeam(id); setMenu(false); setTid(getTeamId()); };
+  const invalid = (id) => {
+    const t = getTeams().find((x) => x.id === id);
+    dropTeam(id);
+    setNotice(`Le code de l'équipe « ${t?.name || ''} » a changé. Demande le nouveau à un membre de l'équipe.`);
+    setTid(getTeamId());
+  };
+
+  if (legacy) {
+    return (
+      <div className="screen" style={{ paddingTop: 'calc(72px + var(--safe-top))' }}>
+        <div className="h1" style={{ fontSize: 34 }}>Oche</div>
+        {legacy === 'wait' ? <div className="muted">Mise à jour de ton équipe…</div> : (<>
+          <div className="muted" style={{ lineHeight: 1.45 }}>Impossible de joindre le serveur pour passer à la nouvelle version. Vérifie ta connexion.</div>
+          <button className="btn btn-primary" onClick={() => setLegacy('wait')}>Réessayer</button>
+        </>)}
+      </div>
+    );
+  }
+  const team = getTeams().find((t) => t.id === teamId);
+  if (!team || adding) return <Welcome notice={notice} onTeam={choose} onCancel={team ? () => setAdding(false) : null} />;
+  setScope(team.id);
+  return (<>
+    <TeamApp key={team.id} team={team} onTeams={() => setMenu(true)} onInvalid={() => invalid(team.id)} onRenamed={() => bump((n) => n + 1)} />
+    {menu && (
+      <TeamSheet team={team} teams={getTeams()} onSwitch={switchTo} onAdd={() => { setMenu(false); setAdding(true); }}
+        onLeave={leave} onClose={() => setMenu(false)} onChanged={() => bump((n) => n + 1)} />
+    )}
+  </>);
+}
+
+// ---------- l'appli d'une équipe (remontée à chaque changement d'équipe) ----------
+function TeamApp({ team, onTeams, onInvalid, onRenamed }) {
+  const code = team.code;
   const [meId, setMeId] = useState(load('profile', null));
   const [players, setPlayers] = useState(load('cachePlayers', []));
   const [games, setGames] = useState(load('cacheGames', []));
@@ -44,15 +97,16 @@ export default function App() {
 
   const flash = (msg) => { setToast(msg); setTimeout(() => setToast(''), 2600); };
 
-  const logout = () => { setCode(null); setCodeState(null); };
+  const logout = () => onInvalid();
 
   const refresh = useCallback(async () => {
     try {
       const left = await flushPending();
-      const [ps, gs] = await Promise.all([fetchPlayers(), fetchGames()]);
+      const [ps, gs, info] = await Promise.all([fetchPlayers(), fetchGames(), joinTeam(getCode()).catch(() => undefined)]);
+      if (info && info.name !== team.name) { patchTeam(team.id, { name: info.name }); onRenamed(); }
       setPlayers(ps); save('cachePlayers', ps);
       // les parties en attente d'envoi restent visibles
-      const pending = Object.values(load('pending', {}));
+      const pending = Object.values(load('pending', {})).filter((g) => !g.__code || g.__code === getCode()).map(({ __code, updated, ...g }) => g);
       let merged = gs;
       for (const g of pending) merged = upsert(merged, g);
       setGames(merged); save('cacheGames', merged);
@@ -179,8 +233,6 @@ export default function App() {
     setTab(isTraining(g.mode) ? 'training' : 'home');
   };
 
-  if (!code) return <CodeScreen onOk={(c) => { setCode(c); setCodeState(c); }} />;
-
   if (view === 'profile') {
     return (
       <ProfileScreen
@@ -212,7 +264,7 @@ export default function App() {
   return (
     <>
       {tab === 'home' && (
-        <Home me={me} players={players} games={played} current={current}
+        <Home me={me} players={players} games={played} current={current} team={team} onTeams={onTeams}
           onNew={() => setView('new')} onResume={() => setView('play')}
           onProfile={() => setView('profile')} goRanking={() => setTab('ranking')} demo={demo} onDemo={setDemo} onResetPlayer={onResetPlayer} />
       )}

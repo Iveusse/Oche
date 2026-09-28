@@ -10,6 +10,7 @@ export const Icon = {
   X: (p) => <svg width="18" height="18" viewBox="0 0 24 24" strokeWidth="2.2" {...S} {...p}><path d="M6 6l12 12M18 6L6 18" /></svg>,
   Grip: (p) => <svg width="18" height="18" viewBox="0 0 24 24" strokeWidth="2.2" {...S} {...p}><path d="M5 9h14M5 15h14" /></svg>,
   Shuffle: (p) => <svg width="18" height="18" viewBox="0 0 24 24" strokeWidth="2.2" {...S} {...p}><path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5" /></svg>,
+  Users: (p) => <svg width="26" height="26" viewBox="0 0 24 24" strokeWidth="2" {...S} {...p}><circle cx="9" cy="8" r="3.5" /><path d="M2.5 20a6.5 6.5 0 0 1 13 0" /><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18 14.5a6.5 6.5 0 0 1 3.5 5.5" /></svg>,
   Mic: (p) => <svg width="22" height="22" viewBox="0 0 24 24" strokeWidth="2.2" {...S} {...p}><rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5 11a7 7 0 0 0 14 0M12 18v3" /></svg>,
   Share: (p) => <svg width="22" height="22" viewBox="0 0 24 24" strokeWidth="2.2" {...S} {...p}><path d="M12 3v12M7 8l5-5 5 5" /><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7" /></svg>,
   Undo: (p) => <svg width="22" height="22" viewBox="0 0 24 24" strokeWidth="2.2" {...S} {...p}><path d="M9 14L4 9l5-5" /><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" /></svg>,

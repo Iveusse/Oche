@@ -31,7 +31,7 @@ function ResetZone({ players, onReset }) {
         <option value="">Choisir le joueur…</option>
         {players.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
       </select>
-      <input className="input" type="password" autoComplete="off" placeholder="Code du groupe pour confirmer" value={code} onChange={(e) => setCode(e.target.value)} aria-label="Code du groupe pour confirmer" />
+      <input className="input" type="password" autoComplete="off" placeholder="Code de l'équipe pour confirmer" value={code} onChange={(e) => setCode(e.target.value)} aria-label="Code de l'équipe pour confirmer" />
       {msg && <div className="small" style={{ color: msg.ok ? 'var(--good)' : 'var(--bad)', fontWeight: 600 }}>{msg.text}</div>}
       <button type="submit" className="btn" disabled={!pid || !code.trim() || busy} style={{ background: 'var(--bad)', color: '#1a0503' }}>
         {busy ? 'Vérification…' : player ? `Remettre ${player.name} à zéro` : 'Remettre à zéro'}
