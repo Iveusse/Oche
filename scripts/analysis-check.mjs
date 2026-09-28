@@ -33,6 +33,11 @@ await page.waitForTimeout(400);
 await page.getByRole('button', { name: /Voir les \d+ stats/ }).click();
 await page.waitForTimeout(200);
 await page.screenshot({ path: `${OUT}/a1-x01.png`, fullPage: true });
+await page.locator('.chip-pill', { hasText: '3 mois' }).click();
+await page.waitForTimeout(300);
+if (!(await page.locator('.ftable').count())) await page.getByRole('button', { name: /Voir les \d+ stats/ }).click();
+await page.locator('.ftable').screenshot({ path: `${OUT}/a1b-tendances.png` });
+console.log('tendances: up', await page.locator('.ftable .tr-up').count(), 'down', await page.locator('.ftable .tr-down').count());
 for (const m of ['Cricket', 'Shanghai', 'ATC']) {
   await page.locator('.mode-tabs button', { hasText: m }).click();
   await page.waitForTimeout(300);

@@ -59,31 +59,64 @@ const frac = (h, a) => (a ? `${h}/${a}` : '-');
 const cnt = (n, tot) => (tot ? <span className="two"><b>{Math.round((n / tot) * 100)} %</b><small>{n.toLocaleString('fr-FR')}</small></span> : '-');
 
 // Tableau complet : sections de lignes, une colonne par jeu de données
+// Sens d'une stat : up = plus c'est haut mieux c'est, dn = l'inverse. Sans sens : neutre (volumes, temps).
+const up = (label, get, fmt) => [label, (a) => fmt(get(a)), 1, get];
+const dn = (label, get, fmt) => [label, (a) => fmt(get(a)), -1, get];
+const rec = (v) => (v == null || v === 0 ? '-' : v);
+const share = (a, n) => (a.turns ? n / a.turns : null);
+
+// progrès (vert) / régression (rouge) de la période choisie par rapport à celle d'avant
+// renvoie { t: +1 mieux / -1 moins bien / 0, dir: sens de la valeur (+1 monte, -1 baisse) }
+function trend(dir, get, fn, cur, prev) {
+  if (!dir || !cur || !prev) return { t: 0 };
+  const x = get(cur); const y = get(prev);
+  if (x == null || y == null || Number.isNaN(x) || Number.isNaN(y)) return { t: 0 };
+  if (Math.abs(x - y) <= Math.abs(y) * 0.02 + 1e-9) return { t: 0 }; // moins de 2 % d'écart : stable
+  const a = fn(cur); const b = fn(prev);
+  if (typeof a === 'string' && a === b) return { t: 0 }; // identique à l'affichage
+  if (Math.abs(y) <= 1 && Math.abs(x) <= 1 && Math.abs(x - y) < 0.005) return { t: 0 }; // pourcentages : moins d'un demi-point
+  return { t: Math.sign(x - y) * dir, up: x > y };
+}
+
 function FullTable({ sections, cols }) {
   const [open, setOpen] = useState(false);
   const total = sections.reduce((a, [, rows]) => a + rows.length, 0);
+  const cmp = cols.length > 1;
   return (
     <div className="panel">
       <button className="between" onClick={() => setOpen(!open)} aria-expanded={open} style={{ minHeight: 40, textAlign: 'left' }}>
         <span className="h3">Tableau complet</span>
         <span className="small" style={{ color: 'var(--accent)', fontWeight: 700 }}>{open ? 'Replier' : `Voir les ${total} stats`}</span>
       </button>
-      {open && (
+      {open && (<>
+        <div className="small muted" style={{ marginTop: 4 }}>
+          {cmp
+            ? <>Comparé à la période d'avant : <span className="tr-up">vert = tu progresses</span> · <span className="tr-down">rouge = tu régresses</span>. La flèche dit si le chiffre monte ou baisse (moins de « Aucun point », c'est vert). Blanc = stable ou juste du volume.</>
+            : 'Choisis une période (7 j, 30 j…) pour voir en couleur ce qui progresse ou régresse.'}
+        </div>
         <div className="ftable" style={{ '--cols': cols.length }}>
           <div className="frow fhead"><span />{cols.map((c) => <span key={c.label}>{c.label}</span>)}</div>
           {sections.map(([title, rows]) => (
             <React.Fragment key={title}>
               <div className="fsec">{title}</div>
-              {rows.map(([label, fn]) => (
-                <div className="frow" key={title + label}>
-                  <span className="fl">{label}</span>
-                  {cols.map((c) => <span key={c.label}>{c.data ? fn(c.data) : '-'}</span>)}
-                </div>
-              ))}
+              {rows.map(([label, fn, dir, get]) => {
+                const { t, up: rise } = cmp ? trend(dir, get, fn, cols[0].data, cols[1].data) : { t: 0 };
+                return (
+                  <div className={`frow ${t > 0 ? 'good' : t < 0 ? 'bad' : ''}`} key={title + label}>
+                    <span className="fl">{label}</span>
+                    {cols.map((c, i) => (
+                      <span key={c.label} className={i === 0 && t ? (t > 0 ? 'tr-up' : 'tr-down') : ''}>
+                        {i === 0 && t ? <i className="tr-arrow" aria-label={t > 0 ? 'en progrès' : 'en recul'}>{rise ? '▲' : '▼'}</i> : null}
+                        {c.data ? fn(c.data) : '-'}
+                      </span>
+                    ))}
+                  </div>
+                );
+              })}
             </React.Fragment>
           ))}
         </div>
-      )}
+      </>)}
     </div>
   );
 }
@@ -96,53 +129,53 @@ function colsFor(cur, prev, all, period) {
 
 const X01_SECTIONS = [
   ['Général', [
-    ['Legs', (a) => a.legs], ['Legs gagnés', (a) => a.won], ['% de victoire', (a) => pc(a.winRate)], ['Fléchettes', (a) => n0(a.darts)],
-    ['Fléch. / leg gagné', (a) => f1(a.dartsPerLeg)], ['Temps de jeu', (a) => dur(a.duration.total)], ['Temps / partie', (a) => dur(a.duration.avg)], ['Temps / leg', (a) => dur(a.duration.perLeg)],
+    ['Legs', (a) => a.legs], ['Legs gagnés', (a) => a.won], up('% de victoire', (a) => a.winRate, pc), ['Fléchettes', (a) => n0(a.darts)],
+    dn('Fléch. / leg gagné', (a) => a.dartsPerLeg, f1), ['Temps de jeu', (a) => dur(a.duration.total)], ['Temps / partie', (a) => dur(a.duration.avg)], ['Temps / leg', (a) => dur(a.duration.perLeg)],
   ]],
   ['Moyenne 3 fléchettes', [
-    ['Toutes', (a) => f1(a.avgAll)], ['Sortie simple', (a) => f1(a.avgOut.single)], ['Sortie double', (a) => f1(a.avgOut.double)], ['Sortie master', (a) => f1(a.avgOut.master)],
-    ['9 premières', (a) => f1(a.avgFirst[9])], ['12 premières', (a) => f1(a.avgFirst[12])], ['15 premières', (a) => f1(a.avgFirst[15])],
-    ['Tant que > 170', (a) => f1(a.avgUntil[170])], ['Tant que > 100', (a) => f1(a.avgUntil[100])],
+    up('Toutes', (a) => a.avgAll, f1), up('Sortie simple', (a) => a.avgOut.single, f1), up('Sortie double', (a) => a.avgOut.double, f1), up('Sortie master', (a) => a.avgOut.master, f1),
+    up('9 premières', (a) => a.avgFirst[9], f1), up('12 premières', (a) => a.avgFirst[12], f1), up('15 premières', (a) => a.avgFirst[15], f1),
+    up('Tant que > 170', (a) => a.avgUntil[170], f1), up('Tant que > 100', (a) => a.avgUntil[100], f1),
   ]],
   ['Checkout', [
-    ['Checkout moyen', (a) => f0(a.coAvg)], ['Meilleur checkout', (a) => a.coHigh ?? '-'], ['Réussis / tentés', (a) => frac(a.coHit, a.coAtt)], ['Taux', (a) => pc(a.coRate)],
-    ['Doubles réussis / tentés', (a) => frac(a.dblHit, a.dblAtt)], ['Taux sur double', (a) => pc(a.dblRate)],
+    up('Checkout moyen', (a) => a.coAvg, f0), up('Meilleur checkout', (a) => a.coHigh, rec), ['Réussis / tentés', (a) => frac(a.coHit, a.coAtt)], up('Taux', (a) => a.coRate, pc),
+    ['Doubles réussis / tentés', (a) => frac(a.dblHit, a.dblAtt)], up('Taux sur double', (a) => a.dblRate, pc),
   ]],
   ['Records', [
-    ['Leg le plus court', (a) => a.bestLeg ?? '-'], ['Meilleure moyenne de leg', (a) => f1(a.bestLegAvg)], ['Meilleur tour', (a) => a.high || '-'],
+    dn('Leg le plus court', (a) => a.bestLeg, rec), up('Meilleure moyenne de leg', (a) => a.bestLegAvg, f1), up('Meilleur tour', (a) => a.high, rec),
   ]],
-  ['Tours par tranche', TURN_BUCKETS.map(([l], i) => [l, (a) => cnt(a.buckets[i], a.turns)])],
-  ['Tranches alternatives', ALT_BUCKETS.map(([l], i) => [l, (a) => cnt(a.alt[i], a.turns)])],
-  ['Moyenne par tour du leg', Array.from({ length: 10 }, (_, i) => [`Tour ${i + 1}`, (a) => f1(a.roundAvg[i])])],
-  ['Reste moyen après', [3, 6, 9, 12, 15].map((k) => [`${k} fléchettes`, (a) => f0(a.remAfterAvg[k])])],
+  ['Tours par tranche', TURN_BUCKETS.map(([l], i) => [l, (a) => cnt(a.buckets[i], a.turns), i < 2 ? -1 : i >= 3 ? 1 : 0, (a) => share(a, a.buckets[i])])],
+  ['Tranches alternatives', ALT_BUCKETS.map(([l], i) => [l, (a) => cnt(a.alt[i], a.turns), i < 2 ? -1 : i >= 3 ? 1 : 0, (a) => share(a, a.alt[i])])],
+  ['Moyenne par tour du leg', Array.from({ length: 10 }, (_, i) => up(`Tour ${i + 1}`, (a) => a.roundAvg[i], f1))],
+  ['Reste moyen après', [3, 6, 9, 12, 15].map((k) => dn(`${k} fléchettes`, (a) => a.remAfterAvg[k], f0))],
 ];
 
 const CRICKET_SECTIONS = [
-  ['Général', [['Legs', (a) => a.legs], ['Legs gagnés', (a) => a.won], ['% de victoire', (a) => pc(a.winRate)], ['Temps de jeu', (a) => dur(a.duration.total)], ['MPR', (a) => (a.mpr == null ? '-' : a.mpr.toFixed(2))]]],
-  ['Précision', [['Touches', (a) => pc(a.pct.hit)], ['Triples', (a) => pc(a.pct.t)], ['Doubles', (a) => pc(a.pct.d)], ['Simples', (a) => pc(a.pct.s)], ['Hors numéros', (a) => pc(a.pct.miss)]]],
+  ['Général', [['Legs', (a) => a.legs], ['Legs gagnés', (a) => a.won], up('% de victoire', (a) => a.winRate, pc), ['Temps de jeu', (a) => dur(a.duration.total)], up('MPR', (a) => a.mpr, (v) => (v == null ? '-' : v.toFixed(2)))]],
+  ['Précision', [up('Touches', (a) => a.pct.hit, pc), up('Triples', (a) => a.pct.t, pc), up('Doubles', (a) => a.pct.d, pc), ['Simples', (a) => pc(a.pct.s)], dn('Hors numéros', (a) => a.pct.miss, pc)]],
   ['Fléchettes', [['Lancées', (a) => n0(a.darts)], ['Touches', (a) => n0(a.darts - a.miss)], ['Triples', (a) => a.t], ['Doubles', (a) => a.d], ['Simples', (a) => a.sgl], ['Hors numéros', (a) => a.miss]]],
-  ['Points', [['Moyenne / leg', (a) => f0(a.ptsAvg)], ['Max points', (a) => a.maxPts], ['Max triples / leg', (a) => a.maxT], ['Max doubles / leg', (a) => a.maxD], ['Max simples / leg', (a) => a.maxS]]],
+  ['Points', [up('Moyenne / leg', (a) => a.ptsAvg, f0), up('Max points', (a) => a.maxPts, rec), up('Max triples / leg', (a) => a.maxT, rec), up('Max doubles / leg', (a) => a.maxD, rec), ['Max simples / leg', (a) => a.maxS]]],
   ['Gros tours', [['9 marques', (a) => a.m9], ['7-8 marques', (a) => a.m7], ['5-6 marques', (a) => a.m5]]],
-  ['Marques / leg par numéro', CRICKET_NUMS.map((n) => [n === 25 ? 'Bull' : String(n), (a) => f1(a.perNumAvg[n])])],
+  ['Marques / leg par numéro', CRICKET_NUMS.map((n) => up(n === 25 ? 'Bull' : String(n), (a) => a.perNumAvg[n], f1))],
   ['Touches par numéro', CRICKET_NUMS.map((n) => [n === 25 ? 'Bull' : String(n), (a) => a.hitsNum[n]])],
 ];
 
 const SH_NUMS = Array.from({ length: 20 }, (_, i) => i + 1);
 const SHANGHAI_SECTIONS = [
-  ['Général', [['Parties', (a) => a.legs], ['Victoires', (a) => a.won], ['% de victoire', (a) => pc(a.winRate)], ['Shanghais', (a) => a.shanghais], ['Temps de jeu', (a) => dur(a.duration.total)]]],
-  ['Points', [['Moyenne / partie', (a) => f0(a.ptsAvg)], ['Meilleur 1 à 7', (a) => a.best7 ?? '-'], ['Meilleur 1 à 20', (a) => a.best20 ?? '-']]],
+  ['Général', [['Parties', (a) => a.legs], ['Victoires', (a) => a.won], up('% de victoire', (a) => a.winRate, pc), ['Shanghais', (a) => a.shanghais], ['Temps de jeu', (a) => dur(a.duration.total)]]],
+  ['Points', [up('Moyenne / partie', (a) => a.ptsAvg, f0), up('Meilleur 1 à 7', (a) => a.best7, rec), up('Meilleur 1 à 20', (a) => a.best20, rec)]],
   ['Fléchettes', [['Tentatives', (a) => n0(a.darts)], ['Triples', (a) => a.t], ['Doubles', (a) => a.d], ['Simples', (a) => a.sgl], ['Ratées', (a) => a.miss]]],
-  ['Précision', [['Touches', (a) => pc(a.pct.hit)], ['Triples', (a) => pc(a.pct.t)], ['Doubles', (a) => pc(a.pct.d)], ['Simples', (a) => pc(a.pct.s)], ['Ratées', (a) => pc(a.pct.miss)]]],
-  ['Précision par numéro', SH_NUMS.map((n) => [String(n), (a) => pc(a.numAcc[n])])],
-  ['Points moyens par numéro', SH_NUMS.map((n) => [String(n), (a) => f1(a.numPts[n])])],
+  ['Précision', [up('Touches', (a) => a.pct.hit, pc), up('Triples', (a) => a.pct.t, pc), up('Doubles', (a) => a.pct.d, pc), ['Simples', (a) => pc(a.pct.s)], dn('Ratées', (a) => a.pct.miss, pc)]],
+  ['Précision par numéro', SH_NUMS.map((n) => up(String(n), (a) => a.numAcc[n], pc))],
+  ['Points moyens par numéro', SH_NUMS.map((n) => up(String(n), (a) => a.numPts[n], f1))],
   ['Shanghais par numéro', SH_NUMS.map((n) => [String(n), (a) => a.num[n].sh])],
 ];
 
 const ATC_NUMS = [...SH_NUMS, 25];
 const ATC_SECTIONS = [
-  ['Général', [['Parties', (a) => a.legs], ['Victoires', (a) => a.won], ['% de victoire', (a) => pc(a.winRate)], ['Temps de jeu', (a) => dur(a.duration.total)]]],
-  ['Fléchettes', [['Lancées', (a) => n0(a.darts)], ['Touches', (a) => n0(a.hits)], ['Précision', (a) => pc(a.acc)], ['Moy. pour finir', (a) => f0(a.finAvg)], ['Record', (a) => a.best ?? '-']]],
-  ['Précision par numéro', ATC_NUMS.map((n) => [n === 25 ? 'Bull' : String(n), (a) => pc(a.numAcc[n])])],
+  ['Général', [['Parties', (a) => a.legs], ['Victoires', (a) => a.won], up('% de victoire', (a) => a.winRate, pc), ['Temps de jeu', (a) => dur(a.duration.total)]]],
+  ['Fléchettes', [['Lancées', (a) => n0(a.darts)], ['Touches', (a) => n0(a.hits)], up('Précision', (a) => a.acc, pc), dn('Moy. pour finir', (a) => a.finAvg, f0), dn('Record', (a) => a.best, rec)]],
+  ['Précision par numéro', ATC_NUMS.map((n) => up(n === 25 ? 'Bull' : String(n), (a) => a.numAcc[n], pc))],
 ];
 
 function X01View({ games, prevGames, allGames, period, pid }) {
