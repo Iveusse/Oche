@@ -137,11 +137,19 @@ const EXPLOITS = [
   { id: 'early', name: 'Lève-tôt', desc: 'Jouer une partie avant 9 h du matin', goal: (c) => [c.early ? 1 : 0, 1], tier: 1 },
   { id: 'marathon', name: 'Marathon', desc: 'Jouer 10 parties le même jour', goal: (c) => [c.maxGamesDay, 10], tier: 2 },
   { id: 'week', name: 'Semaine de feu', desc: 'Jouer 7 jours d\'affilée', goal: (c) => [c.bestDayStreak, 7], tier: 3 },
-  { id: 'answer-42', basis: null, hidden: true, tier: 3, name: 'Tu as trouvé la réponse à la grande question sur la vie, l\'univers et le reste', desc: 'Un succès caché… Ne paniquez pas, et gardez votre serviette.', goal: (c) => [c.turnPts.has(42) ? 1 : 0, 1] },
-  { id: 'hidden-31', basis: null, hidden: true, tier: 3, name: 'Rouge et noir jusqu\'au bout', desc: 'Un succès caché : un tour bien de chez nous, avec un air de Garonne.', goal: (c) => [c.turnPts.has(31) ? 1 : 0, 1] },
-  { id: 'hidden-44', basis: null, hidden: true, tier: 3, name: 'Un Canari sur la cible', desc: 'Un succès caché : ça sent la Loire, le beurre blanc et les éléphants.', goal: (c) => [c.turnPts.has(44) ? 1 : 0, 1] },
-  { id: 'hidden-29', basis: null, hidden: true, tier: 3, name: 'Sell petra ri', desc: 'Un succès caché : réfléchis avant d\'agir, dit-on du côté de Dirinon.', goal: (c) => [c.turnPts.has(29) ? 1 : 0, 1] },
-  { id: 'hidden-28', basis: null, hidden: true, tier: 3, name: 'À la recherche du tour perdu', desc: 'Un succès caché : une madeleine, et tout Combray ressurgit.', goal: (c) => [c.turnPts.has(28) ? 1 : 0, 1] },
+  { id: 'answer-42', basis: null, hidden: true, tier: 3, name: 'Tu as trouvé la réponse à la grande question sur la vie, l\'univers et le reste', desc: "Faire exactement 42 points en un tour, en X01 ou au Shanghai. Clin d'oeil au Guide du voyageur galactique : 42 est la réponse à la grande question sur la vie, l'univers et le reste.", goal: (c) => [c.turnPts.has(42) ? 1 : 0, 1] },
+  { id: 'hidden-31', basis: null, hidden: true, tier: 3, name: 'Rouge et noir jusqu\'au bout', desc: "Faire exactement 31 points en un tour, en X01 ou au Shanghai. 31, c'est la Haute-Garonne : un salut au Stade Toulousain, à Ernest-Wallon et à ses rouge et noir.", goal: (c) => [c.turnPts.has(31) ? 1 : 0, 1] },
+  { id: 'hidden-44', basis: null, hidden: true, tier: 3, name: 'Un Canari sur la cible', desc: "Faire exactement 44 points en un tour, en X01 ou au Shanghai. 44, c'est la Loire-Atlantique : Nantes, les Canaris de la Beaujoire, les Machines de l'île.", goal: (c) => [c.turnPts.has(44) ? 1 : 0, 1] },
+  { id: 'hidden-29', basis: null, hidden: true, tier: 3, name: 'Sell petra ri', desc: "Faire exactement 29 points en un tour, en X01 ou au Shanghai. 29, c'est le Finistère : un salut à Dirinon et à sa devise « Sell petra ri » (réfléchis avant d'agir).", goal: (c) => [c.turnPts.has(29) ? 1 : 0, 1] },
+  { id: 'hidden-28', basis: null, hidden: true, tier: 3, name: 'À la recherche du tour perdu', desc: "Faire exactement 28 points en un tour, en X01 ou au Shanghai. 28, c'est l'Eure-et-Loir : Illiers-Combray, le village de Marcel Proust, sa madeleine et le festival Marcel Festoch'.", goal: (c) => [c.turnPts.has(28) ? 1 : 0, 1] },
+  { id: 'hidden-comeback', basis: null, hidden: true, tier: 3, name: 'Retour de flamme', desc: 'Gagner un leg de X01 ou de Cricket après avoir raté tes 3 premières fléchettes du leg (les trois hors de la cible). Un départ catastrophique qui finit en victoire.', goal: (c) => [c.comeback ? 1 : 0, 1] },
+  { id: 'hidden-midnight', basis: null, hidden: true, tier: 3, name: 'Minuit pile', desc: 'Terminer un leg entre 23 h 59 et 0 h 01. Il fallait oser lancer la dernière fléchette au moment où la citrouille se transforme.', goal: (c) => [c.midnight ? 1 : 0, 1] },
+  { id: 'hidden-bullbull', basis: null, hidden: true, tier: 3, name: 'Bull, bull', desc: 'Toucher le bull (25 ou 50) avec la dernière fléchette d\'un tour, puis à nouveau avec la première fléchette de ton tour suivant : deux bulls de suite, de part et d\'autre du tour de l\'adversaire.', goal: (c) => [c.bullBull ? 1 : 0, 1] },
+  { id: 'hidden-almost', basis: null, hidden: true, tier: 3, name: 'Presque', desc: 'Tomber 3 fois dans la même journée à 1 point de la fin en double out (par exemple de 41 à 1 avec un simple 20 puis une fléchette de plus) : le bust le plus frustrant qui soit, trois fois.', goal: (c) => [c.almostMax >= 3 ? 1 : 0, 1] },
+  { id: 'hidden-towel', basis: null, hidden: true, tier: 3, name: 'Serviette', desc: 'Jouer une partie dont le temps de jeu actif est de 42 minutes pile (arrondi à la minute). Encore un clin d\'oeil à H2G2 : ne jamais oublier sa serviette.', goal: (c) => [c.towel ? 1 : 0, 1] },
+  { id: 'hidden-trio', basis: null, hidden: true, tier: 3, name: 'Le trio infernal', desc: 'Lancer tes 3 fléchettes d\'un même tour exactement sur le même segment (par exemple trois fois T19, ou trois fois le même simple).', goal: (c) => [c.trio ? 1 : 0, 1] },
+  { id: 'hidden-everyone', basis: null, hidden: true, tier: 3, name: 'Élève modèle', desc: 'Battre, dans au moins un leg, chacun des autres joueurs de l\'équipe qui ont déjà joué contre toi (au moins 2 adversaires).', goal: (c) => (c.oppTotal >= 2 ? [c.beaten.size, c.oppTotal] : [0, 1]) },
+  { id: 'hidden-goodloser', basis: null, hidden: true, tier: 3, name: 'Bon perdant', desc: 'Perdre 5 legs d\'affilée et revenir quand même jouer. Il en faut, du caractère.', goal: (c) => [c.bestLose >= 5 ? 1 : 0, 1] },
   { id: 'nine-darter', basis: 'x01', name: 'Neuf fléchettes', desc: 'La légende : gagner un 501 en 9 fléchettes', goal: (c) => [c.bestLeg[501] != null && c.bestLeg[501] <= 9 ? 1 : 0, 1], hint: (c) => best(c.bestLeg[501], 'Meilleur 501 gagné en') },
 ];
 
@@ -173,7 +181,7 @@ function emptyCounters() {
     checkouts: 0, bigCheckouts: 0, x01Points: 0, marks: 0, shanghais: 0, trainings: 0, misses: 0, busts: 0,
     byMode: { x01: 0, cricket: 0, shanghai: 0, atc: 0 }, winsByMode: { x01: 0, cricket: 0, shanghai: 0, atc: 0 },
     days: new Set(), dayCount: {}, modesSet: new Set(), numbersHit: new Set(), treblesHit: new Set(), doublesHit: new Set(),
-    got26: false, turnPts: new Set(), threeMiss: false, night: false, early: false, streak: 0, bestStreak: 0, maxMarks: 0, maxTreblesTurn: 0,
+    got26: false, turnPts: new Set(), comeback: false, midnight: false, bullBull: false, almost: {}, almostMax: 0, towel: false, trio: false, beaten: new Set(), oppTotal: 0, loseStreak: 0, bestLose: 0, threeMiss: false, night: false, early: false, streak: 0, bestStreak: 0, maxMarks: 0, maxTreblesTurn: 0,
     bestLegAvg: 0, maxGamesDay: 0, bestDayStreak: 0, bullFinish: false, shanghaiClean: false,
     highCheckout: 0, bestAtc: null, d1Finish: false, maxBullsTurn: 0, remontada: false, whitewash: false, sweep: false,
     best1to20: 0, best1to7: 0, shRun20: 0, shanghaiClean20: false, shanghaiOn20: false, max180Leg: 0, bestLeg: {}, shanghaiHits: 0,
@@ -195,16 +203,20 @@ function dayStreak(days) {
 // Renvoie { [achId]: { unlocked: date|null, cur, max, hint } }
 export function computeAchievements(games, pid) {
   const c = emptyCounters();
-  const out = {};
+  const out = {}; const outGame = {}; let curGame = null;
   const check = (date) => {
     for (const a of ACHIEVEMENTS) {
       if (out[a.id]) continue;
       const [cur, max] = a.goal(c);
-      if (cur >= max) out[a.id] = date;
+      if (cur >= max) { out[a.id] = date; outGame[a.id] = curGame; }
     }
   };
+  const opponents = new Set(games.filter((g) => !isTraining(g.mode) && g.player_ids.includes(pid)).flatMap((g) => g.player_ids));
+  opponents.delete(pid);
+  c.oppTotal = opponents.size;
   const sorted = [...afterReset(games, pid)].filter((g) => g.player_ids.includes(pid)).sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
   for (const g of sorted) {
+    curGame = g.id;
     const legs = replayed(g);
     if (!legs.length) continue;
     const training = isTraining(g.mode);
@@ -229,6 +241,7 @@ export function computeAchievements(games, pid) {
       const date = leg.finishedAt || g.created_at;
       lastLegAt = date;
       let legDarts = 0; let legPts = 0; let leg180 = 0;
+      let ownTurnNo = 0; let firstTurnMiss = false; let prevBull = null;
       // suivi du retard en X01 (remontada)
       const rems = leg.order.map((p) => startOf(g, p));
       let wasBehind = false;
@@ -239,6 +252,20 @@ export function computeAchievements(games, pid) {
           if (!hasHandicap(g.settings) && rems[idx] - Math.min(...rems.filter((_, j) => j !== idx)) >= 100) wasBehind = true;
         }
         if (t.p !== idx) continue;
+        ownTurnNo += 1;
+        if (ownTurnNo === 1 && t.darts.length === 3 && t.darts.every((d) => !d.mult)) firstTurnMiss = true;
+        if (t.darts.length === 3 && t.darts[0].mult > 0 && t.darts.every((d) => d.seg === t.darts[0].seg && d.mult === t.darts[0].mult)) c.trio = true;
+        t.darts.forEach((d, k) => {
+          const isBull = d.seg === 25 && d.mult > 0;
+          if (isBull && k === 0 && prevBull && prevBull.turn !== ownTurnNo) c.bullBull = true;
+          prevBull = isBull && k === t.darts.length - 1 ? { turn: ownTurnNo } : null;
+        });
+        if (g.mode === 'x01' && t.bust && (g.settings?.out || 'single') !== 'single' && !training) {
+          const last = t.darts[t.darts.length - 1];
+          if (last.remBefore - last.seg * last.mult === 1) {
+            c.almost[dk] = (c.almost[dk] || 0) + 1; c.almostMax = Math.max(c.almostMax, c.almost[dk]);
+          }
+        }
         let bullsTurn = 0; let marks = 0; let trebles = 0; let missTurn = 0;
         for (const d of t.darts) {
           c.darts += 1; legDarts += 1;
@@ -292,7 +319,14 @@ export function computeAchievements(games, pid) {
       const won = multi && leg.ranking?.[0] === pid;
       if (leg.done) gameLegsDone += 1;
       if (won) gameLegsWon += 1;
+      if (won && firstTurnMiss && (g.mode === 'x01' || g.mode === 'cricket')) c.comeback = true;
+      if (leg.done && leg.finishedAt) {
+        const fd = new Date(leg.finishedAt); const mm = fd.getHours() * 60 + fd.getMinutes();
+        if (mm === 23 * 60 + 59 || mm === 0 || mm === 1) c.midnight = true;
+      }
       if (multi) {
+        if (!won && leg.done) { c.loseStreak += 1; c.bestLose = Math.max(c.bestLose, c.loseStreak); } else if (won) c.loseStreak = 0;
+        if (leg.ranking) for (const o of leg.order) if (o !== pid && leg.ranking.indexOf(pid) >= 0 && leg.ranking.indexOf(o) > leg.ranking.indexOf(pid)) c.beaten.add(o);
         if (won) { c.legsWon += 1; c.winsByMode[g.mode] = (c.winsByMode[g.mode] || 0) + 1; c.streak += 1; c.bestStreak = Math.max(c.bestStreak, c.streak); } else c.streak = 0;
       }
       if (g.mode === 'x01' && legDarts >= 9) c.bestLegAvg = Math.max(c.bestLegAvg, (legPts / legDarts) * 3);
@@ -313,12 +347,16 @@ export function computeAchievements(games, pid) {
       }
       check(date);
     }
+    if (!training && legs.some((l) => l.leg.done) && legs.every((l) => typeof l.leg.activeMs === 'number' || !l.leg.done)) {
+      const ms = legs.reduce((a, l) => a + (l.leg.activeMs || 0), 0);
+      if (Math.round(ms / 60000) === 42) { c.towel = true; check(lastLegAt); }
+    }
     if (!training && gameLegsDone >= 3 && gameLegsWon === gameLegsDone) { c.sweep = true; check(lastLegAt); }
   }
   const res = {};
   for (const a of ACHIEVEMENTS) {
     const [cur, max] = a.goal(c);
-    res[a.id] = { unlocked: out[a.id] || null, cur: Math.min(cur, max), max, hint: a.hint ? a.hint(c) : null };
+    res[a.id] = { unlocked: out[a.id] || null, game: outGame[a.id] || null, cur: Math.min(cur, max), max, hint: a.hint ? a.hint(c) : null };
   }
   res.__counters = c;
   return res;

@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { GameDetail } from './GameDetail.jsx';
 import { ACHIEVEMENTS, EXPLOIT_LIST, SERIES, TIER, computeAchievements } from '../engine/achievements.js';
 
 const ACH_BY_ID = Object.fromEntries(ACHIEVEMENTS.map((a) => [a.id, a]));
@@ -69,7 +70,7 @@ function SeriesCard({ s, res }) {
   );
 }
 
-function ExploitCard({ a, r }) {
+function ExploitCard({ a, r, onGame }) {
   const locked = !r.unlocked;
   return (
     <div className={`ach ${locked ? 'locked' : ''}`} style={{ '--tier': TIER_COLOR[a.tier] }}>
@@ -79,20 +80,27 @@ function ExploitCard({ a, r }) {
         <div className="d">{a.hidden && locked ? 'Succès caché : il faudra le trouver tout seul' : a.desc}</div>
         {a.rarity && <div className="rarity">{a.rarity}</div>}
         {locked ? (<>
-          {r.max > 1 && (
+          {r.max > 1 && !a.hidden && (
             <div className="row" style={{ gap: 8, marginTop: 6 }}>
               <div className="progress grow"><span style={{ width: `${(r.cur / r.max) * 100}%` }} /></div>
               <span className="small" style={{ fontWeight: 700 }}>{r.cur} / {r.max}</span>
             </div>
           )}
-          {r.hint && <div className="small muted" style={{ marginTop: 4 }}>{r.hint}</div>}
-        </>) : <div className="small" style={{ color: 'var(--good)', marginTop: 4, fontWeight: 600 }}>Débloqué le {fmtDate(r.unlocked, true)}</div>}
+          {r.hint && !a.hidden && <div className="small muted" style={{ marginTop: 4 }}>{r.hint}</div>}
+        </>) : (
+          <div className="between" style={{ marginTop: 4, gap: 8 }}>
+            <span className="small" style={{ color: 'var(--good)', fontWeight: 600 }}>Débloqué le {fmtDate(r.unlocked, true)}</span>
+            {r.game && onGame && <button className="small" style={{ color: 'var(--accent)', fontWeight: 700, minHeight: 32 }} onClick={() => onGame(r.game)}>Voir la partie →</button>}
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
-export function Achievements({ games, pid, name }) {
+export function Achievements({ games, pid, name, players = [] }) {
+  const [openGame, setOpenGame] = useState(null);
+  const gameOf = (id) => games.find((g) => g.id === id);
   const [tab, setTab] = useState('exploits');
   const [filter, setFilter] = useState('all');
   const res = useMemo(() => computeAchievements(games, pid), [games, pid]);
@@ -110,6 +118,7 @@ export function Achievements({ games, pid, name }) {
   });
 
   return (<>
+    {openGame && gameOf(openGame) && <GameDetail game={gameOf(openGame)} players={players} onClose={() => setOpenGame(null)} />}
     <div className="hero">
       <div className="between">
         <div>
@@ -138,6 +147,7 @@ export function Achievements({ games, pid, name }) {
               <span style={{ width: 10, height: 10, borderRadius: 5, background: TIER_COLOR[a.tier], flexShrink: 0 }} />
               <b className="grow">{a.name}</b>
               <span className="muted">{fmtDate(res[a.id].unlocked)}</span>
+              {res[a.id].game && <button style={{ color: 'var(--accent)', fontWeight: 700, minHeight: 32 }} onClick={() => setOpenGame(res[a.id].game)} aria-label={`Voir la partie de ${a.name}`}>Partie →</button>}
             </div>
           ))}
         </div>
@@ -156,7 +166,7 @@ export function Achievements({ games, pid, name }) {
         ))}
       </div>
       <div className="col" style={{ gap: 8 }}>
-        {exploits.map((a) => <ExploitCard key={a.id} a={a} r={res[a.id]} />)}
+        {exploits.map((a) => <ExploitCard key={a.id} a={a} r={res[a.id]} onGame={setOpenGame} />)}
       </div>
     </>) : (
       <div className="col" style={{ gap: 8 }}>

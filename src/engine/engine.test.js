@@ -191,7 +191,7 @@ describe('Shanghai : rester en vie', () => {
   });
 });
 
-import { computeAchievements } from './achievements.js';
+import { computeAchievements, EXPLOIT_LIST } from './achievements.js';
 describe('Mur de la cuisine', () => {
   const g = (mode, settings, darts) => ({ id: 'g', mode, settings, player_ids: ['a'], status: 'finished', created_at: '2026-01-01T20:00:00Z',
     data: { legs: [{ order: ['a'], darts, validated: 9, done: true, ranking: ['a'], finishedAt: '2026-01-01T20:05:00Z' }] } });
@@ -288,7 +288,6 @@ describe('Mode vanne : stock', () => {
 });
 
 import { numberQuip } from '../lib/roast.js';
-import { computeAchievements } from './achievements.js';
 describe('Clins d\'oeil 42 / 31 / 44 / 29 / 28', () => {
   it('une phrase pour chaque score, jamais sur un bust ni hors X01/Shanghai', () => {
     for (const n of [42, 31, 44, 29, 28]) { resetRoast(); expect(numberQuip('x01', { darts: [] }, n)).toBeTruthy(); }
@@ -332,5 +331,58 @@ describe('Palmarès de la semaine et face à face', () => {
     expect(h.recent).toEqual(['a', 'b', 'b']);
     expect(h.streak).toEqual({ who: 'b', n: 2 });
     expect(h.byMode.cricket).toEqual({ a: 0, b: 1 });
+  });
+});
+
+describe('Succès cachés (8 nouveaux)', () => {
+  const d = (seg, mult) => ({ seg, mult });
+  const M = d(0, 0);
+  const g = (id, darts, extra = {}, ids = ['a', 'b'], ranking = ['a', 'b'], at = '2026-01-01T20:00:00Z', mode = 'x01', settings = { start: 301, in: 'single', out: 'double' }) => ({
+    id, mode, settings, player_ids: ids, status: 'finished', created_at: at,
+    data: { legs: [{ order: ids, darts, validated: 999, done: true, ranking, finishedAt: at, ...extra }] } });
+  const un = (games, id) => computeAchievements(games, 'a')[id];
+  it('trio infernal : 3 fois le même segment', () => {
+    expect(un([g('1', [d(19, 3), d(19, 3), d(19, 3)])], 'hidden-trio').unlocked).toBeTruthy();
+    expect(un([g('1', [d(19, 3), d(19, 3), d(19, 2)])], 'hidden-trio').unlocked).toBeNull();
+  });
+  it('minuit pile', () => {
+    const at = new Date(2026, 0, 1, 23, 59, 30).toISOString();
+    expect(un([g('1', [d(20, 1)], {}, ['a', 'b'], ['a', 'b'], at)], 'hidden-midnight').unlocked).toBeTruthy();
+    expect(un([g('1', [d(20, 1)], {}, ['a', 'b'], ['a', 'b'], new Date(2026, 0, 1, 21, 0).toISOString())], 'hidden-midnight').unlocked).toBeNull();
+  });
+  it('serviette : 42 minutes de jeu actif', () => {
+    expect(un([g('1', [d(20, 1)], { activeMs: 42 * 60000 + 5000 })], 'hidden-towel').unlocked).toBeTruthy();
+    expect(un([g('1', [d(20, 1)], { activeMs: 30 * 60000 })], 'hidden-towel').unlocked).toBeNull();
+  });
+  it('retour de flamme : départ raté puis victoire, avec le lien vers la partie', () => {
+    // a : 3 ratés, b : 20 20 20 ; puis a finit... on simule juste le classement (a gagne)
+    const r = un([g('G1', [M, M, M, d(1, 1), d(1, 1), d(1, 1)])], 'hidden-comeback');
+    expect(r.unlocked).toBeTruthy();
+    expect(r.game).toBe('G1');
+    expect(un([g('G1', [d(20, 1), M, M, d(1, 1), d(1, 1), d(1, 1)])], 'hidden-comeback').unlocked).toBeNull();
+  });
+  it('bon perdant : 5 legs perdus d\'affilée', () => {
+    const lost = (i) => g(`L${i}`, [d(1, 1)], {}, ['a', 'b'], ['b', 'a'], `2026-01-0${i + 1}T20:00:00Z`);
+    expect(un([1, 2, 3, 4, 5].map(lost), 'hidden-goodloser').unlocked).toBeTruthy();
+    expect(un([1, 2, 3, 4].map(lost), 'hidden-goodloser').unlocked).toBeNull();
+  });
+  it('élève modèle : battre tous les adversaires', () => {
+    const w = (id, opp) => g(id, [d(1, 1)], {}, ['a', opp], ['a', opp]);
+    const games = [w('1', 'b'), g('2', [d(1, 1)], {}, ['a', 'c'], ['c', 'a'])];
+    expect(un(games, 'hidden-everyone').unlocked).toBeNull();
+    expect(un([...games, w('3', 'c')], 'hidden-everyone').unlocked).toBeTruthy();
+  });
+  it('bull, bull : deux bulls de part et d\'autre du tour adverse', () => {
+    const B = d(25, 2);
+    expect(un([g('1', [M, M, B, M, M, M, B, M, M])], 'hidden-bullbull').unlocked).toBeTruthy();
+    expect(un([g('1', [M, M, B, M, M, M, M, B, M])], 'hidden-bullbull').unlocked).toBeNull();
+  });
+  it('presque : 3 fois à 1 point du finish le même jour', () => {
+    const bust1 = (i) => g(`P${i}`, [d(20, 3), d(20, 3), d(20, 3), M, M, M, d(20, 3), d(20, 3)], {}, ['a', 'b'], ['a', 'b'], `2026-01-01T${10 + i}:00:00Z`);
+    expect(un([1, 2, 3].map(bust1), 'hidden-almost').unlocked).toBeTruthy();
+    expect(un([1, 2].map(bust1), 'hidden-almost').unlocked).toBeNull();
+  });
+  it('les succès cachés donnent leur explication complète', () => {
+    for (const a of EXPLOIT_LIST.filter((x) => x.hidden)) expect(a.desc.length).toBeGreaterThan(60);
   });
 });

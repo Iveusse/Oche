@@ -278,7 +278,7 @@ export function Stats({ me, players, games }) {
       </>)}
       </>)}
       {view === 'analysis' && <Analysis games={games} pid={pid} />}
-      {view === 'achievements' && <Achievements games={games} pid={pid} name={player.name} />}
+      {view === 'achievements' && <Achievements games={games} pid={pid} name={player.name} players={players} />}
     </div>
   );
 }
