@@ -75,8 +75,8 @@ function ExploitCard({ a, r }) {
     <div className={`ach ${locked ? 'locked' : ''}`} style={{ '--tier': TIER_COLOR[a.tier] }}>
       <Medal tier={a.tier} locked={locked} />
       <div className="grow">
-        <div className="between"><span className="t">{a.name}</span><span className="tier">{TIER[a.tier]}</span></div>
-        <div className="d">{a.desc}</div>
+        <div className="between"><span className="t">{a.hidden && locked ? '???' : a.name}</span><span className="tier">{a.hidden && locked ? 'Caché' : TIER[a.tier]}</span></div>
+        <div className="d">{a.hidden && locked ? 'Succès caché : il faudra le trouver tout seul' : a.desc}</div>
         {a.rarity && <div className="rarity">{a.rarity}</div>}
         {locked ? (<>
           {r.max > 1 && (

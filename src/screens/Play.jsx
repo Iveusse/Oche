@@ -10,7 +10,7 @@ import { bestLegDarts, computeAchievements, newlyUnlocked, TIER } from '../engin
 import { Medal } from './Achievements.jsx';
 import { load, save } from '../lib/store.js';
 import { usePlayClock, useWakeLock } from '../lib/playclock.js';
-import { roastTurn, roastLoss, resetRoast, trashOn, setTrashOn } from '../lib/roast.js';
+import { numberQuip, roastTurn, roastLoss, resetRoast, trashOn, setTrashOn } from '../lib/roast.js';
 import { canListen, dartWords, parseSpeech, speak, startListening, voiceOn, setVoiceOn } from '../lib/voice.js';
 
 // ---------- annonces vocales ----------
@@ -296,7 +296,7 @@ export function Play({ game, players, records, history = [], onUpdate, onLegDone
       const r3 = runLeg(game.mode, game.settings, nl);
       const pre = word ? `${word}. ` : '';
       const tpts = t.darts.reduce((a, d) => a + (d.pts ?? dartScore(d) ?? 0), 0);
-      const roast = roastTurn(game.mode, t, byId[r2.ps[t.p].id]?.name || '', tpts);
+      const roast = numberQuip(game.mode, t, tpts) || roastTurn(game.mode, t, byId[r2.ps[t.p].id]?.name || '', tpts);
       const nx = (!r3.over && !r3.needDecision) ? nextSpeech(game, nl, r3, byId) : null;
       if (!r3.over && !r3.needDecision) patch.validated = r2.turns.length;
       speak([`${pre}${said}`, roast, ...(Array.isArray(nx) ? nx : [nx])]);

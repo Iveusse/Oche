@@ -18,12 +18,43 @@ function draw(key, list, name) {
   return typeof x === 'function' ? x(name) : x;
 }
 
+// Clins d'oeil sur un tour à 42, 31, 44 ou 29 (avec les annonces vocales, indépendants du mode vanne)
 const H2G2 = [
   'La réponse à la grande question sur la vie, l\'univers et le reste : quarante-deux.',
   'Quarante-deux. La réponse à la grande question. Reste à retrouver la question.',
   'Quarante-deux. Ne paniquez pas, et n\'oubliez pas votre serviette.',
   'Quarante-deux. Deep Thought a mis sept millions et demi d\'années pour le calculer, toi, trois fléchettes.',
 ];
+const TOULOUSE = [
+  'Trente et un ! Allez le Stade Toulousain, rouge et noir jusqu\'au bout !',
+  'Trente et un, comme la Haute-Garonne. Ernest-Wallon est debout !',
+  'Trente et un. Un essai transformé pour le Stade Toulousain !',
+  'Trente et un ! Les rouge et noir sont en marche',
+];
+const NANTES = [
+  'Quarante-quatre, comme la Loire-Atlantique. Salut Nantes !',
+  'Quarante-quatre ! Allez les Canaris, la Beaujoire est en feu',
+  'Quarante-quatre. Nantes, ses Machines de l\'île et son grand éléphant',
+  'Quarante-quatre. Un petit tour au château des ducs de Bretagne ?',
+];
+const DIRINON = [
+  'Vingt-neuf ! Le Finistère, et un grand bonjour à Dirinon',
+  'Vingt-neuf. À Dirinon, on dit Sèl pétra ri : réfléchis avant d\'agir. Trop tard pour cette volée',
+  'Vingt-neuf, comme le Finistère. Dirinon, le pays des chênes de sainte Nonne',
+];
+const COMBRAY = [
+  'Vingt-huit, comme l\'Eure-et-Loir. Illiers-Combray, le village de Marcel Proust',
+  'Vingt-huit ! À Illiers-Combray, même le festival s\'appelle Marcel Festoche, en clin d\'oeil à Proust',
+  'Vingt-huit. Une madeleine, et tout Combray ressurgit',
+  'Vingt-huit. Longtemps, je me suis couché de bonne heure. Toi, tu lances des fléchettes',
+];
+const QUIPS = { 28: ['e', COMBRAY], 42: ['h', H2G2], 31: ['c', TOULOUSE], 44: ['n', NANTES], 29: ['f', DIRINON] };
+export function numberQuip(mode, t, pts) {
+  if (t.bust || (mode !== 'x01' && mode !== 'shanghai')) return null;
+  const q = QUIPS[pts];
+  return q ? draw(q[0], q[1]) : null;
+}
+
 // une seule fléchette ratée
 const DART = [
   'Dans le mur', 'Même pas près', 'Raté. Encore.', 'Tu vises quoi, là ?', 'Le mur dit merci',
@@ -141,7 +172,6 @@ const isMiss = (d) => !d.mult || d.hit === false;
 // t : le tour qui vient de finir ; renvoie une phrase ou null
 export function roastTurn(mode, t, name, pts) {
   if (!trashOn() || t.darts.length < 3) return null;
-  if (pts === 42 && (mode === 'x01' || mode === 'shanghai')) return draw('h', H2G2, name);
   if (t.bust) return draw('b', BUST, name);
   const nMiss = t.darts.filter(isMiss).length;
   if (nMiss === t.darts.length) return draw('m', MISS, name);

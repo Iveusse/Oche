@@ -255,7 +255,6 @@ describe('Mode vanne', () => {
   it('vanne sur tour raté, 42 et bust', () => {
     setTrashOn(true);
     expect(roastTurn('x01', t([m, m, m]), 'Nico', 0)).toMatch(/Nico/);
-    expect(roastTurn('x01', t([{ mult: 1, seg: 20 }, { mult: 1, seg: 20 }, { mult: 1, seg: 2 }]), 'Nico', 42)).toMatch(/quarante-deux|Quarante-deux/);
     expect(roastTurn('x01', t([{ mult: 1, seg: 20 }, m, m], { bust: true }), 'Nico', 20)).toMatch(/Nico/);
     expect(roastTurn('x01', t([{ mult: 3, seg: 20 }, { mult: 3, seg: 20 }, { mult: 3, seg: 20 }]), 'Nico', 180)).toBeNull();
     setTrashOn(false);
@@ -285,5 +284,24 @@ describe('Mode vanne : stock', () => {
       expect(roastTurn(mode, { darts: [m, m, m] }, 'Nico', 0)).not.toBeNull();
     }
     setTrashOn(false);
+  });
+});
+
+import { numberQuip } from '../lib/roast.js';
+import { computeAchievements } from './achievements.js';
+describe('Clins d\'oeil 42 / 31 / 44 / 29 / 28', () => {
+  it('une phrase pour chaque score, jamais sur un bust ni hors X01/Shanghai', () => {
+    for (const n of [42, 31, 44, 29, 28]) { resetRoast(); expect(numberQuip('x01', { darts: [] }, n)).toBeTruthy(); }
+    resetRoast();
+    expect(numberQuip('x01', { darts: [], bust: true }, 42)).toBeNull();
+    expect(numberQuip('cricket', { darts: [] }, 42)).toBeNull();
+    expect(numberQuip('x01', { darts: [] }, 40)).toBeNull();
+  });
+  it('succès caché du 42', () => {
+    const g = (pts) => ({ id: 'g' + pts, mode: 'x01', settings: { start: 301, in: 'single', out: 'double' }, player_ids: ['a'], status: 'finished', created_at: '2026-01-01T20:00:00Z',
+      data: { legs: [{ order: ['a'], darts: pts, validated: 3, done: true, ranking: ['a'], finishedAt: '2026-01-01T20:05:00Z' }] } });
+    const d = (seg, mult) => ({ seg, mult });
+    expect(computeAchievements([g([d(20, 1), d(20, 1), d(2, 1)])], 'a')['answer-42'].unlocked).toBeTruthy();
+    expect(computeAchievements([g([d(20, 1), d(20, 1), d(3, 1)])], 'a')['answer-42'].unlocked).toBeNull();
   });
 });

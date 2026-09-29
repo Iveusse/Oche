@@ -137,6 +137,7 @@ const EXPLOITS = [
   { id: 'early', name: 'Lève-tôt', desc: 'Jouer une partie avant 9 h du matin', goal: (c) => [c.early ? 1 : 0, 1], tier: 1 },
   { id: 'marathon', name: 'Marathon', desc: 'Jouer 10 parties le même jour', goal: (c) => [c.maxGamesDay, 10], tier: 2 },
   { id: 'week', name: 'Semaine de feu', desc: 'Jouer 7 jours d\'affilée', goal: (c) => [c.bestDayStreak, 7], tier: 3 },
+  { id: 'answer-42', basis: null, hidden: true, tier: 3, name: 'Tu as trouvé la réponse à la grande question sur la vie, l\'univers et le reste', desc: 'Un succès caché… Ne paniquez pas, et gardez votre serviette.', goal: (c) => [c.got42 ? 1 : 0, 1] },
   { id: 'nine-darter', basis: 'x01', name: 'Neuf fléchettes', desc: 'La légende : gagner un 501 en 9 fléchettes', goal: (c) => [c.bestLeg[501] != null && c.bestLeg[501] <= 9 ? 1 : 0, 1], hint: (c) => best(c.bestLeg[501], 'Meilleur 501 gagné en') },
 ];
 
@@ -168,7 +169,7 @@ function emptyCounters() {
     checkouts: 0, bigCheckouts: 0, x01Points: 0, marks: 0, shanghais: 0, trainings: 0, misses: 0, busts: 0,
     byMode: { x01: 0, cricket: 0, shanghai: 0, atc: 0 }, winsByMode: { x01: 0, cricket: 0, shanghai: 0, atc: 0 },
     days: new Set(), dayCount: {}, modesSet: new Set(), numbersHit: new Set(), treblesHit: new Set(), doublesHit: new Set(),
-    got26: false, threeMiss: false, night: false, early: false, streak: 0, bestStreak: 0, maxMarks: 0, maxTreblesTurn: 0,
+    got26: false, got42: false, threeMiss: false, night: false, early: false, streak: 0, bestStreak: 0, maxMarks: 0, maxTreblesTurn: 0,
     bestLegAvg: 0, maxGamesDay: 0, bestDayStreak: 0, bullFinish: false, shanghaiClean: false,
     highCheckout: 0, bestAtc: null, d1Finish: false, maxBullsTurn: 0, remontada: false, whitewash: false, sweep: false,
     best1to20: 0, best1to7: 0, shRun20: 0, shanghaiClean20: false, shanghaiOn20: false, max180Leg: 0, bestLeg: {}, shanghaiHits: 0,
@@ -254,12 +255,14 @@ export function computeAchievements(games, pid) {
         c.maxBullsTurn = Math.max(c.maxBullsTurn, bullsTurn);
         c.maxTreblesTurn = Math.max(c.maxTreblesTurn, trebles);
         if (t.darts.length === 3 && missTurn === 3) c.threeMiss = true;
+        if (g.mode === 'shanghai' && t.darts.reduce((a, d) => a + (d.pts || 0), 0) === 42) c.got42 = true;
         if (g.mode === 'cricket') { c.maxMarks = Math.max(c.maxMarks, marks); c.marks += marks; }
         if (g.mode === 'x01') {
           if (t.bust) c.busts += 1;
           const pts = t.bust ? 0 : t.darts.reduce((a, d) => a + (d.pts || 0), 0);
           legPts += pts; c.x01Points += pts;
           if (pts === 26 && t.darts.length === 3) c.got26 = true;
+          if (pts === 42 && !t.bust) c.got42 = true;
           if (pts >= 100) c.tons += 1;
           if (pts >= 140) c.c140 += 1;
           if (pts === 180) { c.c180 += 1; leg180 += 1; }
