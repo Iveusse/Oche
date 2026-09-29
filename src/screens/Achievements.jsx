@@ -22,7 +22,7 @@ export function Medal({ tier, locked, size = 44, label }) {
   );
 }
 
-function SeriesCard({ s, res }) {
+function SeriesCard({ s, res, onGame }) {
   const [open, setOpen] = useState(false);
   const levels = s.steps.map((n, i) => ({ n, i, r: res[`${s.key}-${n}`] }));
   const doneN = levels.filter((l) => l.r.unlocked).length;
@@ -60,7 +60,10 @@ function SeriesCard({ s, res }) {
                   <span style={{ width: 10, height: 10, borderRadius: 5, background: TIER_COLOR[s.tiers[l.i]], opacity: l.r.unlocked ? 1 : 0.3 }} />
                   {l.n.toLocaleString('fr-FR')} {s.unit}
                 </span>
-                <span style={{ color: l.r.unlocked ? 'var(--good)' : 'var(--muted)', fontWeight: 600, textAlign: 'right' }}>{l.r.unlocked ? fmtDate(l.r.unlocked) : TIER[s.tiers[l.i]]}</span>
+                <span className="row" style={{ gap: 8, justifyContent: 'flex-end' }}>
+                  <span style={{ color: l.r.unlocked ? 'var(--good)' : 'var(--muted)', fontWeight: 600, textAlign: 'right' }}>{l.r.unlocked ? fmtDate(l.r.unlocked) : TIER[s.tiers[l.i]]}</span>
+                  {l.r.unlocked && l.r.game && onGame && <button style={{ color: 'var(--accent)', fontWeight: 700, minHeight: 32 }} onClick={() => onGame(l.r.game)} aria-label={`Voir la partie du palier ${l.n}`}>Partie →</button>}
+                </span>
               </div>
             ))}
           </div>
@@ -74,7 +77,7 @@ function ExploitCard({ a, r, onGame }) {
   const locked = !r.unlocked;
   return (
     <div className={`ach ${locked ? 'locked' : ''}`} style={{ '--tier': TIER_COLOR[a.tier] }}>
-      <Medal tier={a.tier} locked={locked} />
+      <Medal tier={a.tier} locked={locked} label={a.num ? (locked ? '?' : String(a.num)) : undefined} />
       <div className="grow">
         <div className="between"><span className="t">{a.hidden && locked ? '???' : a.name}</span><span className="tier">{a.hidden && locked ? 'Caché' : TIER[a.tier]}</span></div>
         <div className="d">{a.hidden && locked ? 'Succès caché : il faudra le trouver tout seul' : a.desc}</div>
@@ -89,7 +92,7 @@ function ExploitCard({ a, r, onGame }) {
           {r.hint && !a.hidden && <div className="small muted" style={{ marginTop: 4 }}>{r.hint}</div>}
         </>) : (
           <div className="between" style={{ marginTop: 4, gap: 8 }}>
-            <span className="small" style={{ color: 'var(--good)', fontWeight: 600 }}>Débloqué le {fmtDate(r.unlocked, true)}</span>
+            <span className="small" style={{ color: 'var(--good)', fontWeight: 600 }}>Débloqué le {fmtDate(r.unlocked, true)}{a.num ? ` · ${a.num} points en un tour` : ''}</span>
             {r.game && onGame && <button className="small" style={{ color: 'var(--accent)', fontWeight: 700, minHeight: 32 }} onClick={() => onGame(r.game)}>Voir la partie →</button>}
           </div>
         )}
@@ -171,7 +174,7 @@ export function Achievements({ games, pid, name, players = [] }) {
     </>) : (
       <div className="col" style={{ gap: 8 }}>
         <div className="small muted">Touche une série pour voir tous ses paliers et leurs dates.</div>
-        {series.map((s) => <SeriesCard key={s.key} s={s} res={res} />)}
+        {series.map((s) => <SeriesCard key={s.key} s={s} res={res} onGame={setOpenGame} />)}
       </div>
     )}
   </>);
