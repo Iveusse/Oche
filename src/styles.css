@@ -479,3 +479,7 @@ html.playing body { position: fixed; inset: 0; width: 100%; }
   .turn-strip .dart-box { min-height: 52px; }
   .actions .btn, .actions .icon-btn { height: 46px !important; }
 }
+
+/* parties en cours */
+.live-card { border: 1px solid var(--card-2); text-align: left; padding: 14px 16px; gap: 2px; width: 100%; }
+.live-card:active { background: var(--card-2); }

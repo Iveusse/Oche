@@ -1,6 +1,6 @@
 const P = 'oche.';
 // Données propres à une équipe : rangées sous oche.t.<idEquipe>.<clé>
-const SCOPED = new Set(['profile', 'profileSkipped', 'cachePlayers', 'cacheGames', 'current', 'lastSetup']);
+const SCOPED = new Set(['profile', 'profileSkipped', 'cachePlayers', 'cacheGames', 'current', 'lives', 'lastSetup']);
 let scope = null;
 export const setScope = (teamId) => { scope = teamId; };
 export const getScope = () => scope;

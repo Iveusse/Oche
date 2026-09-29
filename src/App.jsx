@@ -82,7 +82,19 @@ function TeamApp({ team, onTeams, onInvalid, onRenamed }) {
   const [meId, setMeId] = useState(load('profile', null));
   const [players, setPlayers] = useState(load('cachePlayers', []));
   const [games, setGames] = useState(load('cacheGames', []));
-  const [current, setCurrent] = useState(load('current', null));
+  // Parties en cours : plusieurs à la fois. { idPartie: partie }. L'ancienne clé « current » (une seule partie) est reprise.
+  const [lives, setLives] = useState(() => {
+    const m = { ...load('lives', {}) };
+    const old = load('current', null);
+    if (old && old.status === 'in_progress' && !m[old.id]) m[old.id] = old;
+    if (old) save('current', null);
+    const week = Date.now() - 7 * 86400000;
+    for (const [id, g] of Object.entries(m)) if (g.status !== 'in_progress' || new Date(g.updated_at || g.created_at).getTime() < week) delete m[id];
+    save('lives', m);
+    return m;
+  });
+  const [currentId, setCurrentId] = useState(null);
+  const current = currentId ? lives[currentId] || null : null;
   const [view, setView] = useState(() => (load('profile', null) || load('profileSkipped', false) ? 'tabs' : 'profile'));
   const [tab, setTab] = useState('home');
   const [toast, setToast] = useState('');
@@ -110,14 +122,18 @@ function TeamApp({ team, onTeams, onInvalid, onRenamed }) {
       let merged = gs;
       for (const g of pending) merged = upsert(merged, g);
       setGames(merged); save('cacheGames', merged);
-      // partie en cours perdue sur ce téléphone (réinstallation, autre appareil) : on la récupère du serveur
-      if (!load('current', null)) {
-        const week = Date.now() - 7 * 86400000;
-        const live = merged
-          .filter((g) => g.status === 'in_progress' && new Date(g.updated_at || g.created_at).getTime() > week)
-          .sort((a, b) => new Date(b.updated_at || b.created_at) - new Date(a.updated_at || a.created_at))[0];
-        if (live) { setCurrent(live); save('current', live); }
-      }
+      // parties en cours absentes de ce téléphone (réinstallation, autre appareil) : on les récupère du serveur ;
+      // celles terminées ailleurs disparaissent de la liste
+      const week = Date.now() - 7 * 86400000;
+      setLives((cur) => {
+        const m = { ...cur };
+        for (const g of merged) {
+          if (g.status === 'in_progress' && !m[g.id] && new Date(g.updated_at || g.created_at).getTime() > week) m[g.id] = g;
+          else if (g.status === 'finished' && m[g.id]) delete m[g.id];
+        }
+        save('lives', m);
+        return m;
+      });
       if (left) flash('Hors ligne : sauvegarde en attente');
     } catch (e) {
       if (e.badCode) logout();
@@ -149,17 +165,21 @@ function TeamApp({ team, onTeams, onInvalid, onRenamed }) {
   const statGames = useMemo(() => (demo && demoData ? [...played, ...demoData.games] : played), [played, demo, demoData]);
   const records = useMemo(() => (me ? trainingRecords(played, me.id) : {}), [played, me]);
 
-  const setCur = (g) => { setCurrent(g); save('current', g); };
+  const setCur = (g) => { setLives((m) => { const n = { ...m, [g.id]: g }; save('lives', n); return n; }); };
+  const dropLive = (id) => { setLives((m) => { const n = { ...m }; delete n[id]; save('lives', n); return n; }); if (currentId === id) setCurrentId(null); };
+  const liveList = useMemo(() => Object.values(lives).filter((g) => g.status === 'in_progress')
+    .sort((a, b) => new Date(b.updated_at || b.created_at) - new Date(a.updated_at || a.created_at)), [lives]);
 
   // Chaque tour validé part aussi sur le serveur : la partie en cours survit à une réinstallation
   // et peut être reprise depuis un autre téléphone.
-  const updateGame = (g) => {
+  const updateGame = (g0) => {
     const prev = current;
+    const g = { ...g0, updated_at: new Date().toISOString() };
     setCur(g);
     const lp = prev?.data.legs; const lg = g.data.legs;
     const validatedChanged = !lp || lp.length !== lg.length || (lp[lp.length - 1].validated || 0) !== (lg[lg.length - 1].validated || 0)
       || lp[lp.length - 1].continueForPlaces !== lg[lg.length - 1].continueForPlaces;
-    if (validatedChanged) persist({ ...g, updated_at: new Date().toISOString() });
+    if (validatedChanged) persist(g);
   };
 
   const persist = async (g) => {
@@ -182,14 +202,13 @@ function TeamApp({ team, onTeams, onInvalid, onRenamed }) {
 
   const pickProfile = (id) => { setMeId(id); save('profile', id); setView('tabs'); };
 
-  const begin = ({ mode, settings, playerIds, legsToWin = 1 }, force = false) => {
-    if (!force && current && !confirm('Une partie est déjà en cours. La remplacer ? (les legs terminés sont gardés)')) return;
-    if (!force && current) endGame(current, { abandon: true, silent: true });
+  const begin = ({ mode, settings, playerIds, legsToWin = 1 }) => {
     const g = {
       id: uuid(), mode, settings, player_ids: playerIds, created_at: new Date().toISOString(),
       status: 'in_progress', data: { legs: [newLeg(mode, settings, playerIds)], legsToWin },
     };
     setCur(g);
+    setCurrentId(g.id);
     persist(g);
     setView('play');
   };
@@ -213,7 +232,7 @@ function TeamApp({ team, onTeams, onInvalid, onRenamed }) {
     const last = legs[legs.length - 1];
     let final = null;
     if (opts.stopTraining) {
-      if (!last.darts.length) { persist({ ...g, status: 'finished', data: { ...g.data, legs: [] } }); setCur(null); setView('tabs'); setTab('training'); return; }
+      if (!last.darts.length) { persist({ ...g, status: 'finished', data: { ...g.data, legs: [] } }); dropLive(g.id); setView('tabs'); setTab('training'); return; }
       final = { ...g, status: 'finished', data: { ...g.data, legs: [{ ...last, done: true, ranking: last.order }] } };
       setCur(final); persist(final);
       return; // l'écran de fin d'entraînement s'affiche
@@ -226,9 +245,9 @@ function TeamApp({ team, onTeams, onInvalid, onRenamed }) {
     }
     // rien de joué : on clôt quand même la partie côté serveur pour qu'elle ne revienne pas
     persist(final || { ...g, status: 'finished', data: { ...g.data, legs: [] } });
-    setCur(null);
+    dropLive(g.id);
     if (opts.silent) return;
-    if (opts.replay) { begin({ mode: g.mode, settings: g.settings, playerIds: g.player_ids, legsToWin: g.data.legsToWin }, true); return; }
+    if (opts.replay) { begin({ mode: g.mode, settings: g.settings, playerIds: g.player_ids, legsToWin: g.data.legsToWin }); return; }
     setView('tabs');
     setTab(isTraining(g.mode) ? 'training' : 'home');
   };
@@ -256,7 +275,14 @@ function TeamApp({ team, onTeams, onInvalid, onRenamed }) {
       <Play
         game={current} players={players} records={records} history={played}
         onUpdate={updateGame} onLegDone={onLegDone} onEnd={endGame}
-        onExit={() => { setView('tabs'); setTab('home'); }}
+        onExit={() => {
+          const legs = current.data.legs; const last = legs[legs.length - 1];
+          // partie jamais commencée (aucune fléchette, premier leg) ou déjà terminée : on ne la garde pas dans la liste
+          if (current.status === 'finished') dropLive(current.id);
+          else if (legs.length === 1 && !last.darts.length && !last.done) { persist({ ...current, status: 'finished', data: { ...current.data, legs: [] } }); dropLive(current.id); }
+          else setCurrentId(null);
+          setView('tabs'); setTab('home');
+        }}
       />
     );
   }
@@ -264,8 +290,8 @@ function TeamApp({ team, onTeams, onInvalid, onRenamed }) {
   return (
     <>
       {tab === 'home' && (
-        <Home me={me} players={players} games={played} current={current} team={team} onTeams={onTeams}
-          onNew={() => setView('new')} onResume={() => setView('play')}
+        <Home me={me} players={players} games={played} lives={liveList} team={team} onTeams={onTeams}
+          onNew={() => setView('new')} onResume={(id) => { setCurrentId(id); setView('play'); }}
           onProfile={() => setView('profile')} goRanking={() => setTab('ranking')} demo={demo} onDemo={setDemo} onResetPlayer={onResetPlayer} />
       )}
       {tab === 'training' && (

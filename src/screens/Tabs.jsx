@@ -1,3 +1,4 @@
+import { runLeg } from '../engine/runner.js';
 import { GameDetail } from './GameDetail.jsx';
 import { coachAdvice } from '../engine/coach.js';
 import { RecapSheet } from './Recap.jsx';
@@ -9,12 +10,31 @@ import { LineChart, MultiLineChart } from '../components/LineChart.jsx';
 import { playerStats, filterByPeriod, headToHead, trainingResult, afterReset } from '../engine/stats.js';
 import { MODE_LABEL, isTraining } from '../engine/modes.js';
 import { gameWinner, legsWon } from '../engine/runner.js';
-import { fmt1, pct, shortDate } from '../lib/store.js';
+import { fmt1, pct, relTime, shortDate } from '../lib/store.js';
 import { modeSubtitle, modeTitle } from './Play.jsx';
 import { SettingsSheet } from './Settings.jsx';
 import { Analysis } from './Analysis.jsx';
 import { Achievements } from './Achievements.jsx';
 
+// « à l'instant », « il y a 12 min », « il y a 3 h », puis en jours
+const ago = (ts) => {
+  const m = Math.max(0, Math.round((Date.now() - ts) / 60000));
+  if (m < 1) return "à l'instant";
+  if (m < 60) return `il y a ${m} min`;
+  if (m < 24 * 60) return `il y a ${Math.round(m / 60)} h`;
+  return relTime(ts);
+};
+// score du moment d'une partie en cours, pour distinguer deux parties du même mode
+function liveScore(g, byId) {
+  try {
+    const leg = g.data.legs[g.data.legs.length - 1];
+    if (!leg || leg.done || g.player_ids.length < 2) return null;
+    const r = runLeg(g.mode, g.settings || {}, leg);
+    const val = (p) => (g.mode === 'x01' ? p.rem : g.mode === 'atc' ? `${p.pos}/${leg.targets?.length || 20}` : p.pts);
+    if (g.mode === 'x01' || g.mode === 'cricket' || g.mode === 'shanghai' || g.mode === 'atc') return r.ps.map((p) => `${byId[p.id]?.name || '?'} ${val(p)}`).join(' · ');
+  } catch { /* partie illisible : on n'affiche rien */ }
+  return null;
+}
 const realGames = (games) => games.filter((g) => !isTraining(g.mode));
 
 function gameLine(g, byId) {
@@ -34,7 +54,7 @@ function gameResult(g, byId) {
   return w ? `${byId[w]?.name} gagne` : 'égalité';
 }
 
-export function Home({ me, players, games, current, team, onTeams, onNew, onResume, onProfile, goRanking, demo, onDemo, onResetPlayer }) {
+export function Home({ me, players, games, lives = [], team, onTeams, onNew, onResume, onProfile, goRanking, demo, onDemo, onResetPlayer }) {
   const byId = Object.fromEntries(players.map((p) => [p.id, p]));
   const recent = realGames(games).filter((g) => g.status === 'finished').slice(-4).reverse();
   const st = useMemo(() => (me ? playerStats(filterByPeriod(games, '30j'), me.id) : null), [games, me]);
@@ -67,20 +87,29 @@ export function Home({ me, players, games, current, team, onTeams, onNew, onResu
         <Icon.Plus width="28" height="28" />
       </button>
 
-      {current && (
-        <button onClick={onResume} className="card col" style={{ border: '1px solid var(--card-2)', textAlign: 'left', padding: 16 }}>
-          <div className="between">
-            <span className="label">{isTraining(current.mode) ? 'Entraînement en cours' : 'Partie en cours'}</span>
-            <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--accent)' }}>Reprendre →</span>
-          </div>
-          <div style={{ fontSize: 16, fontWeight: 700 }}>{gameLine(current, byId)}</div>
-          <div className="small muted">{modeSubtitle(current)}</div>
-        </button>
+      {lives.length > 0 && (
+        <div className="col" style={{ gap: 8 }}>
+          <span className="label">{lives.length > 1 ? `${lives.length} parties en cours` : 'Partie en cours'}</span>
+          {lives.map((g) => {
+            const legs = g.data.legs.filter((l) => l.done).length;
+            return (
+              <button key={g.id} onClick={() => onResume(g.id)} className="card col live-card" aria-label={`Reprendre ${gameLine(g, byId)}`}>
+                <div className="between">
+                  <span className="small muted">{isTraining(g.mode) ? 'Entraînement' : 'Partie'} · {ago(new Date(g.updated_at || g.created_at).getTime())}</span>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--accent)' }}>Reprendre →</span>
+                </div>
+                <div style={{ fontSize: 16, fontWeight: 700 }}>{gameLine(g, byId)}</div>
+                <div className="small muted">{modeSubtitle(g)}{legs ? ` · ${legs} leg${legs > 1 ? 's' : ''} joué${legs > 1 ? 's' : ''}` : ''}</div>
+                {liveScore(g, byId) && <div className="small" style={{ color: 'var(--text-2)', fontWeight: 600 }}>{liveScore(g, byId)}</div>}
+              </button>
+            );
+          })}
+        </div>
       )}
 
       {detail && <GameDetail game={detail} players={players} onClose={() => setDetail(null)} />}
       {recapOpen && <RecapSheet games={games} players={players} onClose={() => setRecapOpen(false)} />}
-      {showRecap && !current && (
+      {showRecap && !lives.length && (
         <button onClick={() => setRecapOpen(true)} className="card between recap-card" style={{ textAlign: 'left', padding: 16 }}>
           <div>
             <div className="label">{new Date(session.end).toDateString() === new Date().toDateString() ? 'Ce soir' : 'Dernière soirée'}</div>
