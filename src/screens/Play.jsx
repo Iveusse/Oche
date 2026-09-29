@@ -177,13 +177,17 @@ function Mark({ n }) {
   return <span className="m c">⊗</span>;
 }
 
+// numéros fermés par TOUS les joueurs : ils ne rapportent plus rien à personne
+const closedByAll = (r) => CRICKET_NUMS.filter((n) => r.ps.length > 0 && r.ps.every((p) => p.marks[n] >= 3));
+
 function CricketGrid({ r, players, thrower }) {
   const cols = r.ps.length;
+  const dead = closedByAll(r);
   return (
     <div className="cricket-grid" style={{ gridTemplateColumns: `28px repeat(${cols}, minmax(0,1fr))` }}>
       <span />
       {r.ps.map((p, i) => <span key={p.id} className={`h ${i === thrower ? 'on' : ''}`}>{players[p.id]?.name}</span>)}
-      {CRICKET_NUMS.map((n) => (
+      {CRICKET_NUMS.filter((n) => !dead.includes(n)).map((n) => (
         <React.Fragment key={n}>
           <span className="num">{n === 25 ? 'B' : n}</span>
           {r.ps.map((p) => <Mark key={p.id} n={Math.min(3, p.marks[n])} />)}
@@ -191,6 +195,7 @@ function CricketGrid({ r, players, thrower }) {
       ))}
       <span className="num">Pts</span>
       {r.ps.map((p) => <span key={p.id} className="m" style={{ color: 'var(--text)' }}>{p.pts}</span>)}
+      {dead.length > 0 && <span className="closed-line" style={{ gridColumn: '1 / -1' }}>Fermés par tous : {dead.map((n) => (n === 25 ? 'Bull' : n)).join(' · ')}</span>}
     </div>
   );
 }
@@ -420,7 +425,7 @@ export function Play({ game, players, records, history = [], onUpdate, onLegDone
       {buttons && game.mode === 'shanghai' ? (
         <ShanghaiButtons target={info.a} disabled={blocked} onHit={hit} darts={tDarts} />
       ) : buttons ? (
-        <NumberPad disabled={blocked} onHit={hit} darts={tDarts} cricket={game.mode === 'cricket'} />
+        <NumberPad disabled={blocked} onHit={hit} darts={tDarts} cricket={game.mode === 'cricket'} dead={game.mode === 'cricket' ? closedByAll(r) : []} />
       ) : (
         <div className="board-slot">
           <Dartboard onHit={hit} disabled={blocked} markers={markers} />
@@ -499,7 +504,7 @@ function CheckoutBar({ route, done, none }) {
 }
 
 // Clavier de saisie : Double / Triple (optionnels) puis le numéro. Bull = 50, 25 = demi-bull.
-function NumberPad({ disabled, onHit, darts = [], cricket = false }) {
+function NumberPad({ disabled, onHit, darts = [], cricket = false, dead = [] }) {
   const [mod, setMod] = useState(1);
   const [flash, setFlash] = useState(null);
   const timer = useRef(null);
@@ -523,14 +528,14 @@ function NumberPad({ disabled, onHit, darts = [], cricket = false }) {
         </div>
         <div className={`np-grid ${cricket ? 'cricket' : ''}`}>
           {(cricket ? [20, 19, 18, 17, 16, 15] : Array.from({ length: 20 }, (_, i) => i + 1)).map((n) => (
-            <button key={n} className="np-key" disabled={disabled} aria-label={`${prefix}${n}`} {...tap(() => press({ seg: n, mult: mod }))}>
+            <button key={n} className={`np-key ${dead.includes(n) ? 'dead' : ''}`} disabled={disabled} aria-label={`${prefix}${n}`} {...tap(() => press({ seg: n, mult: mod }))}>
               {prefix && <small>{prefix}</small>}{n}
             </button>
           ))}
         </div>
         <div className="np-last">
-          <button className="np-key" disabled={disabled || mod === 3} aria-label={mod === 2 ? 'Bull 50' : '25'} {...tap(() => press({ seg: 25, mult: mod === 2 ? 2 : 1 }))}>{mod === 2 ? 'Bull' : '25'}</button>
-          <button className="np-key" disabled={disabled} aria-label="Bull 50" {...tap(() => press({ seg: 25, mult: 2 }))}>Bull</button>
+          <button className={`np-key ${dead.includes(25) ? 'dead' : ''}`} disabled={disabled || mod === 3} aria-label={mod === 2 ? 'Bull 50' : '25'} {...tap(() => press({ seg: 25, mult: mod === 2 ? 2 : 1 }))}>{mod === 2 ? 'Bull' : '25'}</button>
+          <button className={`np-key ${dead.includes(25) ? 'dead' : ''}`} disabled={disabled} aria-label="Bull 50" {...tap(() => press({ seg: 25, mult: 2 }))}>Bull</button>
           <button className="np-key miss" disabled={disabled} aria-label="Raté" {...tap(() => press({ seg: 0, mult: 0 }))}>Raté</button>
         </div>
         {flash && <div key={flash.id} className={`sh-toast ${flash.miss ? 'miss' : ''}`} role="status">{flash.miss ? 'Raté' : `${flash.label} · ${flash.pts}`}</div>}
