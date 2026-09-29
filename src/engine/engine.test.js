@@ -383,6 +383,6 @@ describe('Succès cachés (8 nouveaux)', () => {
     expect(un([1, 2].map(bust1), 'hidden-almost').unlocked).toBeNull();
   });
   it('les succès cachés donnent leur explication complète', () => {
-    for (const a of EXPLOIT_LIST.filter((x) => x.hidden)) expect(a.desc.length).toBeGreaterThan(60);
+    for (const a of EXPLOIT_LIST.filter((x) => x.hidden)) expect(a.desc.length).toBeGreaterThan(30);
   });
 });

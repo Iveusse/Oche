@@ -92,7 +92,7 @@ function ExploitCard({ a, r, onGame }) {
           {r.hint && !a.hidden && <div className="small muted" style={{ marginTop: 4 }}>{r.hint}</div>}
         </>) : (
           <div className="between" style={{ marginTop: 4, gap: 8 }}>
-            <span className="small" style={{ color: 'var(--good)', fontWeight: 600 }}>Débloqué le {fmtDate(r.unlocked, true)}{a.num ? ` · ${a.num} points en un tour` : ''}</span>
+            <span className="small" style={{ color: 'var(--good)', fontWeight: 600 }}>Débloqué le {fmtDate(r.unlocked, true)}</span>
             {r.game && onGame && <button className="small" style={{ color: 'var(--accent)', fontWeight: 700, minHeight: 32 }} onClick={() => onGame(r.game)}>Voir la partie →</button>}
           </div>
         )}
