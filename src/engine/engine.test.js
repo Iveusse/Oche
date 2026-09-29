@@ -184,7 +184,9 @@ describe('Shanghai : rester en vie', () => {
     expect(shanghaiNeed(s, R(30, 20, 1, 1), 0)).toMatchObject({ kind: 'lead', gap: 10 });
   });
   it('voit quand plus personne ne peut rattraper le premier', () => {
-    expect(shanghaiDecided(s, R(0, 40, 2, 3))).toEqual({ leader: 1 });
+    expect(shanghaiDecided(s, R(0, 40, 2, 3))).toEqual({ leader: 1, shanghai: true });
+    // le perdant a fini tous ses tours : plus aucun Shanghai adverse possible
+    expect(shanghaiDecided(s, R(0, 40, 3, 3))).toEqual({ leader: 1, shanghai: false });
     expect(shanghaiDecided(s, R(20, 40, 2, 3))).toBeNull();
   });
 });

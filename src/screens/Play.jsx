@@ -156,7 +156,9 @@ export function shanghaiDecided(settings, r) {
   if (leaders.length > 1) return null;
   const L = leaders[0];
   const ok = r.ps.every((p, j) => j === L || lead - p.pts > shanghaiRoom(nums, r, j));
-  return ok ? { leader: L } : null;
+  // un Shanghai adverse n'est possible que si un autre joueur a encore au moins un tour à jouer
+  const sh = settings.instantWin !== false && r.ps.some((p, j) => j !== L && r.turns.filter((t) => t.p === j).length < nums.length);
+  return ok ? { leader: L, shanghai: sh } : null;
 }
 
 function cardInfo(game, r, ps, idx) {
@@ -257,7 +259,7 @@ export function Play({ game, players, records, history = [], onUpdate, onLegDone
     if (!decided || decidedSaid.current) return;
     decidedSaid.current = true;
     const name = byId[r.ps[decided.leader].id]?.name || '';
-    speak(`Plus personne ne peut rattraper ${name} aux points${game.settings.instantWin !== false ? ', sauf avec un Shanghai' : ''}. Vous pouvez terminer la partie.`, false, true);
+    speak(`Plus personne ne peut rattraper ${name} aux points${decided.shanghai ? ', sauf avec un Shanghai' : ''}. Vous pouvez terminer la partie.`, false, true);
   }, [decided]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (leg.done) {
@@ -412,7 +414,7 @@ export function Play({ game, players, records, history = [], onUpdate, onLegDone
 
       {decided && (
         <div className="decided" role="status">
-          <div><b>{byId[r.ps[decided.leader].id]?.name}</b> ne peut plus être rattrapé aux points{s.instantWin !== false ? ' (sauf Shanghai)' : ''}.</div>
+          <div><b>{byId[r.ps[decided.leader].id]?.name}</b> ne peut plus être rattrapé aux points{decided.shanghai ? ' (sauf Shanghai)' : ''}.</div>
           <div className="decided-actions">
             <button className="btn btn-primary" onClick={() => setLeg({ stoppedAt: leg.darts.length })}>Terminer la partie</button>
             <button className="btn btn-ghost" onClick={() => { decidedSaid.current = 'hidden'; setHideDecided(r.turns.length); }}>Continuer</button>
