@@ -261,3 +261,19 @@ describe('Mode vanne', () => {
     setTrashOn(false);
   });
 });
+
+import { roastDart, resetRoast } from '../lib/roast.js';
+describe('Mode vanne : fléchette ratée', () => {
+  it('parfois une pique sur un raté, jamais sur une touche ni si désactivé', () => {
+    const mem = {}; globalThis.localStorage = { getItem: (k) => mem[k] ?? null, setItem: (k, v) => { mem[k] = v; }, removeItem: () => {} };
+    setTrashOn(true);
+    const got = Array.from({ length: 60 }, () => roastDart({ mult: 0, seg: 0 })).filter(Boolean);
+    expect(got.length).toBe(60 > 37 ? 37 : 60); // stock épuisé : plus rien dans le même leg
+    expect(new Set(got).size).toBe(got.length);
+    resetRoast();
+    expect(roastDart({ mult: 0, seg: 0 })).not.toBeNull();
+    expect(roastDart({ mult: 1, seg: 20 })).toBeNull();
+    setTrashOn(false);
+    expect(roastDart({ mult: 0, seg: 0 })).toBeNull();
+  });
+});

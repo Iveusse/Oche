@@ -10,7 +10,7 @@ import { bestLegDarts, computeAchievements, newlyUnlocked, TIER } from '../engin
 import { Medal } from './Achievements.jsx';
 import { load, save } from '../lib/store.js';
 import { usePlayClock, useWakeLock } from '../lib/playclock.js';
-import { roastTurn, roastLoss, trashOn, setTrashOn } from '../lib/roast.js';
+import { roastTurn, roastDart, roastLoss, resetRoast, trashOn, setTrashOn } from '../lib/roast.js';
 import { canListen, dartWords, parseSpeech, speak, startListening, voiceOn, setVoiceOn } from '../lib/voice.js';
 
 // ---------- annonces vocales ----------
@@ -260,7 +260,7 @@ export function Play({ game, players, records, history = [], onUpdate, onLegDone
   // Shanghai : dès que plus personne ne peut rattraper le premier aux points, on le dit une fois
   const decidedSaid = useRef(false);
   const [hideDecided, setHideDecided] = useState(false);
-  useEffect(() => { setHideDecided(false); decidedSaid.current = false; }, [legs.length]);
+  useEffect(() => { setHideDecided(false); decidedSaid.current = false; resetRoast(); }, [legs.length]);
   const decided = game.mode === 'shanghai' && !leg.done && !r.current && !r.awaiting && hideDecided === false ? shanghaiDecided(game.settings, r) : null;
   useEffect(() => {
     if (!decided || decidedSaid.current) return;
@@ -303,9 +303,11 @@ export function Play({ game, players, records, history = [], onUpdate, onLegDone
     } else {
       // finish en cours : si la fléchette n'est pas celle conseillée mais qu'on peut encore finir, on annonce la nouvelle route
       const re = rerouteSpeech(game, r, r2);
-      if (word && re) speak([word, re]);
+      const jab = roastDart(list[list.length - 1]);
+      const first = word || (jab ? 'Raté' : '');
+      if (first && re) speak([first, jab, re]);
       else if (re) speak(re);
-      else if (word) speak(word);
+      else if (first) speak([first, jab]);
     }
     setLeg(patch);
   };
