@@ -303,6 +303,10 @@ describe('Clins d\'oeil 42 / 31 / 44 / 29 / 28', () => {
     const d = (seg, mult) => ({ seg, mult });
     expect(computeAchievements([g([d(20, 1), d(20, 1), d(2, 1)])], 'a')['answer-42'].unlocked).toBeTruthy();
     expect(computeAchievements([g([d(20, 1), d(20, 1), d(3, 1)])], 'a')['answer-42'].unlocked).toBeNull();
+    // 31 = 20 + 10 + 1
+    const r31 = computeAchievements([g([d(20, 1), d(10, 1), d(1, 1)])], 'a');
+    expect(r31['hidden-31'].unlocked).toBeTruthy();
+    expect(r31['hidden-44'].unlocked).toBeNull();
   });
 });
 
