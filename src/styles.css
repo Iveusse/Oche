@@ -461,3 +461,21 @@ html.playing body { position: fixed; inset: 0; width: 100%; }
 .np-key:active:not(:disabled) { transform: scale(.94); background: var(--accent-bg); }
 .np-key.miss { border-style: dashed; font-size: 17px; }
 .np-key:disabled { opacity: .35; }
+/* le clavier ne déborde jamais : les touches rétrécissent avec la place disponible */
+.np-grid { grid-auto-rows: minmax(0, 1fr); overflow: hidden; }
+.np-grid .np-key { min-height: 0; font-size: clamp(16px, 3.2dvh, 24px); }
+.np-grid.cricket { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.np-grid.cricket .np-key { font-size: clamp(22px, 4.5dvh, 34px); }
+
+/* petits écrans (iPhone SE, mini) : on compacte pour que le clavier garde des touches confortables */
+@media (max-height: 720px) {
+  .play { gap: 6px; }
+  .cricket-grid { gap: 0 6px; font-size: 12px; }
+  .cricket-grid .m { height: 15px; line-height: 15px; font-size: 14px; }
+  .play .seg button { min-height: 34px; height: 34px; }
+  .np-mod { height: 38px; font-size: 15px; }
+  .np-last { height: 44px; }
+  .np-mods, .np { gap: 6px; }
+  .turn-strip .dart-box { min-height: 52px; }
+  .actions .btn, .actions .icon-btn { height: 46px !important; }
+}

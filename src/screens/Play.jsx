@@ -420,7 +420,7 @@ export function Play({ game, players, records, history = [], onUpdate, onLegDone
       {buttons && game.mode === 'shanghai' ? (
         <ShanghaiButtons target={info.a} disabled={blocked} onHit={hit} darts={tDarts} />
       ) : buttons ? (
-        <NumberPad disabled={blocked} onHit={hit} darts={tDarts} />
+        <NumberPad disabled={blocked} onHit={hit} darts={tDarts} cricket={game.mode === 'cricket'} />
       ) : (
         <div className="board-slot">
           <Dartboard onHit={hit} disabled={blocked} markers={markers} />
@@ -499,7 +499,7 @@ function CheckoutBar({ route, done, none }) {
 }
 
 // Clavier de saisie : Double / Triple (optionnels) puis le numéro. Bull = 50, 25 = demi-bull.
-function NumberPad({ disabled, onHit, darts = [] }) {
+function NumberPad({ disabled, onHit, darts = [], cricket = false }) {
   const [mod, setMod] = useState(1);
   const [flash, setFlash] = useState(null);
   const timer = useRef(null);
@@ -521,8 +521,8 @@ function NumberPad({ disabled, onHit, darts = [] }) {
           <button className={`np-mod ${mod === 3 ? 'on t' : ''}`} aria-pressed={mod === 3} disabled={disabled} {...tap(() => toggle(3))}>Triple</button>
           <span className="sh-dots" aria-label={`${darts.length} fléchette(s)`}>{[0, 1, 2].map((k) => <i key={k} className={darts[k] ? (darts[k].mult ? 'hit' : 'miss') : ''} />)}</span>
         </div>
-        <div className="np-grid">
-          {Array.from({ length: 20 }, (_, i) => i + 1).map((n) => (
+        <div className={`np-grid ${cricket ? 'cricket' : ''}`}>
+          {(cricket ? [20, 19, 18, 17, 16, 15] : Array.from({ length: 20 }, (_, i) => i + 1)).map((n) => (
             <button key={n} className="np-key" disabled={disabled} aria-label={`${prefix}${n}`} {...tap(() => press({ seg: n, mult: mod }))}>
               {prefix && <small>{prefix}</small>}{n}
             </button>
