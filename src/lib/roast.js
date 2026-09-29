@@ -115,9 +115,3 @@ export function roastTurn(mode, t, name, pts) {
   return null;
 }
 export const roastLoss = (name) => (trashOn() && name ? draw('p', LOSS, name) : null);
-
-// une fléchette ratée en cours de tour
-export function roastDart(d) {
-  if (!trashOn() || !isMiss(d)) return null;
-  return draw('d', DART);
-}
