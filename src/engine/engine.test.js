@@ -244,3 +244,20 @@ describe('Around the Clock complet en entraînement', () => {
     expect(computeAchievements([mk({ zones: ['S', 'D', 'T'], skip: true })], 'a').__counters.bestAtc).toBeNull();
   });
 });
+
+import { roastTurn, setTrashOn } from '../lib/roast.js';
+describe('Mode vanne', () => {
+  const mem = {};
+  globalThis.localStorage = { getItem: (k) => mem[k] ?? null, setItem: (k, v) => { mem[k] = v; }, removeItem: (k) => { delete mem[k]; } };
+  const t = (darts, extra = {}) => ({ darts, ...extra });
+  const m = { mult: 0, seg: 0 };
+  it('silencieux quand désactivé', () => { setTrashOn(false); expect(roastTurn('x01', t([m, m, m]), 'Nico', 0)).toBeNull(); });
+  it('vanne sur tour raté, 42 et bust', () => {
+    setTrashOn(true);
+    expect(roastTurn('x01', t([m, m, m]), 'Nico', 0)).toMatch(/Nico/);
+    expect(roastTurn('x01', t([{ mult: 1, seg: 20 }, { mult: 1, seg: 20 }, { mult: 1, seg: 2 }]), 'Nico', 42)).toMatch(/quarante-deux|Quarante-deux/);
+    expect(roastTurn('x01', t([{ mult: 1, seg: 20 }, m, m], { bust: true }), 'Nico', 20)).toMatch(/Nico/);
+    expect(roastTurn('x01', t([{ mult: 3, seg: 20 }, { mult: 3, seg: 20 }, { mult: 3, seg: 20 }]), 'Nico', 180)).toBeNull();
+    setTrashOn(false);
+  });
+});

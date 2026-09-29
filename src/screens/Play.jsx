@@ -10,6 +10,7 @@ import { bestLegDarts, computeAchievements, newlyUnlocked, TIER } from '../engin
 import { Medal } from './Achievements.jsx';
 import { load, save } from '../lib/store.js';
 import { usePlayClock, useWakeLock } from '../lib/playclock.js';
+import { roastTurn, roastLoss, trashOn, setTrashOn } from '../lib/roast.js';
 import { canListen, dartWords, parseSpeech, speak, startListening, voiceOn, setVoiceOn } from '../lib/voice.js';
 
 // ---------- annonces vocales ----------
@@ -46,7 +47,12 @@ function rerouteSpeech(game, before, after) {
 
 function nextSpeech(game, leg, r, byId) {
   const name = (i) => byId[r.ps[i]?.id]?.name || '';
-  if (r.over) return r.ranking?.length > 1 ? `Leg pour ${byId[r.ranking[0]]?.name || ''}` : '';
+  if (r.over) {
+    if (!(r.ranking?.length > 1)) return '';
+    const win = `Leg pour ${byId[r.ranking[0]]?.name || ''}`;
+    const lose = roastLoss(byId[r.ranking[r.ranking.length - 1]]?.name);
+    return lose ? [win, lose] : win;
+  }
   if (r.needDecision) return 'On continue pour les places ?';
   const i = r.cur; const ps = r.ps[i]; const solo = r.ps.length === 1;
   const who = solo ? '' : `${name(i)}. `;
@@ -225,6 +231,7 @@ export function Play({ game, players, records, history = [], onUpdate, onLegDone
   const takeMs = usePlayClock(!leg.done);
   const withTime = (l) => ({ ...l, activeMs: (l.activeMs || 0) + takeMs() });
   const [voice, setVoice] = useState(voiceOn);
+  const [trash, setTrash] = useState(trashOn);
   const [listening, setListening] = useState(false);
   const [heard, setHeard] = useState('');
   const stopRef = useRef(null);
@@ -288,8 +295,11 @@ export function Play({ game, players, records, history = [], onUpdate, onLegDone
       const nl = { ...leg, darts, validated: r2.turns.length };
       const r3 = runLeg(game.mode, game.settings, nl);
       const pre = word ? `${word}. ` : '';
-      if (!r3.over && !r3.needDecision) { patch.validated = r2.turns.length; speak([`${pre}${said}`, nextSpeech(game, nl, r3, byId)]); }
-      else speak(`${pre}${said}`);
+      const tpts = t.darts.reduce((a, d) => a + (d.pts ?? dartScore(d) ?? 0), 0);
+      const roast = roastTurn(game.mode, t, byId[r2.ps[t.p].id]?.name || '', tpts);
+      const nx = (!r3.over && !r3.needDecision) ? nextSpeech(game, nl, r3, byId) : null;
+      if (!r3.over && !r3.needDecision) patch.validated = r2.turns.length;
+      speak([`${pre}${said}`, roast, ...(Array.isArray(nx) ? nx : [nx])]);
     } else {
       // finish en cours : si la fléchette n'est pas celle conseillée mais qu'on peut encore finir, on annonce la nouvelle route
       const re = rerouteSpeech(game, r, r2);
@@ -477,6 +487,10 @@ export function Play({ game, players, records, history = [], onUpdate, onLegDone
           <div className="between">
             <div className="grow"><div style={{ fontWeight: 700 }}>Annonces vocales</div><div className="small muted">Score du tour, reste et finish conseillé</div></div>
             <Switch on={voice} onChange={(v) => { setVoice(v); setVoiceOn(v); }} label="Annonces vocales" />
+          </div>
+          <div className="between">
+            <div className="grow"><div style={{ fontWeight: 700 }}>Mode vanne</div><div className="small muted">Piques sur les mauvais tours et les défaites (avec les annonces)</div></div>
+            <Switch on={trash} onChange={(v) => { setTrash(v); setTrashOn(v); }} label="Mode vanne" />
           </div>
           {training ? (
             <button className="btn btn-primary" onClick={() => { setMenu(false); onEnd(game, { stopTraining: true }); }}>Terminer la session</button>

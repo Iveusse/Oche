@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Sheet, Switch } from '../components/ui.jsx';
 import { voiceOn, setVoiceOn } from '../lib/voice.js';
+import { trashOn, setTrashOn } from '../lib/roast.js';
 import { BoardShapes } from '../components/Dartboard.jsx';
 import { BOARDS, THEMES, getLook, setLook } from '../lib/theme.js';
 
@@ -44,6 +45,7 @@ function ResetZone({ players, onReset }) {
 export function SettingsSheet({ onClose, onProfile, demo, onDemo, players = [], onResetPlayer }) {
   const [look, setLookState] = useState(getLook());
   const [voice, setVoice] = useState(voiceOn);
+  const [trash, setTrash] = useState(trashOn);
   const pick = (patch) => { const next = { ...look, ...patch }; setLookState(next); setLook(next); };
 
   return (
@@ -95,6 +97,14 @@ export function SettingsSheet({ onClose, onProfile, demo, onDemo, players = [], 
           <div className="small muted" style={{ lineHeight: 1.4 }}>L'appli annonce le score de chaque tour, le reste et le finish conseillé. Pense à monter le son (le bouton silence de l'iPhone coupe la voix).</div>
         </div>
         <Switch on={voice} onChange={(v) => { setVoice(v); setVoiceOn(v); }} label="Annonces vocales" />
+      </div>
+
+      <div className="between panel" style={{ background: 'var(--card)', flexDirection: 'row', alignItems: 'center' }}>
+        <div className="grow">
+          <div style={{ fontWeight: 700 }}>Mode vanne 😈</div>
+          <div className="small muted" style={{ lineHeight: 1.4 }}>Easter egg : la voix te charrie quand tu rates tout, fais un score de merde ou perds. Et fais un 42 pour voir. Nécessite les annonces vocales.</div>
+        </div>
+        <Switch on={trash} onChange={(v) => { setTrash(v); setTrashOn(v); }} label="Mode vanne" />
       </div>
 
       <div className="between panel" style={{ background: 'var(--card)', flexDirection: 'row', alignItems: 'center' }}>
