@@ -135,6 +135,7 @@ const LOSS = [
   (n) => `${n}, la prochaine fois, essaie de viser la cible`,
 ];
 
+const SINGLE = new Set(['shanghai', 'atc', 'train-atc', 'train-doubles', 'train-focus20']);
 const isMiss = (d) => !d.mult || d.hit === false;
 
 // t : le tour qui vient de finir ; renvoie une phrase ou null
@@ -144,6 +145,8 @@ export function roastTurn(mode, t, name, pts) {
   if (t.bust) return draw('b', BUST, name);
   const nMiss = t.darts.filter(isMiss).length;
   if (nMiss === t.darts.length) return draw('m', MISS, name);
+  // un seul numéro à viser (Shanghai, ATC, entraînements) : rater 1 ou 2 fléchettes est normal, on ne charrie que les 3 ratées
+  if (SINGLE.has(mode)) return null;
   if (nMiss >= 2) return draw('t', TWO, name);
   if ((mode === 'x01' || mode === 'train-checkout') && !t.finished && pts > 0 && pts <= 30) return draw('l', BAD, name);
   if (nMiss === 1 && !t.finished) return draw('d', DART, name);

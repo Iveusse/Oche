@@ -276,4 +276,14 @@ describe('Mode vanne : stock', () => {
     expect(roastTurn('x01', { darts: [h, h, m] }, 'Nico', 40)).not.toBeNull();
     setTrashOn(false);
   });
+  it('Shanghai et modes à un seul numéro : pas de vanne pour 1 ou 2 ratés, mais oui pour 3', () => {
+    setTrashOn(true);
+    const m = { mult: 0, seg: 0, hit: false }; const h = { mult: 1, seg: 7, hit: true };
+    for (const mode of ['shanghai', 'atc', 'train-atc']) {
+      expect(roastTurn(mode, { darts: [h, m, m] }, 'Nico', 7)).toBeNull();
+      expect(roastTurn(mode, { darts: [h, h, m] }, 'Nico', 14)).toBeNull();
+      expect(roastTurn(mode, { darts: [m, m, m] }, 'Nico', 0)).not.toBeNull();
+    }
+    setTrashOn(false);
+  });
 });
