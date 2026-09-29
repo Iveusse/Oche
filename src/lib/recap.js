@@ -113,11 +113,12 @@ export function drawRecap(recap) {
   x.fillStyle = C.bg; x.fillRect(0, 0, W, H);
   // en-tête
   font(800, 30); txt('OCHE', pad, 96, C.accent);
-  font(800, 64); txt('Récap de la soirée', pad, 180, C.text);
+  font(800, 64); txt(recap.title || 'Récap de la soirée', pad, 180, C.text);
   font(500, 32);
   const d = recap.date.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
   const mins = Math.round(recap.activeMs / 60000);
-  txt(`${d.charAt(0).toUpperCase()}${d.slice(1)} · ${recap.games} partie${recap.games > 1 ? 's' : ''} · ${recap.legs} leg${recap.legs > 1 ? 's' : ''}${mins ? ` · ${mins >= 60 ? `${Math.floor(mins / 60)} h ${String(mins % 60).padStart(2, '0')}` : `${mins} min`} de jeu` : ''}`, pad, 232, C.muted);
+  if (recap.sub) txt(recap.sub, pad, 232, C.muted);
+  else txt(`${d.charAt(0).toUpperCase()}${d.slice(1)} · ${recap.games} partie${recap.games > 1 ? 's' : ''} · ${recap.legs} leg${recap.legs > 1 ? 's' : ''}${mins ? ` · ${mins >= 60 ? `${Math.floor(mins / 60)} h ${String(mins % 60).padStart(2, '0')}` : `${mins} min`} de jeu` : ''}`, pad, 232, C.muted);
   font(500, 28); txt(recap.modes, pad, 276, C.muted);
 
   // classement
@@ -136,7 +137,7 @@ export function drawRecap(recap) {
 
   // faits marquants
   if (recap.highlights.length) {
-    font(800, 34); txt('Les moments forts', pad, y, C.text); y += 30;
+    font(800, 34); txt(recap.hlTitle || 'Les moments forts', pad, y, C.text); y += 30;
     const cw = (W - pad * 2 - 24) / 2;
     recap.highlights.forEach(([k, val, who], i) => {
       const cx = pad + (i % 2) * (cw + 24); const cy = y + Math.floor(i / 2) * 150;

@@ -113,8 +113,9 @@ export function playerStats(allGames, pid) {
 // Face à face : legs où les deux jouaient
 export function headToHead(allGames, a, b) {
   const games = afterReset(allGames, a, b);
-  const res = { a: 0, b: 0, legs: 0, games: [] };
-  for (const g of games) {
+  const res = { a: 0, b: 0, legs: 0, games: [], byMode: {}, recent: [], streak: null };
+  const seq = [];
+  for (const g of [...games].sort((x, y) => new Date(x.created_at) - new Date(y.created_at))) {
     if (isTraining(g.mode) || !g.player_ids.includes(a) || !g.player_ids.includes(b)) continue;
     res.games.push(g);
     for (const leg of g.data.legs) {
@@ -122,9 +123,12 @@ export function headToHead(allGames, a, b) {
       const ia = leg.ranking.indexOf(a); const ib = leg.ranking.indexOf(b);
       if (ia < 0 || ib < 0) continue;
       res.legs += 1;
-      if (ia < ib) res.a += 1; else res.b += 1;
+      const m = (res.byMode[g.mode] ||= { a: 0, b: 0 });
+      if (ia < ib) { res.a += 1; m.a += 1; seq.push('a'); } else { res.b += 1; m.b += 1; seq.push('b'); }
     }
   }
+  res.recent = seq.slice(-6);
+  if (seq.length) { let n = 0; const w = seq[seq.length - 1]; for (let i = seq.length - 1; i >= 0 && seq[i] === w; i--) n++; res.streak = { who: w, n }; }
   const shared = res.games;
   res.statsA = playerStats(shared, a);
   res.statsB = playerStats(shared, b);

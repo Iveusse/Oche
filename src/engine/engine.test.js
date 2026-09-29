@@ -305,3 +305,28 @@ describe('Clins d\'oeil 42 / 31 / 44 / 29 / 28', () => {
     expect(computeAchievements([g([d(20, 1), d(20, 1), d(3, 1)])], 'a')['answer-42'].unlocked).toBeNull();
   });
 });
+
+import { computeWeekly, weekStartOf } from '../lib/weekly.js';
+import { headToHead } from './stats.js';
+describe('Palmarès de la semaine et face à face', () => {
+  const mk = (id, ids, ranking, darts, at, mode = 'x01') => ({ id, mode, settings: { start: 301, in: 'single', out: 'single' }, player_ids: ids, status: 'finished', created_at: at,
+    data: { legs: [{ order: ids, darts, validated: 999, done: true, ranking, finishedAt: at }] } });
+  const now = new Date();
+  const at = new Date(weekStartOf(now).getTime() + 3600000).toISOString();
+  const players = [{ id: 'a', name: 'Yves', color: '#fff' }, { id: 'b', name: 'Nico', color: '#000' }];
+  it('rien si aucune partie cette semaine', () => { expect(computeWeekly([], players)).toBeNull(); });
+  it('décerne un roi et compte les legs', () => {
+    const gs = [mk('1', ['a', 'b'], ['a', 'b'], [], at), mk('2', ['a', 'b'], ['a', 'b'], [], at), mk('3', ['a', 'b'], ['b', 'a'], [], at)];
+    const w = computeWeekly(gs, players);
+    expect(w.legs).toBe(3);
+    expect(w.highlights[0][0]).toMatch(/Roi de la semaine/);
+    expect(w.highlights[0][2]).toBe('Yves');
+  });
+  it('face à face : par mode, derniers legs, série', () => {
+    const gs = [mk('1', ['a', 'b'], ['a', 'b'], [], '2026-01-01T20:00:00Z'), mk('2', ['a', 'b'], ['b', 'a'], [], '2026-01-02T20:00:00Z', 'cricket'), mk('3', ['a', 'b'], ['b', 'a'], [], '2026-01-03T20:00:00Z')];
+    const h = headToHead(gs, 'a', 'b');
+    expect(h.recent).toEqual(['a', 'b', 'b']);
+    expect(h.streak).toEqual({ who: 'b', n: 2 });
+    expect(h.byMode.cricket).toEqual({ a: 0, b: 1 });
+  });
+});

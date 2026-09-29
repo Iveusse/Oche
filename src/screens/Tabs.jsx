@@ -60,6 +60,9 @@ export function Home({ me, players, games, lives = [], team, onTeams, onNew, onR
   const st = useMemo(() => (me ? playerStats(filterByPeriod(games, '30j'), me.id) : null), [games, me]);
   const [settings, setSettings] = useState(false);
   const [recapOpen, setRecapOpen] = useState(false);
+  const [weekOpen, setWeekOpen] = useState(false);
+  const weekDay = new Date().getDay(); // palmarès mis en avant du vendredi au lundi
+  const showWeek = weekDay === 5 || weekDay === 6 || weekDay === 0 || weekDay === 1;
   const [detail, setDetail] = useState(null);
   const session = useMemo(() => lastSession(games), [games]);
   const showRecap = session && Date.now() - session.end < 48 * 3600000;
@@ -109,6 +112,17 @@ export function Home({ me, players, games, lives = [], team, onTeams, onNew, onR
 
       {detail && <GameDetail game={detail} players={players} onClose={() => setDetail(null)} />}
       {recapOpen && <RecapSheet games={games} players={players} onClose={() => setRecapOpen(false)} />}
+      {weekOpen && <RecapSheet weekly games={games} players={players} onClose={() => setWeekOpen(false)} />}
+      {showWeek && !lives.length && realGames(games).length > 0 && (
+        <button onClick={() => setWeekOpen(true)} className="card between recap-card" style={{ textAlign: 'left', padding: 16 }}>
+          <div>
+            <div className="label">Fin de semaine</div>
+            <div style={{ fontSize: 16, fontWeight: 700 }}>Palmarès de la semaine</div>
+            <div className="small muted">Roi du bust, mur de la cuisine, sniper… à partager</div>
+          </div>
+          <Icon.Share style={{ color: 'var(--accent)' }} />
+        </button>
+      )}
       {showRecap && !lives.length && (
         <button onClick={() => setRecapOpen(true)} className="card between recap-card" style={{ textAlign: 'left', padding: 16 }}>
           <div>
@@ -220,6 +234,7 @@ export function Stats({ me, players, games }) {
       <Seg options={[['7j', '7 j'], ['30j', '30 j'], ['1an', '1 an'], ['all', 'Tout']]} value={period} onChange={setPeriod} />
 
       {pid2 && pid2 !== pid ? <StatsCompare a={player} b={players.find((p) => p.id === pid2)} games={scoped} /> : (<>
+      <Rivalries me={player} players={players} games={scoped} />
       <div className="grid2">
         <div className="kpi"><div className="k">Moyenne (3 fléch.)</div><div className="v">{fmt1(s.avg)}</div><div className="s">X01 · {s.x01Darts} fléchettes</div></div>
         <div className="kpi"><div className="k">Moy. 9 premières</div><div className="v">{fmt1(s.first9)}</div><div className="s">début de leg</div></div>
@@ -283,6 +298,49 @@ const CMP_ROWS = [
   ['Fléchettes', (s) => s.totalDarts, null, (v) => v],
 ];
 
+
+// Détail d'un face à face : par mode, 6 derniers legs, série en cours
+function H2HDetail({ h2h, aName, bName, aColor = 'var(--accent)', bColor = 'var(--wire)' }) {
+  if (!h2h || !h2h.legs) return null;
+  const modes = Object.entries(h2h.byMode);
+  return (<>
+    <div className="row" style={{ gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+      <span className="small muted">Derniers legs</span>
+      {h2h.recent.map((w, i) => <span key={i} title={w === 'a' ? aName : bName} style={{ width: 14, height: 14, borderRadius: 7, background: w === 'a' ? aColor : bColor, display: 'inline-block' }} />)}
+      {h2h.streak && h2h.streak.n >= 2 && <span className="small" style={{ fontWeight: 700 }}>{h2h.streak.who === 'a' ? aName : bName} sur {h2h.streak.n} d'affilée</span>}
+    </div>
+    {modes.length > 1 && (
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0,1fr))', gap: 6, fontSize: 13 }}>
+        {modes.map(([m, v]) => (<React.Fragment key={m}><b>{v.a}</b><span className="muted" style={{ textAlign: 'center' }}>{MODE_LABEL[m]}</span><b style={{ textAlign: 'right' }}>{v.b}</b></React.Fragment>))}
+      </div>
+    )}
+  </>);
+}
+
+// « Bête noire » et « victime préférée » d'un joueur, d'après les legs joués l'un contre l'autre
+function Rivalries({ me, players, games }) {
+  const list = players.filter((p) => p.id !== me.id).map((p) => ({ p, h: headToHead(realGames(games), me.id, p.id) })).filter((x) => x.h.legs >= 3);
+  if (list.length < 1) return null;
+  const rate = (x) => x.h.a / x.h.legs;
+  const sorted = [...list].sort((x, y) => rate(x) - rate(y));
+  const worst = sorted[0]; const best = sorted[sorted.length - 1];
+  const line = (x, label, emoji) => (
+    <div className="between" key={label}>
+      <span>{emoji} <b>{label}</b> : {x.p.name}</span>
+      <span className="small muted">{x.h.a} - {x.h.b} en legs</span>
+    </div>
+  );
+  return (
+    <div className="panel">
+      <span className="h3">Rivalités</span>
+      {rate(worst) < 0.5 && line(worst, 'Bête noire', '😈')}
+      {rate(best) > 0.5 && line(best, 'Victime préférée', '🎯')}
+      {rate(worst) >= 0.5 && rate(best) <= 0.5 && <span className="small muted">Pas encore de rivalité tranchée : ça se joue à égalité.</span>}
+      <span className="small muted">Basé sur les legs joués l'un contre l'autre (3 minimum).</span>
+    </div>
+  );
+}
+
 function StatsCompare({ a, b, games }) {
   const sa = useMemo(() => playerStats(games, a.id), [games, a.id]);
   const sb = useMemo(() => playerStats(games, b.id), [games, b.id]);
@@ -309,6 +367,7 @@ function StatsCompare({ a, b, games }) {
           <div style={{ width: `${(h2h.a / h2h.legs) * 100}%`, height: 10, background: CA }} />
           <div style={{ flex: 1, height: 10, background: CB }} />
         </div>
+        <H2HDetail h2h={h2h} aName={a.name} bName={b.name} aColor={CA} bColor={CB} />
       </>) : <div className="small muted">Pas encore de leg joué l'un contre l'autre sur cette période.</div>}
     </div>
 
@@ -359,6 +418,7 @@ export function Ranking({ players, games, me }) {
   const [sortBy, setSortBy] = useState('win');
   const [period, setPeriod] = useState('all');
   const [detail, setDetail] = useState(null);
+  const [weekOpen, setWeekOpen] = useState(false);
   const byId = Object.fromEntries(players.map((p) => [p.id, p]));
   const allReal = realGames(games);
   const session = useMemo(() => lastSession(games), [games]);
@@ -388,6 +448,8 @@ export function Ranking({ players, games, me }) {
           <button key={k} className={`chip-pill ${period === k ? 'on' : ''}`} onClick={() => setPeriod(k)} aria-pressed={period === k}>{l}</button>
         ))}
       </div>
+      <button className="btn btn-ghost" onClick={() => setWeekOpen(true)}>🏅 Palmarès de la semaine</button>
+      {weekOpen && <RecapSheet weekly games={games} players={players} onClose={() => setWeekOpen(false)} />}
       <Seg options={[['win', 'Victoires'], ['avg', 'Moyenne'], ['co', 'Checkout'], ['mpr', 'Cricket']]} value={sortBy} onChange={setSortBy} />
       <div className="small muted" style={{ marginTop: -4 }}>Classé par : {RULE}</div>
       <div className="col" style={{ gap: 8 }}>
@@ -426,6 +488,7 @@ export function Ranking({ players, games, me }) {
               <div style={{ width: `${(h2h.a / h2h.legs) * 100}%`, height: 10, background: 'var(--accent)' }} />
               <div style={{ flex: 1, height: 10, background: 'var(--wire)' }} />
             </div>
+            <H2HDetail h2h={h2h} aName={byId[a]?.name} bName={byId[b]?.name} />
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0,1fr))', gap: 6, fontSize: 13 }}>
               <b>{fmt1(h2h.statsA.avg)}</b><span className="muted" style={{ textAlign: 'center' }}>Moyenne</span><b style={{ textAlign: 'right' }}>{fmt1(h2h.statsB.avg)}</b>
               <b>{pct(h2h.statsA.checkout)}</b><span className="muted" style={{ textAlign: 'center' }}>Checkout</span><b style={{ textAlign: 'right' }}>{pct(h2h.statsB.checkout)}</b>
