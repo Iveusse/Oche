@@ -37,6 +37,13 @@ const DART = [
   'Le mur n\'avait rien demandé', 'C\'est beau la persévérance', 'Rien du tout. Bravo',
   'Un peu à gauche. Ou à droite. Ou ailleurs', 'La cible te cherche encore', 'Tu me fais de la peine',
   'Sérieusement ?', 'Tu fais exprès ?', 'Même en rêve tu ferais mieux',
+  'Ton bras a une excuse ?', 'Le mur t\'a vu venir', 'Un tir digne d\'un lundi matin',
+  'Même en visant à côté tu ne ferais pas mieux', 'La fléchette est partie en vacances', 'C\'est du sabotage ou du talent ?',
+  'On a vu mieux chez les enfants', 'La cible a décliné ton invitation', 'Wow. Juste wow',
+  'Tu as confondu avec du lancer de javelot ?', 'Tu tiens la fléchette du bon côté ?', 'Ça te réussit de rater comme ça',
+  'La physique t\'en veut personnellement', 'Le mur va demander une augmentation', 'Tu es allergique aux points ?',
+  'Bravo, une décoration de plus dans le plâtre', 'On dirait un lancer de dés', 'Respire. Et vise. Surtout vise',
+  'Ce n\'est pas la cible qui bouge', 'C\'est pas la faute de la fléchette, tu sais',
 ];
 // deux fléchettes ratées sur trois
 const TWO = [
@@ -50,6 +57,12 @@ const TWO = [
   (n) => `${n}, à ce rythme le mur va finir par gagner`,
   (n) => `${n}, tes fléchettes ont dû se tromper d'adresse`,
   (n) => `${n}, de la précision, ça se travaille, tu sais`,
+  (n) => `${n}, ta cible se sent seule, tu sais`,
+  (n) => `${n}, ce tour ressemble à ta dernière séance de sport`,
+  (n) => `${n}, deux fois à côté, on croirait que tu le fais exprès`,
+  (n) => `${n}, tu lances ou tu distribues des cadeaux au mur ?`,
+  (n) => `${n}, presque bien. Presque`,
+  (n) => `${n}, c'est un tour pour oublier vite`,
 ];
 // tour à 30 points ou moins au X01
 const BAD = [
@@ -62,6 +75,12 @@ const BAD = [
   (n) => `${n}, tu as gardé les bonnes fléchettes pour plus tard ?`,
   (n) => `${n}, c'est à ce moment qu'on dit courage`,
   (n) => `${n}, même un débutant fait ça sans effort`,
+  (n) => `${n}, on t'a vu faire mieux. Il y a longtemps`,
+  (n) => `${n}, garde ça pour le prochain tour, c'est un brouillon`,
+  (n) => `${n}, tu économises tes forces, je comprends`,
+  (n) => `${n}, c'est pas grave, personne n'a vu. Sauf nous`,
+  (n) => `${n}, tu lances avec la main gauche par hasard ?`,
+  (n) => `${n}, les fléchettes ne mordent pas, tu peux y aller`,
 ];
 // trois fléchettes ratées
 const MISS = [
@@ -77,6 +96,12 @@ const MISS = [
   (n) => `${n}, on dirait que tu lances des fléchettes pour la première fois`,
   (n) => `${n}, zéro. Comme ta chance`,
   (n) => `${n}, donne-moi les fléchettes, je vais te montrer`,
+  (n) => `${n}, un vrai désastre, avec un peu de panache quand même`,
+  (n) => `${n}, tu as juste échauffé le plâtre`,
+  (n) => `${n}, le bar du coin te déconseille ce genre de tour`,
+  (n) => `${n}, trois fois rien, c'est toi tout craché`,
+  (n) => `${n}, même le hasard aurait touché quelque chose`,
+  (n) => `${n}, on va faire comme si ça n'était pas arrivé`,
 ];
 const BUST = [
   (n) => `${n}, tu sais compter ? C'est pas compliqué pourtant`,
@@ -86,6 +111,10 @@ const BUST = [
   (n) => `${n}, les maths et toi, ça fait deux`,
   (n) => `${n}, calcule avant de lancer, c'est le principe`,
   (n) => `${n}, encore un peu et tu explosais aussi le mur`,
+  (n) => `${n}, tu as dépassé, mais pas les attentes`,
+  (n) => `${n}, ça, c'est ce qu'on appelle viser trop haut`,
+  (n) => `${n}, le tableau te remercie de l'avoir fait rire`,
+  (n) => `${n}, trop généreux, ça va te coûter cher`,
 ];
 const LOSS = [
   (n) => `${n}, tu as perdu, mais l'important c'est de participer, paraît-il`,
@@ -98,6 +127,12 @@ const LOSS = [
   (n) => `${n}, perdre, c'est ta spécialité`,
   (n) => `${n}, même les fléchettes ont honte de toi`,
   (n) => `${n}, va falloir s'entraîner, ou changer de sport`,
+  (n) => `${n}, le classement, c'est comme la vie, il y a des derniers`,
+  (n) => `${n}, tu as perdu avec beaucoup de classe. Enfin, beaucoup`,
+  (n) => `${n}, au moins tu as bien porté la lanterne rouge`,
+  (n) => `${n}, on garde ton nom pour la rubrique des perdants`,
+  (n) => `${n}, tu perds, mais tu le fais bien`,
+  (n) => `${n}, la prochaine fois, essaie de viser la cible`,
 ];
 
 const isMiss = (d) => !d.mult || d.hit === false;

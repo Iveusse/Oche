@@ -269,7 +269,8 @@ describe('Mode vanne : stock', () => {
     setTrashOn(true);
     const m = { mult: 0, seg: 0 }; const h = { mult: 1, seg: 20 };
     const got = Array.from({ length: 60 }, () => roastTurn('x01', { darts: [h, h, m] }, 'Nico', 40)).filter(Boolean);
-    expect(got.length).toBe(37);
+    expect(got.length).toBeGreaterThan(50);
+    expect(got.length).toBeLessThan(60); // stock fini : le reste est silencieux
     expect(new Set(got).size).toBe(got.length);
     resetRoast();
     expect(roastTurn('x01', { darts: [h, h, m] }, 'Nico', 40)).not.toBeNull();
