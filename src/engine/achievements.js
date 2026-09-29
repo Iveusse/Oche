@@ -123,9 +123,9 @@ const EXPLOITS = [
   { id: 'shanghai20-run15', basis: 'shanghai', variant: 20, name: 'Métronome', desc: 'Au Shanghai de 1 à 20, toucher le bon numéro 15 manches d\'affilée', goal: (c) => [Math.min(c.shRun20, 15), 15], hint: (c) => (c.shRun20 ? `Meilleure série : ${c.shRun20} manches` : null) },
   { id: 'shanghai20-clean', basis: 'shanghai', variant: 20, name: 'Sans faute XXL', desc: 'Au Shanghai de 1 à 20, toucher le bon numéro aux 20 manches', goal: (c) => [c.shanghaiClean20 ? 1 : 0, 1], hint: (c) => (c.shRun20 ? `Meilleure série : ${c.shRun20} manches` : null) },
   { id: 'shanghai-on-20', basis: 'shanghai', variant: 20, name: 'Shanghai royal', desc: 'Faire un Shanghai sur le 20 (simple, double et triple 20 dans le tour)', goal: (c) => [c.shanghaiOn20 ? 1 : 0, 1] },
-  { id: 'atc-60', basis: 'atc', name: 'Tour de l\'horloge', desc: 'Finir un Around the Clock (simple, double ou triple) en 60 fléchettes ou moins', goal: (c) => [c.bestAtc != null && c.bestAtc <= 60 ? 1 : 0, 1], hint: (c) => best(c.bestAtc, 'Meilleur ATC (fléchettes)') },
-  { id: 'atc-40', basis: 'atc', name: 'Horloger', desc: 'Finir un Around the Clock en 40 fléchettes ou moins', goal: (c) => [c.bestAtc != null && c.bestAtc <= 40 ? 1 : 0, 1], hint: (c) => best(c.bestAtc, 'Meilleur ATC (fléchettes)') },
-  { id: 'atc-30', basis: 'atc', name: 'Chirurgien', desc: 'Finir un Around the Clock en 30 fléchettes ou moins', goal: (c) => [c.bestAtc != null && c.bestAtc <= 30 ? 1 : 0, 1], hint: (c) => best(c.bestAtc, 'Meilleur ATC (fléchettes)') },
+  { id: 'atc-60', basis: 'atc', name: 'Tour de l\'horloge', desc: 'Finir un Around the Clock complet (1 à 20, sans sauts) en 60 fléchettes ou moins', goal: (c) => [c.bestAtc != null && c.bestAtc <= 60 ? 1 : 0, 1], hint: (c) => best(c.bestAtc, 'Meilleur ATC (fléchettes)') },
+  { id: 'atc-40', basis: 'atc', name: 'Horloger', desc: 'Finir un Around the Clock complet (1 à 20, sans sauts) en 40 fléchettes ou moins', goal: (c) => [c.bestAtc != null && c.bestAtc <= 40 ? 1 : 0, 1], hint: (c) => best(c.bestAtc, 'Meilleur ATC (fléchettes)') },
+  { id: 'atc-30', basis: 'atc', name: 'Chirurgien', desc: 'Finir un Around the Clock complet (1 à 20, sans sauts) en 30 fléchettes ou moins', goal: (c) => [c.bestAtc != null && c.bestAtc <= 30 ? 1 : 0, 1], hint: (c) => best(c.bestAtc, 'Meilleur ATC (fléchettes)') },
   // Enchaînements : probabilités calculées (legs gagnés d'affilée à 1 contre 1 de même niveau)
   { id: 'streak-3', basis: 'all', cumulative: true, name: 'Sur ta lancée', desc: 'Gagner 3 legs d\'affilée', goal: (c) => [c.bestStreak, 3] },
   { id: 'streak-5', basis: 'all', cumulative: true, name: 'Intouchable', desc: 'Gagner 5 legs d\'affilée', goal: (c) => [c.bestStreak, 5] },
@@ -217,11 +217,12 @@ export function computeAchievements(games, pid) {
       if (h < 5) c.night = true;
       else if (h < 9) c.early = true;
     }
-    let gameLegsDone = 0; let gameLegsWon = 0;
+    let gameLegsDone = 0; let gameLegsWon = 0; let lastLegAt = g.created_at;
     for (const { leg, r } of legs) {
       const idx = leg.order.indexOf(pid);
       if (idx < 0) continue;
       const date = leg.finishedAt || g.created_at;
+      lastLegAt = date;
       let legDarts = 0; let legPts = 0; let leg180 = 0;
       // suivi du retard en X01 (remontada)
       const rems = leg.order.map((p) => startOf(g, p));
@@ -274,6 +275,11 @@ export function computeAchievements(games, pid) {
         }
       }
       c.max180Leg = Math.max(c.max180Leg, leg180);
+      // Around the Clock : records de vitesse seulement sur un tour complet (20 numéros ou plus), sans sauts,
+      // qu'il soit joué en partie ou en entraînement
+      if ((g.mode === 'atc' || g.mode === 'train-atc') && !g.settings?.skip && (leg.targets?.length || 0) >= 20 && r.ps[idx].finished) {
+        c.bestAtc = c.bestAtc == null ? legDarts : Math.min(c.bestAtc, legDarts);
+      }
       if (training) { check(date); continue; }
       const multi = leg.order.length > 1;
       const won = multi && leg.ranking?.[0] === pid;
@@ -285,7 +291,6 @@ export function computeAchievements(games, pid) {
       if (g.mode === 'x01' && legDarts >= 9) c.bestLegAvg = Math.max(c.bestLegAvg, (legPts / legDarts) * 3);
       if (g.mode === 'x01' && won) { const st = startOf(g, pid); c.bestLeg[st] = c.bestLeg[st] == null ? legDarts : Math.min(c.bestLeg[st], legDarts); }
       if (g.mode === 'x01' && won && wasBehind) c.remontada = true;
-      if (g.mode === 'atc' && !g.settings?.nums?.length && (leg.targets?.length || 0) >= 20 && r.ps[idx].finished) c.bestAtc = c.bestAtc == null ? legDarts : Math.min(c.bestAtc, legDarts);
       if (g.mode === 'cricket' && won && r.ps.every((p, j) => j === idx || CRICKET_NUMS.every((n) => p.marks[n] < 3))) c.whitewash = true;
       if (g.mode === 'shanghai') {
         if (g.settings?.from === 1 && g.settings?.to === 20) c.best1to20 = Math.max(c.best1to20, r.ps[idx].pts);
@@ -301,7 +306,7 @@ export function computeAchievements(games, pid) {
       }
       check(date);
     }
-    if (!training && gameLegsDone >= 3 && gameLegsWon === gameLegsDone) { c.sweep = true; check(g.created_at); }
+    if (!training && gameLegsDone >= 3 && gameLegsWon === gameLegsDone) { c.sweep = true; check(lastLegAt); }
   }
   const res = {};
   for (const a of ACHIEVEMENTS) {

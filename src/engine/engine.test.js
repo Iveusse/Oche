@@ -232,3 +232,13 @@ describe('Around the Clock ciblé (coach)', () => {
     expect(old.bestAtc).toBeNull();
   });
 });
+
+describe('Around the Clock complet en entraînement', () => {
+  it('compte pour les records d\'ATC s\'il fait les 20 numéros, sans sauts', () => {
+    const targets = Array.from({ length: 20 }, (_, i) => i + 1);
+    const mk = (settings) => ({ id: 'g', mode: 'train-atc', settings, player_ids: ['a'], status: 'finished', created_at: '2026-01-01T20:00:00Z',
+      data: { legs: [{ order: ['a'], targets, darts: targets.map((n) => D(n, 1)), validated: 99, done: true, ranking: ['a'], finishedAt: '2026-01-01T20:05:00Z' }] } });
+    expect(computeAchievements([mk({ zones: ['S', 'D', 'T'] })], 'a').__counters.bestAtc).toBe(20);
+    expect(computeAchievements([mk({ zones: ['S', 'D', 'T'], skip: true })], 'a').__counters.bestAtc).toBeNull();
+  });
+});
