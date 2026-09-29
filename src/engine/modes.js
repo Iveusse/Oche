@@ -212,9 +212,88 @@ export const trainAtc = {
   status: ({ finishedOrder }) => ({ over: finishedOrder.length > 0, needDecision: false }),
 };
 
+
+// ---------- Baseball ----------
+// 9 manches, la manche N se joue sur le numéro N. Simple = 1 point, double = 2, triple = 3
+// (on compte les « courses », pas la valeur du segment). Le plus de points après 9 manches gagne.
+export const BASEBALL_INNINGS = 9;
+export const baseballNumbers = () => Array.from({ length: BASEBALL_INNINGS }, (_, i) => i + 1);
+
+export const baseball = {
+  race: false,
+  init: () => ({ pts: 0 }),
+  dart(ps, d, { turn }) {
+    const target = turn.round + 1;
+    const hit = d.seg === target && d.mult > 0;
+    const pts = hit ? d.mult : 0;
+    ps.pts += pts;
+    return { info: { target, hit, pts } };
+  },
+  status: ({ turns, n }) => ({ over: turns.length >= n * BASEBALL_INNINGS, needDecision: false }),
+  rankKey: (ps) => ps.pts,
+};
+
+// ---------- Killer ----------
+// Chaque joueur a un numéro. On devient « killer » en touchant le DOUBLE de son propre numéro.
+// Ensuite, chaque double sur le numéro d'un adversaire lui retire une vie. Le dernier en vie gagne.
+export const KILLER_LIVES = 3;
+export function killerNumbers(ids, rng = Math.random) {
+  const pool = Array.from({ length: 20 }, (_, i) => i + 1);
+  for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
+  return Object.fromEntries(ids.map((id, i) => [id, pool[i]]));
+}
+
+export const killer = {
+  race: false,
+  init: (s, leg, i) => ({ num: leg.killerNums?.[leg.order[i]] ?? i + 1, lives: Number(s.lives) || KILLER_LIVES, killer: false, out: false, outAt: 0, kills: 0, lost: 0 }),
+  dart(ps, d, { all, idx }) {
+    const info = { hit: false };
+    if (!ps.killer) info.target = ps.num;
+    if (d.mult === 2 && d.seg >= 1 && d.seg <= 20) {
+      if (!ps.killer) {
+        if (d.seg === ps.num) { ps.killer = true; info.hit = true; info.becameKiller = true; }
+      } else {
+        const vi = all.findIndex((o, j) => j !== idx && !o.out && o.num === d.seg);
+        if (vi >= 0) {
+          const v = all[vi];
+          v.lives -= 1; v.lost += 1; ps.kills += v.lives <= 0 ? 1 : 0;
+          info.hit = true; info.victim = v.id; info.livesLeft = v.lives;
+          if (v.lives <= 0) { v.out = true; v.finished = true; v.outAt = all.filter((o) => o.out).length; info.killed = true; }
+        }
+      }
+    }
+    return { info };
+  },
+  status: ({ ps, n }) => ({ over: n > 1 && ps.filter((p) => !p.out).length <= 1, needDecision: false }),
+  rankKey: (ps) => (ps.out ? ps.outAt : 1000 + ps.lives),
+};
+export const killerTargets = (ps, all) => all.filter((o) => o.id !== ps.id && !o.out).map((o) => o.num);
+
+// ---------- Entraînements liés ----------
+// Baseball solo : 9 manches, on compte ses points
+export const trainBaseball = {
+  ...baseball,
+  status: ({ turns }) => ({ over: turns.length >= BASEBALL_INNINGS, needDecision: false }),
+};
+
+// Doubles de Killer : 30 fléchettes sur le double d'un même numéro (le tien, ou celui du coach)
+export const trainKiller = {
+  race: false,
+  init: (s, leg) => ({ num: leg.num || Number(s.num) || 20, hits: 0, darts: 0 }),
+  dart(ps, d) {
+    const hit = d.seg === ps.num && d.mult === 2;
+    ps.darts += 1; if (hit) ps.hits += 1;
+    return { info: { target: ps.num, hit } };
+  },
+  status: ({ ps }) => ({ over: ps[0].darts >= 30, needDecision: false }),
+  rankKey: (ps) => ps.hits,
+};
+
 export const MODES = {
-  x01, cricket, atc, shanghai,
+  x01, cricket, atc, shanghai, baseball, killer,
   'train-free': trainFree,
+  'train-baseball': trainBaseball,
+  'train-killer': trainKiller,
   'train-atc': trainAtc,
   'train-doubles': trainDoubles,
   'train-focus20': trainFocus20,
@@ -222,7 +301,8 @@ export const MODES = {
 };
 
 export const MODE_LABEL = {
-  x01: 'X01', cricket: 'Cricket', atc: 'Around the Clock', shanghai: 'Shanghai',
+  x01: 'X01', cricket: 'Cricket', atc: 'Around the Clock', shanghai: 'Shanghai', baseball: 'Baseball', killer: 'Killer',
+  'train-baseball': 'Baseball solo', 'train-killer': 'Doubles de Killer',
   'train-free': 'Session libre', 'train-doubles': 'Tour des doubles',
   'train-focus20': 'Focus 20', 'train-checkout': 'Checkouts 41-100', 'train-atc': 'Around the Clock ciblé',
 };

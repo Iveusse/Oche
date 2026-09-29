@@ -31,7 +31,8 @@ function liveScore(g, byId) {
     if (!leg || leg.done || g.player_ids.length < 2) return null;
     const r = runLeg(g.mode, g.settings || {}, leg);
     const val = (p) => (g.mode === 'x01' ? p.rem : g.mode === 'atc' ? `${p.pos}/${leg.targets?.length || 20}` : p.pts);
-    if (g.mode === 'x01' || g.mode === 'cricket' || g.mode === 'shanghai' || g.mode === 'atc') return r.ps.map((p) => `${byId[p.id]?.name || '?'} ${val(p)}`).join(' · ');
+    if (g.mode === 'killer') return r.ps.map((p) => `${byId[p.id]?.name || '?'} ${p.out ? '☠' : '♥'.repeat(Math.max(p.lives, 0))}`).join(' · ');
+    if (['x01', 'cricket', 'shanghai', 'atc', 'baseball'].includes(g.mode)) return r.ps.map((p) => `${byId[p.id]?.name || '?'} ${val(p)}`).join(' · ');
   } catch { /* partie illisible : on n'affiche rien */ }
   return null;
 }
@@ -85,7 +86,7 @@ export function Home({ me, players, games, lives = [], team, onTeams, onNew, onR
       <button onClick={onNew} className="between" style={{ background: 'var(--accent)', color: 'var(--on-accent)', borderRadius: 18, padding: 20, textAlign: 'left' }}>
         <div>
           <div style={{ fontSize: 20, fontWeight: 800 }}>Nouvelle partie</div>
-          <div style={{ fontSize: 13, marginTop: 2 }}>X01, Cricket, Around the Clock, Shanghai</div>
+          <div style={{ fontSize: 13, marginTop: 2 }}>X01, Cricket, ATC, Shanghai, Baseball, Killer</div>
         </div>
         <Icon.Plus width="28" height="28" />
       </button>
@@ -254,7 +255,7 @@ export function Stats({ me, players, games }) {
       <div className="panel">
         <div className="between"><span className="h3">Heatmap</span><span className="small muted">{heat.length} fléchettes</span></div>
         <div className="row" style={{ gap: 6, flexWrap: 'wrap' }}>
-          {[['all', 'Tout'], ['x01', 'X01'], ['cricket', 'Cricket'], ['atc', 'ATC'], ['shanghai', 'Shanghai'], ['train', 'Entraînement']].map(([k, l]) => (
+          {[['all', 'Tout'], ['x01', 'X01'], ['cricket', 'Cricket'], ['atc', 'ATC'], ['shanghai', 'Shanghai'], ['baseball', 'Baseball'], ['killer', 'Killer'], ['train', 'Entraînement']].map(([k, l]) => (
             <button key={k} onClick={() => setHeatMode(k)} aria-pressed={heatMode === k}
               style={{ height: 32, padding: '0 12px', borderRadius: 16, fontSize: 13, fontWeight: 700, background: heatMode === k ? 'var(--accent)' : 'transparent', color: heatMode === k ? 'var(--on-accent)' : 'var(--text-2)', border: heatMode === k ? 'none' : '1px solid var(--wire)' }}>{l}</button>
           ))}
@@ -521,6 +522,8 @@ const DRILLS = [
   ['train-doubles', 'Tour des doubles', 'D1 à D20 puis bull, le moins de fléchettes possible'],
   ['train-focus20', 'Focus 20', '99 fléchettes sur le 20, points marqués'],
   ['train-checkout', 'Checkouts 41-100', '20 finishs au hasard, 3 fléchettes chacun, sortie double'],
+  ['train-baseball', 'Baseball solo', '9 manches, 1 à 3 points par fléchette sur le numéro de la manche'],
+  ['train-killer', 'Doubles de Killer', '30 fléchettes sur le double d\'un numéro tiré au hasard : combien de touches ?'],
 ];
 
 export function trainingRecords(games, pid) {
@@ -545,7 +548,7 @@ function CoachCard({ coach, onStart, onAtc, onCustom }) {
       </div>
     );
   }
-  const launch = (d) => (d.kind === 'drill' ? onStart(d.id) : onCustom('train-atc', d.settings));
+  const launch = (d) => (d.kind === 'drill' ? onStart(d.id) : onCustom(d.kind === 'train-killer' ? 'train-killer' : 'train-atc', d.settings));
   const label = (d) => (d.kind === 'drill' ? DRILLS.find((x) => x[0] === d.id)?.[1] : d.label);
   const { main, others, tips, levels } = coach;
   return (
@@ -636,7 +639,7 @@ export function Training({ me, games, onStart, onAtc, onCustom, onProfile }) {
       </div>
       <div className="panel">
         <span className="h3">Ta progression</span>
-        <Seg options={[['train-doubles', 'Doubles'], ['train-focus20', 'Focus 20'], ['train-checkout', 'Checkouts']]} value={chart} onChange={setChart} />
+        <Seg options={[['train-doubles', 'Doubles'], ['train-focus20', 'Focus 20'], ['train-checkout', 'Checkouts'], ['train-baseball', 'Baseball'], ['train-killer', 'Killer']]} value={chart} onChange={setChart} />
         <LineChart points={series} height={120} ariaLabel="Progression" />
         {chart === 'train-doubles' && series.length > 1 && <div className="small muted">Moins de fléchettes = mieux</div>}
       </div>

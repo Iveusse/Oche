@@ -147,6 +147,8 @@ export function trainingResult(game) {
     case 'train-doubles': return r.over ? { value: darts, label: `${darts} fl.`, better: 'low' } : null;
     case 'train-focus20': return r.over ? { value: ps.pts, label: `${ps.pts} pts`, better: 'high' } : null;
     case 'train-checkout': return r.over ? { value: ps.succ, label: `${ps.succ} / 20`, better: 'high' } : null;
+    case 'train-baseball': return r.over ? { value: ps.pts, label: `${ps.pts} pts`, better: 'high' } : null;
+    case 'train-killer': return r.over ? { value: ps.hits, label: `${ps.hits} / 30`, better: 'high' } : null;
     case 'train-free': return { value: darts, label: `${darts} fl.`, better: 'high' };
     default: return null;
   }

@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { addPlayer, clearLegacyCode, dropTeam, fetchGames, fetchPlayers, flushPending, getCode, getTeamId, getTeams, joinTeam, legacyCode, patchTeam, rememberTeam, resetPlayer, saveGame, setTeamId } from './lib/api.js';
 import { adoptLegacy, forgetTeam, load, save, setScope, uuid, PLAYER_COLORS } from './lib/store.js';
-import { atcTargets, checkoutTargets, isTraining } from './engine/modes.js';
+import { atcTargets, checkoutTargets, isTraining, killerNumbers } from './engine/modes.js';
 import { lastPlayed, setResets } from './engine/stats.js';
 import { TabBar } from './components/ui.jsx';
 import { ProfileScreen } from './screens/Setup.jsx';
@@ -16,6 +16,8 @@ function newLeg(mode, settings, order) {
   if (mode === 'atc' || mode === 'train-atc') leg.targets = atcTargets(settings);
   if (mode === 'train-doubles') leg.targets = atcTargets({ order: 'asc', bull: true });
   if (mode === 'train-checkout') leg.targets = checkoutTargets();
+  if (mode === 'killer') leg.killerNums = killerNumbers(order);
+  if (mode === 'train-killer') leg.num = Number(settings?.num) || 1 + Math.floor(Math.random() * 20);
   return leg;
 }
 

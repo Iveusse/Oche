@@ -9,6 +9,8 @@ const MODES = [
   ['cricket', 'Cricket', '15 à 20 + bull'],
   ['atc', 'Around the Clock', '1 à 20 dans l\'ordre'],
   ['shanghai', 'Shanghai', '1 numéro par manche'],
+  ['baseball', 'Baseball', '9 manches, 1 à 3 points'],
+  ['killer', 'Killer', 'élimine les autres'],
 ];
 
 const DEFAULTS = {
@@ -16,6 +18,8 @@ const DEFAULTS = {
   cricket: { points: true },
   atc: { zones: ['S', 'D', 'T'], order: 'asc', bull: false, skip: false },
   shanghai: { from: 1, to: 7, instantWin: true },
+  baseball: {},
+  killer: { lives: 3 },
 };
 
 function SettingRow({ title, sub, children }) {
@@ -131,6 +135,16 @@ export function NewGame({ players, games, meId, lastPlayedMap, onBack, onStart, 
           </div>
           <SettingRow title="Shanghai = victoire immédiate" sub="Simple + double + triple du numéro dans le même tour"><Switch on={s.instantWin !== false} onChange={(v) => set({ instantWin: v })} label="Shanghai victoire immédiate" /></SettingRow>
         </>)}
+
+        {mode === 'baseball' && (
+          <div className="small muted" style={{ lineHeight: 1.45 }}>9 manches : la manche N se joue sur le numéro N. Simple = 1 point, double = 2, triple = 3. Le plus de points après 9 manches gagne.</div>
+        )}
+
+        {mode === 'killer' && (<>
+          <SettingRow title="Vies de départ" sub="Chaque double sur ton numéro en retire une"><Stepper value={s.lives || 3} min={1} max={5} onChange={(v) => set({ lives: v })} label="vies" format={(v) => `${v} vie${v > 1 ? 's' : ''}`} /></SettingRow>
+          <SettingRow title="Premier à"><Stepper value={legsToWin} onChange={setLegsToWin} max={11} label="de legs" format={(v) => `${v} leg${v > 1 ? 's' : ''}`} /></SettingRow>
+          <div className="small muted" style={{ lineHeight: 1.45 }}>Un numéro est tiré au hasard pour chacun. Touche le double de ton numéro pour devenir killer, puis vise les doubles des autres pour leur retirer des vies. Le dernier en vie gagne. À 2 joueurs minimum.</div>
+        </>)}
       </div>
 
       <div className="col">
@@ -158,8 +172,8 @@ export function NewGame({ players, games, meId, lastPlayedMap, onBack, onStart, 
         </div>
       </div>
 
-      <button className="btn btn-primary" style={{ marginTop: 'auto' }} disabled={ids.length === 0} onClick={start}>
-        {ids.length === 0 ? 'Ajoute au moins un joueur' : 'Lancer la partie'}
+      <button className="btn btn-primary" style={{ marginTop: 'auto' }} disabled={ids.length === 0 || (mode === 'killer' && ids.length < 2)} onClick={start}>
+        {ids.length === 0 ? 'Ajoute au moins un joueur' : mode === 'killer' && ids.length < 2 ? 'Le Killer se joue à 2 minimum' : 'Lancer la partie'}
       </button>
 
       {picker && (

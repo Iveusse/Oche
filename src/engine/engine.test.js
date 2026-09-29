@@ -386,3 +386,110 @@ describe('Succès cachés (8 nouveaux)', () => {
     for (const a of EXPLOIT_LIST.filter((x) => x.hidden)) expect(a.desc.length).toBeGreaterThan(30);
   });
 });
+
+import { runLeg } from './runner.js';
+import { killerNumbers } from './modes.js';
+describe('Baseball', () => {
+  const leg = (darts) => ({ order: ['a', 'b'], darts, validated: 0 });
+  it('la manche N vaut le numéro N, simple 1 / double 2 / triple 3', () => {
+    // manche 1 : a T1 (3), S1... b rate ; manche 2 : a D2 (2)
+    const r = runLeg('baseball', {}, leg([D(1, 3), D(5, 1), D(0, 0), D(0, 0), D(0, 0), D(0, 0), D(2, 2), D(2, 1), D(2, 1)]));
+    expect(r.ps[0].pts).toBe(3 + 2 + 1 + 1);
+    expect(r.ps[1].pts).toBe(0);
+    expect(r.turns[0].darts[0]).toMatchObject({ target: 1, hit: true, pts: 3 });
+  });
+  it('9 manches puis fin', () => {
+    const many = Array.from({ length: 9 * 2 * 3 }, () => D(0, 0));
+    const r = runLeg('baseball', {}, leg(many));
+    expect(r.over).toBe(true);
+    expect(r.turns.length).toBe(18);
+  });
+});
+describe('Killer', () => {
+  const nums = { a: 20, b: 19, c: 18 };
+  const leg = (darts, order = ['a', 'b', 'c']) => ({ order, darts, validated: 0, killerNums: nums });
+  const M = D(0, 0);
+  it('on devient killer avec le double de son numéro, pas avec un simple', () => {
+    const r = runLeg('killer', {}, leg([D(20, 1), D(20, 3), D(20, 2)]));
+    expect(r.ps[0].killer).toBe(true);
+    expect(r.turns[0].darts[2].becameKiller).toBe(true);
+  });
+  it('un killer retire des vies aux autres, puis les élimine', () => {
+    // a devient killer, b/c ratent ; a double 19 x3 -> b éliminé
+    const seq = [D(20, 2), M, M, M, M, M, M, M, M, D(19, 2), D(19, 2), D(19, 2)];
+    const r = runLeg('killer', {}, leg(seq));
+    expect(r.ps[1].out).toBe(true);
+    expect(r.ps[0].kills).toBe(1);
+    expect(r.over).toBe(false); // c est encore en vie
+    // tour suivant : c joue (b est sauté), puis a élimine c
+    const seq2 = [...seq, M, M, M, D(18, 2), D(18, 2), D(18, 2)];
+    const r2 = runLeg('killer', {}, leg(seq2));
+    expect(r2.over).toBe(true);
+    expect(r2.ranking[0]).toBe('a');
+    expect(r2.ranking[1]).toBe('c');
+    expect(r2.ranking[2]).toBe('b'); // éliminé en premier = dernier
+  });
+  it('un joueur qui n\'est pas killer ne tue personne', () => {
+    const r = runLeg('killer', {}, leg([M, M, M, D(20, 2), D(20, 2), D(20, 2)]));
+    expect(r.ps[0].lives).toBe(3); // b n'est pas killer (il faut le 19 double)
+  });
+  it('numéros distincts', () => {
+    const n = killerNumbers(['a', 'b', 'c', 'd']);
+    expect(new Set(Object.values(n)).size).toBe(4);
+  });
+});
+
+import { trainingResult } from './stats.js';
+import { coachAdvice } from './coach.js';
+describe('Entraînements Baseball / Killer et succès des nouveaux modes', () => {
+  const tg = (mode, settings, darts, extra = {}) => ({ id: 'T', mode, settings, player_ids: ['a'], status: 'finished', created_at: '2026-01-01T20:00:00Z', data: { legs: [{ order: ['a'], darts, validated: 999, num: 20, done: true, ranking: ['a'], ...extra }] } });
+  it('Baseball solo : 9 manches, résultat en points', () => {
+    const darts = Array.from({ length: 27 }, (_, i) => (i % 3 === 0 ? D(Math.floor(i / 3) + 1, 3) : D(0, 0)));
+    const r = trainingResult(tg('train-baseball', {}, darts));
+    expect(r).toMatchObject({ value: 27, better: 'high' });
+  });
+  it('Doubles de Killer : 30 fléchettes, touches sur le double du numéro', () => {
+    const darts = Array.from({ length: 30 }, (_, i) => (i % 5 === 0 ? D(20, 2) : D(20, 1)));
+    const r = trainingResult(tg('train-killer', { num: 20 }, darts));
+    expect(r).toMatchObject({ value: 6, label: '6 / 30' });
+  });
+  it('succès Baseball : coup de circuit, sans faute, bon match', () => {
+    const darts = [];
+    for (let n = 1; n <= 9; n++) { darts.push(D(n, 3), D(n, 3), D(n, 3)); }
+    const g = { id: 'B', mode: 'baseball', settings: {}, player_ids: ['a'], status: 'finished', created_at: '2026-01-01T20:00:00Z', data: { legs: [{ order: ['a'], darts, validated: 999, done: true, ranking: ['a'], finishedAt: '2026-01-01T20:10:00Z' }] } };
+    const res = computeAchievements([g], 'a');
+    expect(res['baseball-homerun'].unlocked).toBeTruthy();
+    expect(res['baseball-clean'].unlocked).toBeTruthy();
+    expect(res['baseball-50'].unlocked).toBeTruthy(); // 81 points
+  });
+  it('succès Killer : express, doublé mortel, intouchable', () => {
+    const nums = { a: 20, b: 19, c: 18 };
+    const seq = [D(20, 2), D(19, 2), D(0, 0), D(0, 0), D(0, 0), D(0, 0), // a killer d\'emblée
+      D(19, 2), D(19, 2), D(0, 0), // b encore dans le jeu ? non : ordre a, b, c -> b
+    ];
+    void seq; void nums;
+    // a: D20 (killer) ; b: rate x3 ; c: rate x3 ; a: D19 x3 (b out) ; c: rate x3 ; a: D18 x3 (c out) -> double kill non (2 tours)
+    const M = D(0, 0);
+    const darts = [D(20, 2), M, M, M, M, M, M, M, M, D(19, 2), D(19, 2), D(19, 2), M, M, M, D(18, 2), D(18, 2), D(18, 2)];
+    const g = { id: 'K', mode: 'killer', settings: { lives: 3 }, player_ids: ['a', 'b', 'c'], status: 'finished', created_at: '2026-01-01T20:00:00Z', data: { legs: [{ order: ['a', 'b', 'c'], darts, killerNums: nums, validated: 999, done: true, ranking: ['a', 'c', 'b'], finishedAt: '2026-01-01T20:10:00Z' }] } };
+    const res = computeAchievements([g], 'a');
+    expect(res['killer-express'].unlocked).toBeTruthy();
+    expect(res['killer-flawless'].unlocked).toBeTruthy();
+    expect(res['killer-double'].unlocked).toBeNull();
+    expect(res['killer-kills-1'].unlocked).toBeTruthy();
+  });
+  it('coach : propose des Doubles de Killer quand le double de départ est raté', () => {
+    const M = D(0, 0);
+    const legs = [];
+    for (let i = 0; i < 3; i++) {
+      // deux joueurs, personne ne devient killer en 30 fléchettes (a ne touche jamais son double)
+      const darts = Array.from({ length: 30 }, () => M);
+      legs.push({ id: `k${i}`, mode: 'killer', settings: { lives: 3 }, player_ids: ['a', 'b'], status: 'finished', created_at: new Date(Date.now() - i * 3600000).toISOString(),
+        data: { legs: [{ order: ['a', 'b'], darts, killerNums: { a: 20, b: 19 }, validated: 999, done: true, ranking: ['a', 'b'], finishedAt: new Date().toISOString() }] } });
+    }
+    const c = coachAdvice(legs, 'a');
+    expect(c.ready).toBe(true);
+    expect(c.main.mode).toBe('Killer');
+    expect(c.main.drill.kind).toBe('train-killer');
+  });
+});

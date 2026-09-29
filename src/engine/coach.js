@@ -2,7 +2,7 @@
 // Principe : on estime ton niveau de scoring, puis on regarde ce qu'un joueur de ce niveau
 // réussit normalement sur ses finish (table simulée, voir scripts/coach-calibrate.mjs).
 import REF from './coachref.js';
-import { x01Advanced, cricketAdvanced, atcAdvanced, shanghaiAdvanced } from './advanced.js';
+import { x01Advanced, cricketAdvanced, atcAdvanced, shanghaiAdvanced, baseballAdvanced, killerAdvanced } from './advanced.js';
 import { oneDartFinish } from '../lib/board.js';
 import { afterReset, replayed } from './stats.js';
 
@@ -55,7 +55,8 @@ function numberProfiles(gs, pid) {
         if (t.p !== idx) continue;
         t.darts.forEach((d, k) => {
           // Shanghai (on vise le triple) et ATC (souvent le simple) ne se comparent pas : profils séparés
-          if (g.mode === 'shanghai' || g.mode === 'atc' || g.mode === 'train-atc') { if (d.target != null) add(nums[g.mode === 'shanghai' ? 'shanghai' : 'atc'], d.target, d.hit); }
+          if (g.mode === 'shanghai' || g.mode === 'baseball' || g.mode === 'train-baseball' || g.mode === 'atc' || g.mode === 'train-atc') { if (d.target != null) add(nums[g.mode === 'shanghai' || g.mode === 'baseball' || g.mode === 'train-baseball' ? 'shanghai' : 'atc'], d.target, d.hit); }
+          if ((g.mode === 'killer' || g.mode === 'train-killer') && d.target != null) add(dbl, d.target, d.hit);
           if (g.mode === 'train-doubles' && d.target != null) add(dbl, d.target, d.hit);
           if (g.mode === 'x01' && (g.settings?.out || 'single') === 'double' && d.opened && oneDartFinish(d.remBefore, 'double')) {
             const target = d.remBefore === 50 ? 25 : d.remBefore / 2;
@@ -178,6 +179,48 @@ export function coachAdvice(games, pid, days = 90) {
     }
   }
 
+  // ---- Baseball : précision sur le numéro de la manche ----
+  const ba = baseballAdvanced(gs, pid);
+  if (ba.legs >= 2 && ba.darts >= 60) {
+    const hit = ba.pct.hit ?? 0; const tri = ba.pct.t ?? 0;
+    const weight = 0.5 + 0.5 * (ba.legs / Math.max(1, ba.legs + a.legs + (cricketAdvanced(gs, pid).legs || 0) + (atcAdvanced(gs, pid).legs || 0) + sa.legs));
+    const rows = Object.entries(ba.num).filter(([, c]) => c.darts >= 9).map(([n, c]) => ({ n: Number(n), acc: c.hits / c.darts }));
+    const lows = rows.length >= 5 ? rows.filter((x) => x.acc < hit * 0.6).sort((x, y) => x.acc - y.acc).slice(0, 3) : [];
+    const lowTxt = lows.length ? ` Manches à surveiller : ${lows.map((w) => `le ${w.n} (${pc(w.acc)})`).join(', ')}.` : '';
+    if (hit < 0.3) {
+      plans.push({ mode: 'Baseball', score: weight, title: 'Baseball : touche plus souvent le bon numéro',
+        drill: { kind: 'drill', id: 'train-baseball' },
+        text: `Tu touches le numéro de la manche ${pc(hit)} du temps (${ba.darts} fléchettes). Un Baseball solo t'oblige à enchaîner les 9 numéros dans l'ordre, exactement ce qu'il faut travailler.${lowTxt}` });
+    } else if (tri < 0.06) {
+      plans.push({ mode: 'Baseball', score: weight * 0.9, title: 'Baseball : vise les triples',
+        drill: atcDrill(ba.legs >= 2 ? [1, 2, 3, 4, 5, 6, 7, 8, 9] : null, ['T'], 'Around the Clock en triples sur 1 à 9'),
+        text: `Tu touches bien le numéro (${pc(hit)}) mais seulement ${pc(tri)} de tes fléchettes font un triple. Au Baseball, un triple vaut 3 points : c'est là que se creusent les écarts.${lowTxt}` });
+    } else {
+      plans.push({ mode: 'Baseball', score: weight * 0.6, title: 'Baseball : bon niveau, continue',
+        drill: { kind: 'drill', id: 'train-baseball' },
+        text: `Bonne précision (${pc(hit)} sur le numéro, ${pc(tri)} de triples). Un Baseball solo de plus pour battre ton record de ${ba.best} points.${lowTxt}` });
+    }
+  }
+
+  // ---- Killer : le double de départ ----
+  const ka = killerAdvanced(gs, pid);
+  if (ka.legs >= 2 && ka.offDarts >= 12) {
+    const acc = ka.doubleAcc ?? 0;
+    const drillNum = wd ? wd.weak.find((w) => w.n !== 25)?.n : null;
+    const ks = drillNum ? { num: drillNum } : {};
+    if (acc < 0.15) {
+      plans.push({ mode: 'Killer', score: 0.9 + (0.15 - acc), title: 'Killer : tu mets trop de fléchettes à devenir killer',
+        drill: { kind: 'train-killer', label: drillNum ? `Doubles de Killer sur le D${drillNum} (30 fléchettes)` : 'Doubles de Killer (30 fléchettes sur un double)', settings: ks },
+        text: `Tu touches ton double de départ ${pc(acc)} du temps (${ka.offDarts} fléchettes). Il te faut en moyenne ${ka.dartsToKillerAvg == null ? 'beaucoup' : ka.dartsToKillerAvg.toFixed(0)} fléchettes pour devenir killer, pendant que les autres attaquent déjà. Travailler les doubles sur un numéro, c'est exactement l'exercice.` });
+    } else if (ka.legs >= 4 && ka.lostPerLeg != null && ka.lostPerLeg > 2) {
+      plans.push({ mode: 'Killer', score: 0.7, title: 'Killer : tu perds trop de vies',
+        drill: { kind: 'train-killer', label: drillNum ? `Doubles de Killer sur le D${drillNum} (30 fléchettes)` : 'Doubles de Killer (30 fléchettes sur un double)', settings: ks },
+        text: `Tu perds ${ka.lostPerLeg.toFixed(1)} vies par leg. Deviens killer plus vite (ton double : ${pc(acc)}) et vise en priorité l'adversaire le plus proche de l'élimination.` });
+    } else {
+      tips.push(`Killer : ${pc(acc)} de réussite sur ton double de départ et ${ka.killsPerLeg?.toFixed(1) ?? '-'} éliminations par leg. Continue, et garde le rythme sur les doubles.`);
+    }
+  } else if (ka.legs > 0) need.push(`Killer : encore ${Math.max(1, 2 - ka.legs)} leg(s)`);
+
   // ---- Cricket ----
   const c = cricketAdvanced(gs, pid);
   if (c.legs >= 8) {
@@ -201,7 +244,7 @@ export function coachAdvice(games, pid, days = 90) {
   const t = atcAdvanced(gs, pid);
   if (t.finished >= 3 && t.acc != null && t.acc < 0.2) tips.push(`Around the Clock : ${pc(t.acc)} de réussite par fléchette. Commence par les simples seulement, puis ajoute doubles et triples quand tu passes 30 %.`);
 
-  if (!plans.length) return { ready: false, need: need.length ? need.join(' · ') : 'quelques parties (X01, Shanghai, Cricket ou Around the Clock)', days };
+  if (!plans.length) return { ready: false, need: need.length ? need.join(' · ') : 'quelques parties (X01, Shanghai, Cricket, Baseball, Killer ou Around the Clock)', days };
   plans.sort((x, y) => y.score - x.score);
   return { ready: true, days, main: plans[0], others: plans.slice(1), tips, levels };
 }

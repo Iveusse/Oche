@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { runLeg, legsWon } from '../engine/runner.js';
-import { MODE_LABEL, CRICKET_NUMS, isTraining, shanghaiNumbers, atcTargets, startOf, hasHandicap } from '../engine/modes.js';
+import { MODE_LABEL, CRICKET_NUMS, isTraining, shanghaiNumbers, atcTargets, startOf, hasHandicap, BASEBALL_INNINGS, killerNumbers, killerTargets } from '../engine/modes.js';
 import { dartLabel, dartScore, suggestCheckout } from '../lib/board.js';
 import { Dartboard } from '../components/Dartboard.jsx';
 import { Icon, Seg, Sheet, Switch, TopBar, tap } from '../components/ui.jsx';
@@ -14,7 +14,7 @@ import { numberQuip, roastTurn, roastLoss, resetRoast, trashOn, setTrashOn } fro
 import { canListen, dartWords, parseSpeech, speak, startListening, voiceOn, setVoiceOn } from '../lib/voice.js';
 
 // ---------- annonces vocales ----------
-function turnSpeech(mode, t, name) {
+function turnSpeech(mode, t, name, byId = {}) {
   const sum = (f) => t.darts.reduce((a, d) => a + (f(d) || 0), 0);
   if (mode === 'x01' || mode === 'train-checkout') {
     if (t.bust) return 'Beuste !'; // écrit « à la française » pour que la voix dise bust à l'anglaise
@@ -24,6 +24,15 @@ function turnSpeech(mode, t, name) {
   }
   if (mode === 'cricket') { const m = sum((d) => d.marks); return m ? `${m} marque${m > 1 ? 's' : ''}` : 'Rien'; }
   if (mode === 'shanghai') { if (t.darts.some((d) => d.shanghai)) return 'Shanghai !'; const p = sum((d) => d.pts); return p ? `${p} point${p > 1 ? 's' : ''}` : 'Rien'; }
+  if (mode === 'baseball') { const p = sum((d) => d.pts); return p ? `${p} point${p > 1 ? 's' : ''}` : 'Rien'; }
+  if (mode === 'killer') {
+    const say = [];
+    for (const d of t.darts) {
+      if (d.becameKiller) say.push(`${name} devient killer !`);
+      if (d.victim) say.push(d.killed ? `${byId[d.victim]?.name || ''} est éliminé !` : `${byId[d.victim]?.name || ''} perd une vie`);
+    }
+    return say.length ? say.join('. ') : 'Rien';
+  }
   const h = t.darts.filter((d) => d.hit).length;
   if (h || t.darts.some((d) => 'hit' in d)) return h ? `${h} touché${h > 1 ? 's' : ''}` : 'Rien';
   return String(sum((d) => d.pts ?? dartScore(d)));
@@ -65,6 +74,16 @@ function nextSpeech(game, leg, r, byId) {
     const t = leg.targets?.[ps.pos];
     return t == null ? who : `${who}Cible ${game.mode === 'train-doubles' ? (t === 25 ? 'boul' : `double ${t}`) : (t === 25 ? 'boul' : t)}`;
   }
+  if (game.mode === 'baseball') {
+    const n = r.turns.filter((t) => t.p === i).length + 1;
+    return `${who}Manche ${Math.min(n, BASEBALL_INNINGS)}, le ${Math.min(n, BASEBALL_INNINGS)}`;
+  }
+  if (game.mode === 'killer') {
+    if (ps.out) return who;
+    if (!ps.killer) return `${who}Double ${ps.num} pour devenir killer`;
+    const tg = killerTargets(ps, r.ps);
+    return `${who}Killer. Vise ${tg.map((n) => `le ${n}`).join(', ')}`;
+  }
   if (game.mode === 'shanghai') {
     // chaque joueur entend son numéro, et ce qu'il lui faut pour rester en vie
     const nums = shanghaiNumbers(game.settings);
@@ -89,6 +108,8 @@ export function modeSubtitle(game) {
       : `${(s.zones || []).join(' + ')} · ${s.order === 'desc' ? '20 → 1' : s.order === 'random' ? 'aléatoire' : '1 → 20'}${s.bull ? ' + bull' : ''} · Leg ${legNo}`;
     case 'shanghai': return `${s.from} à ${s.to} · Leg ${legNo}`;
     case 'cricket': return `${s.points === false ? 'Sans points' : 'Avec points'} · Leg ${legNo}`;
+    case 'baseball': return `9 manches · Leg ${legNo}`;
+    case 'killer': return `${s.lives || 3} vies · Leg ${legNo}`;
     case 'train-atc': return `Entraînement · ${(s.zones || []).join(' + ')} · ${(s.nums || []).map((n) => (n === 25 ? 'bull' : n)).join(', ') || '1 → 20'}`;
     default: return 'Entraînement';
   }
@@ -111,7 +132,8 @@ const targetLabel = (t) => (t === 25 ? 'Bull' : t);
 // fléchette en bref : au Shanghai S/D/T/R (le numéro est connu), ailleurs T20, 5, R…
 function shortDart(mode, d) {
   if (!d.mult) return 'R';
-  if (mode === 'shanghai') return d.hit ? (d.mult === 3 ? 'T' : d.mult === 2 ? 'D' : 'S') : 'R';
+  if (mode === 'shanghai' || mode === 'baseball') return d.hit ? (d.mult === 3 ? 'T' : d.mult === 2 ? 'D' : 'S') : 'R';
+  if (mode === 'killer') return !d.mult ? 'R' : d.becameKiller ? 'K' : d.victim ? '☠' : dartLabel(d);
   if (d.hit === false) return 'R';
   return dartLabel(d);
 }
@@ -173,6 +195,8 @@ function cardInfo(game, r, ps, idx) {
     case 'x01': { const a = legAvg(r, idx); return { v: ps.rem, s: a == null ? 'Moy. -' : `Moy. ${a.toFixed(1)}` }; }
     case 'atc': return { v: ps.finished ? '✓' : targetLabel(leg.targets[ps.pos]), s: `${ps.pos} / ${leg.targets.length}` };
     case 'shanghai': return { v: ps.pts, s: 'points' };
+    case 'baseball': return { v: ps.pts, s: `manche ${Math.min(r.turns.filter((t) => t.p === idx).length + 1, BASEBALL_INNINGS)}/${BASEBALL_INNINGS}` };
+    case 'killer': return { v: ps.out ? '☠' : '♥'.repeat(Math.max(ps.lives, 0)), s: ps.out ? 'éliminé' : ps.killer ? `killer · n°${ps.num}` : `D${ps.num} pour tuer` };
     case 'cricket': return { v: ps.pts, s: `${CRICKET_NUMS.filter((k) => ps.marks[k] >= 3).length} / 7 fermés` };
     default: return { v: '', s: '' };
   }
@@ -215,7 +239,8 @@ export function Play({ game, players, records, history = [], onUpdate, onLegDone
   const r = useMemo(() => runLeg(game.mode, game.settings, leg), [game, leg]);
   const [menu, setMenu] = useState(false);
   // saisie : cible ou boutons, mémorisé par mode (X01, Cricket, Shanghai…)
-  const PAD_MODES = ['shanghai', 'x01', 'cricket', 'train-checkout', 'atc'];
+  const PAD_MODES = ['shanghai', 'baseball', 'train-baseball', 'x01', 'cricket', 'train-checkout', 'atc', 'killer'];
+  const TARGET_MODE = ['shanghai', 'baseball', 'train-baseball'].includes(game.mode);
   const inputKey = game.mode === 'shanghai' ? 'shanghaiInput' : `input.${game.mode}`;
   const [input, setInputState] = useState(() => (PAD_MODES.includes(game.mode) ? load(inputKey, 'board') : 'board'));
   const setInput = (v) => { setInputState(v); save(inputKey, v); };
@@ -289,7 +314,7 @@ export function Play({ game, players, records, history = [], onUpdate, onLegDone
     const patch = { darts };
     if (!r.awaiting && r2.awaiting) {
       const t = r2.turns[r2.turns.length - 1];
-      const said = turnSpeech(game.mode, t, byId[r2.ps[t.p].id]?.name || '');
+      const said = turnSpeech(game.mode, t, byId[r2.ps[t.p].id]?.name || '', byId);
       // tour fini : on passe au joueur suivant tout seul (la flèche retour permet de corriger).
       // Seule la fin d'un leg (ou la question « on continue ? ») attend une validation.
       const nl = { ...leg, darts, validated: r2.turns.length };
@@ -353,6 +378,19 @@ export function Play({ game, players, records, history = [], onUpdate, onLegDone
       else if (nd?.kind === 'lead') hint = `En tête de ${nd.gap} pts`;
       else if (nd?.kind === 'safe') hint = `${nd.gap} pts de retard sur le premier`;
     }
+  } else if (game.mode === 'baseball') {
+    const round = shown ? shown.round : Math.floor(r.turns.length / r.ps.length);
+    info = { b: `Manche ${Math.min(round + 1, BASEBALL_INNINGS)}/${BASEBALL_INNINGS}`, a: Math.min(round + 1, BASEBALL_INNINGS) };
+    hint = 'Simple 1 point, double 2, triple 3';
+  } else if (game.mode === 'killer') {
+    if (tps.out) info = { b: 'Éliminé', a: '☠' };
+    else if (!tps.killer) { info = { b: 'Deviens killer', a: `D${tps.num}` }; hint = `Touche le double ${tps.num} pour devenir killer`; }
+    else {
+      const tg = killerTargets(tps, r.ps);
+      info = { b: 'Killer', a: '☠' };
+      hint = `Double sur : ${tg.map((n) => r.ps.find((o) => o.num === n && !o.out && o.id !== tps.id)).map((o) => `${byId[o.id]?.name} (${o.num})`).join(', ')}`;
+    }
+    if (shown?.darts?.some((d) => d.victim)) { const v = shown.darts.filter((d) => d.victim).map((d) => `${byId[d.victim]?.name}${d.killed ? ' éliminé' : ` -1 vie`}`).join(', '); hint = v; }
   } else if (game.mode === 'cricket') {
     info = { b: 'Points', a: tps.pts };
   } else if (game.mode === 'train-focus20') {
@@ -362,6 +400,13 @@ export function Play({ game, players, records, history = [], onUpdate, onLegDone
     const target = leg.targets[Math.min(tps.idx, leg.targets.length - 1)];
     info = { b: `Finish ${Math.min(tps.idx + 1, 20)}/20`, a: shown && r.awaiting ? shown.darts[0].target : tps.rem };
     hint = `${tps.succ} réussi${tps.succ > 1 ? 's' : ''} · objectif ${target}`;
+  } else if (game.mode === 'train-baseball') {
+    const round = shown ? shown.round : r.turns.length;
+    info = { b: `Manche ${Math.min(round + 1, BASEBALL_INNINGS)}/${BASEBALL_INNINGS}`, a: Math.min(round + 1, BASEBALL_INNINGS) };
+    hint = `${tps.pts} point${tps.pts > 1 ? 's' : ''} · simple 1, double 2, triple 3`;
+  } else if (game.mode === 'train-killer') {
+    info = { b: 'Fléchettes', a: `${tps.darts}/30` };
+    hint = `Double ${tps.num} : ${tps.hits} touche${tps.hits > 1 ? 's' : ''}`;
   } else if (game.mode === 'train-free') {
     info = { b: 'Total', a: tps.pts };
   }
@@ -434,8 +479,8 @@ export function Play({ game, players, records, history = [], onUpdate, onLegDone
       {PAD_MODES.includes(game.mode) && (
         <Seg options={[['board', 'Cible'], ['buttons', 'Boutons']]} value={input} onChange={setInput} />
       )}
-      {buttons && game.mode === 'shanghai' ? (
-        <ShanghaiButtons target={info.a} disabled={blocked} onHit={hit} darts={tDarts} />
+      {buttons && TARGET_MODE ? (
+        <ShanghaiButtons target={info.a} disabled={blocked} onHit={hit} darts={tDarts} runs={game.mode !== 'shanghai'} />
       ) : buttons ? (
         <NumberPad disabled={blocked} onHit={hit} darts={tDarts} cricket={game.mode === 'cricket'} dead={game.mode === 'cricket' ? closedByAll(r) : []} />
       ) : (
@@ -449,7 +494,7 @@ export function Play({ game, players, records, history = [], onUpdate, onLegDone
           const d = tDarts[k];
           return (
             <div key={k} className={`dart-box ${d ? 'filled' : ''}`}>
-              <div className="a" style={{ color: d ? undefined : 'var(--muted)' }}>{d ? (!d.mult && game.mode === 'shanghai' ? 'Raté' : dartLabel(d)) : '-'}</div>
+              <div className="a" style={{ color: d ? undefined : 'var(--muted)' }}>{d ? (!d.mult && TARGET_MODE ? 'Raté' : dartLabel(d)) : '-'}</div>
               <div className="b">{d ? (game.mode === 'cricket' ? (d.marks ? `${d.marks} marque${d.marks > 1 ? 's' : ''}` : '-') : d.hit === false ? (d.mult ? 'raté' : '0') : d.pts ?? dartScore(d)) : `Fléch. ${k + 1}`}</div>
             </div>
           );
@@ -560,14 +605,14 @@ function NumberPad({ disabled, onHit, darts = [], cricket = false, dead = [] }) 
   );
 }
 
-function ShanghaiButtons({ target, disabled, onHit, darts = [] }) {
+function ShanghaiButtons({ target, disabled, onHit, darts = [], runs = false }) {
   const btns = [[1, 'Simple'], [2, 'Double'], [3, 'Triple']];
   const [flash, setFlash] = useState(null); // dernier bouton touché, pour le retour visuel
   const timer = useRef(null);
   const press = (d, label) => {
     onHit(d, d.mult === 3 ? 'Triple' : d.mult === 2 ? 'Double' : d.mult === 1 ? 'Simple' : 'Raté');
     clearTimeout(timer.current);
-    setFlash({ id: Date.now(), m: d.mult, label, pts: d.seg * d.mult });
+    setFlash({ id: Date.now(), m: d.mult, label, pts: runs ? d.mult : d.seg * d.mult });
     timer.current = setTimeout(() => setFlash(null), 1100);
   };
   useEffect(() => () => clearTimeout(timer.current), []);
@@ -585,7 +630,7 @@ function ShanghaiButtons({ target, disabled, onHit, darts = [] }) {
             <button key={`${m}-${flash?.m === m ? flash.id : 0}`} aria-label={`${l} ${target}`} disabled={disabled} {...tap(() => press({ seg: target, mult: m }, `${m === 1 ? '' : m === 2 ? 'D' : 'T'}${target}`))}
               className={`sh-btn ${flash?.m === m ? 'flash' : ''}`}>
               <span style={{ fontSize: 30, fontWeight: 800 }}>{m === 1 ? '' : m === 2 ? 'D' : 'T'}{target}</span>
-              <span className="small" style={{ color: 'var(--text-2)', fontWeight: 700 }}>{l} · {target * m}</span>
+              <span className="small" style={{ color: 'var(--text-2)', fontWeight: 700 }}>{l} · {runs ? `${m} pt${m > 1 ? 's' : ''}` : target * m}</span>
             </button>
           ))}
         </div>
@@ -637,6 +682,8 @@ function legStatLabel(game, r, idx) {
     case 'cricket': { const t = r.turns.filter((x) => x.p === idx); const m = t.reduce((a, x) => a + x.darts.reduce((b, d) => b + (d.marks || 0), 0), 0); return t.length ? `${(m / t.length).toFixed(2)} MPR` : ''; }
     case 'atc': return p.finished ? `${dartsOf(r, idx)} fléchettes` : `${p.pos} cases`;
     case 'shanghai': return `${p.pts} pts`;
+    case 'baseball': return `${p.pts} pts`;
+    case 'killer': return p.out ? 'éliminé' : `${p.lives} vie${p.lives > 1 ? 's' : ''}`;
     default: return '';
   }
 }
@@ -702,6 +749,7 @@ function LegEnd({ game, byId, history, onUpdate, onEnd }) {
 
   const next = () => {
     const nl = { order, darts: [], validated: 0, continueForPlaces: null };
+    if (game.mode === 'killer') nl.killerNums = killerNumbers(order);
     if (game.mode === 'atc') nl.targets = game.settings.order === 'random' ? atcTargets(game.settings) : leg.targets;
     onUpdate({ ...game, data: { ...game.data, legs: [...legs, nl] } }, { newLeg: true });
   };

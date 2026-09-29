@@ -1,6 +1,6 @@
 // Stats avancées par mode, calculées à partir des legs rejoués.
 import { replayed, afterReset } from './stats.js';
-import { CRICKET_NUMS, shanghaiNumbers, startOf } from './modes.js';
+import { CRICKET_NUMS, shanghaiNumbers, startOf, BASEBALL_INNINGS } from './modes.js';
 import { oneDartFinish } from '../lib/board.js';
 
 const avg = (a, b) => (b ? a / b : null);
@@ -227,5 +227,64 @@ export function atcAdvanced(games, pid) {
     ...s, winRate: avg(s.won, s.legs), finAvg: avg(s.finDarts, s.finished), acc: avg(s.hits, s.darts),
     numAcc: Object.fromEntries(Object.entries(s.num).map(([k, c]) => [k, avg(c.hits, c.darts)])),
     duration: duration(games, pid, 'atc'),
+  };
+}
+
+export function baseballAdvanced(games, pid) {
+  const s = {
+    legs: 0, won: 0, pts: 0, best: null, darts: 0, t: 0, d: 0, sgl: 0, miss: 0, clean: 0, homeruns: 0,
+    num: Object.fromEntries(Array.from({ length: BASEBALL_INNINGS }, (_, i) => [i + 1, { darts: 0, hits: 0, pts: 0, turns: 0 }])),
+  };
+  forEachLeg(games, pid, 'baseball', ({ leg, r, idx, turns }) => {
+    s.legs += 1; if (leg.order.length > 1 && leg.ranking?.[0] === pid) s.won += 1;
+    const p = r.ps[idx].pts; s.pts += p; s.best = Math.max(s.best ?? 0, p);
+    if (turns.length === BASEBALL_INNINGS && turns.every((t) => t.darts.some((d) => d.hit))) s.clean += 1;
+    for (const t of turns) {
+      const cell = s.num[t.round + 1];
+      if (cell) cell.turns += 1;
+      if (t.darts.length === 3 && t.darts.reduce((a, d) => a + (d.pts || 0), 0) === 9) s.homeruns += 1;
+      for (const d of t.darts) {
+        s.darts += 1;
+        if (cell) { cell.darts += 1; cell.pts += d.pts || 0; }
+        if (!d.hit) { s.miss += 1; continue; }
+        if (cell) cell.hits += 1;
+        if (d.mult === 3) s.t += 1; else if (d.mult === 2) s.d += 1; else s.sgl += 1;
+      }
+    }
+  });
+  return {
+    ...s, winRate: s.legs && s.won ? s.won / s.legs : (s.legs ? 0 : null), ptsAvg: avg(s.pts, s.legs),
+    pct: { hit: avg(s.darts - s.miss, s.darts), t: avg(s.t, s.darts), d: avg(s.d, s.darts), s: avg(s.sgl, s.darts), miss: avg(s.miss, s.darts) },
+    numAcc: Object.fromEntries(Object.entries(s.num).map(([k, c]) => [k, avg(c.hits, c.darts)])),
+    numPts: Object.fromEntries(Object.entries(s.num).map(([k, c]) => [k, avg(c.pts, c.turns)])),
+    duration: duration(games, pid, 'baseball'),
+  };
+}
+
+export function killerAdvanced(games, pid) {
+  const s = { legs: 0, won: 0, kills: 0, lostLives: 0, place: 0, became: 0, darts: 0, dartsToKiller: 0, offDarts: 0, offHits: 0, doubles: 0, victims: 0, flawless: 0, express: 0 };
+  forEachLeg(games, pid, 'killer', ({ leg, r, idx, turns }) => {
+    s.legs += 1;
+    const won = leg.ranking?.[0] === pid; if (won) s.won += 1;
+    s.place += leg.ranking ? leg.ranking.indexOf(pid) + 1 : 0;
+    const me = r.ps[idx];
+    s.kills += me.kills; s.lostLives += me.lost;
+    if (won && me.lost === 0) s.flawless += 1;
+    let n = 0; let got = false;
+    for (const t of turns) t.darts.forEach((d, k) => {
+      n += 1; s.darts += 1;
+      if (d.mult === 2) s.doubles += 1;
+      if (!got) {
+        s.offDarts += 1;
+        if (d.becameKiller) { got = true; s.offHits += 1; s.became += 1; s.dartsToKiller += n; if (n === 1) s.express += 1; }
+      }
+      if (d.victim) s.victims += 1;
+    });
+  });
+  return {
+    ...s, winRate: avg(s.won, s.legs), killsPerLeg: avg(s.kills, s.legs), lostPerLeg: avg(s.lostLives, s.legs),
+    avgPlace: avg(s.place, s.legs), becameRate: avg(s.became, s.legs), dartsToKillerAvg: avg(s.dartsToKiller, s.became),
+    doubleAcc: avg(s.offHits, s.offDarts), victimRate: avg(s.victims, s.darts),
+    duration: duration(games, pid, 'killer'),
   };
 }

@@ -40,6 +40,12 @@ export const SERIES = [
   { key: 'cricket', countsGames: true, name: 'Parties de Cricket', unit: 'parties', basis: 'cricket', get: (c) => c.byMode.cricket },
   { key: 'shanghai', countsGames: true, name: 'Parties de Shanghai', unit: 'parties', basis: 'shanghai', get: (c) => c.byMode.shanghai },
   { key: 'atc', countsGames: true, name: "Parties d'Around the Clock", unit: 'parties', basis: 'atc', get: (c) => c.byMode.atc },
+  { key: 'baseball', countsGames: true, name: 'Parties de Baseball', unit: 'parties', manual: [[1, 1], [5, 1], [15, 2], [40, 3], [100, 4]], get: (c) => c.byMode.baseball },
+  { key: 'killer', countsGames: true, name: 'Parties de Killer', unit: 'parties', manual: [[1, 1], [5, 1], [15, 2], [40, 3], [100, 4]], get: (c) => c.byMode.killer },
+  { key: 'baseball-wins', name: 'Victoires au Baseball', unit: 'victoires', manual: [[1, 1], [5, 2], [15, 2], [40, 3], [100, 4]], get: (c) => c.winsByMode.baseball },
+  { key: 'killer-wins', name: 'Victoires au Killer', unit: 'victoires', manual: [[1, 1], [5, 2], [15, 2], [40, 3], [100, 4]], get: (c) => c.winsByMode.killer },
+  { key: 'killer-kills', name: 'Éliminations au Killer', unit: 'éliminations', manual: [[1, 1], [5, 1], [15, 2], [40, 3], [100, 4]], get: (c) => c.kills },
+  { key: 'baseball-runs', name: 'Points au Baseball', unit: 'points', manual: [[10, 1], [50, 1], [150, 2], [400, 3], [1000, 4]], get: (c) => c.baseballRuns },
   { key: 'x01-wins', name: 'Victoires en X01', unit: 'victoires', basis: 'x01', get: (c) => c.winsByMode.x01 },
   { key: 'cricket-wins', name: 'Victoires au Cricket', unit: 'victoires', basis: 'cricket', get: (c) => c.winsByMode.cricket },
   { key: 'shanghai-wins', name: 'Victoires au Shanghai', unit: 'victoires', basis: 'shanghai', get: (c) => c.winsByMode.shanghai },
@@ -88,7 +94,7 @@ const avgHint = (c) => (c.bestLegAvg ? `Meilleur leg : ${c.bestLegAvg.toFixed(1)
 const b301 = (c) => best(c.bestLeg[301], 'Meilleur 301 gagné en') && `${best(c.bestLeg[301], 'Meilleur 301 gagné en')} fléchettes`;
 const legIn = (n) => ({ id: `301-${n}`, basis: 'x01', name: n === 6 ? 'Le 301 parfait' : `301 en ${n}`, desc: n === 6 ? 'Gagner un 301 en 6 fléchettes (180 puis 121)' : `Gagner un 301 en ${n} fléchettes ou moins`, goal: (c) => [c.bestLeg[301] != null && c.bestLeg[301] <= n ? 1 : 0, 1], hint: b301 });
 const EXPLOITS = [
-  { id: 'all-modes', basis: 'all', cumulative: true, name: 'Touche-à-tout', desc: 'Jouer aux 4 modes : X01, Cricket, ATC, Shanghai', goal: (c) => [c.modesSet.size, 4], tier: 1 },
+  { id: 'all-modes', basis: 'all', cumulative: true, name: 'Touche-à-tout', desc: 'Jouer aux 6 modes : X01, Cricket, ATC, Shanghai, Baseball, Killer', goal: (c) => [c.modesSet.size, 6], tier: 1 },
   { id: 'all-numbers', basis: 'all', cumulative: true, name: 'Tour du cadran', desc: 'Toucher chaque numéro de 1 à 20 au moins une fois', goal: (c) => [c.numbersHit.size, 20] },
   { id: 'all-doubles', basis: 'all', cumulative: true, name: 'Collection de doubles', desc: 'Toucher chaque double, de D1 à D20, plus le bull', goal: (c) => [c.doublesHit.size, 21] },
   { id: 'all-trebles', basis: 'all', cumulative: true, name: 'Collection de triples', desc: 'Toucher le triple de chaque numéro, de T1 à T20', goal: (c) => [c.treblesHit.size, 20] },
@@ -137,6 +143,16 @@ const EXPLOITS = [
   { id: 'early', name: 'Lève-tôt', desc: 'Jouer une partie avant 9 h du matin', goal: (c) => [c.early ? 1 : 0, 1], tier: 1 },
   { id: 'marathon', name: 'Marathon', desc: 'Jouer 10 parties le même jour', goal: (c) => [c.maxGamesDay, 10], tier: 2 },
   { id: 'week', name: 'Semaine de feu', desc: 'Jouer 7 jours d\'affilée', goal: (c) => [c.bestDayStreak, 7], tier: 3 },
+  { id: 'baseball-20', basis: null, name: 'Bon match', desc: 'Marquer 20 points ou plus sur une partie de Baseball (9 manches)', tier: 2, goal: (c) => [c.bestBaseball >= 20 ? 1 : 0, 1], hint: (c) => best(c.bestBaseball, 'Meilleur Baseball') },
+  { id: 'baseball-35', basis: null, name: 'Beau match', desc: 'Marquer 35 points ou plus sur une partie de Baseball', tier: 3, goal: (c) => [c.bestBaseball >= 35 ? 1 : 0, 1], hint: (c) => best(c.bestBaseball, 'Meilleur Baseball') },
+  { id: 'baseball-50', basis: null, name: 'Match de légende', desc: 'Marquer 50 points ou plus sur une partie de Baseball', tier: 4, goal: (c) => [c.bestBaseball >= 50 ? 1 : 0, 1], hint: (c) => best(c.bestBaseball, 'Meilleur Baseball') },
+  { id: 'baseball-clean', basis: null, name: 'Sans faute au Baseball', desc: 'Toucher le bon numéro à chacune des 9 manches d\'une partie de Baseball', tier: 3, goal: (c) => [c.baseballClean ? 1 : 0, 1] },
+  { id: 'baseball-homerun', basis: null, name: 'Coup de circuit', desc: 'Faire 9 points en une seule manche de Baseball : trois triples sur le numéro de la manche', tier: 4, goal: (c) => [c.homerun ? 1 : 0, 1] },
+  { id: 'killer-express', basis: null, name: 'Killer express', desc: 'Devenir killer dès ta toute première fléchette du leg (double de ton numéro du premier coup)', tier: 3, goal: (c) => [c.killerExpress ? 1 : 0, 1] },
+  { id: 'killer-flawless', basis: null, name: 'Intouchable au Killer', desc: 'Gagner un leg de Killer sans perdre une seule vie', tier: 3, goal: (c) => [c.killerFlawless ? 1 : 0, 1] },
+  { id: 'killer-double', basis: null, name: 'Doublé mortel', desc: 'Éliminer deux adversaires dans le même tour de Killer', tier: 3, goal: (c) => [c.doubleKill ? 1 : 0, 1] },
+  { id: 'killer-serial', basis: null, name: 'Tueur en série', desc: 'Éliminer 3 adversaires dans le même leg de Killer', tier: 3, goal: (c) => [c.serialKiller ? 1 : 0, 1] },
+  { id: 'killer-comeback', basis: null, name: 'Increvable', desc: 'Gagner un leg de Killer après être tombé à 1 seule vie', tier: 2, goal: (c) => [c.killerComeback ? 1 : 0, 1] },
   { id: 'answer-42', basis: null, hidden: true, num: 42, tier: 3, name: 'Tu as trouvé la réponse à la grande question sur la vie, l\'univers et le reste', desc: "Faire 42 points en un tour. Ne paniquez pas, et gardez votre serviette.", goal: (c) => [c.turnPts.has(42) ? 1 : 0, 1] },
   { id: 'hidden-31', basis: null, hidden: true, num: 31, tier: 3, name: 'Rouge et noir jusqu\'au bout', desc: "Faire 31 points en un tour. Un air de Garonne, rouge et noir.", goal: (c) => [c.turnPts.has(31) ? 1 : 0, 1] },
   { id: 'hidden-44', basis: null, hidden: true, num: 44, tier: 3, name: 'Un Canari sur la cible', desc: "Faire 44 points en un tour. Ça sent la Loire, le beurre blanc et les éléphants.", goal: (c) => [c.turnPts.has(44) ? 1 : 0, 1] },
@@ -179,7 +195,8 @@ function emptyCounters() {
   return {
     games: 0, legsWon: 0, darts: 0, triples: 0, doubles: 0, bulls: 0, bull25: 0, tons: 0, c140: 0, c180: 0,
     checkouts: 0, bigCheckouts: 0, x01Points: 0, marks: 0, shanghais: 0, trainings: 0, misses: 0, busts: 0,
-    byMode: { x01: 0, cricket: 0, shanghai: 0, atc: 0 }, winsByMode: { x01: 0, cricket: 0, shanghai: 0, atc: 0 },
+    byMode: { x01: 0, cricket: 0, shanghai: 0, atc: 0, baseball: 0, killer: 0 }, winsByMode: { x01: 0, cricket: 0, shanghai: 0, atc: 0, baseball: 0, killer: 0 },
+    kills: 0, baseballRuns: 0, bestBaseball: 0, baseballClean: false, homerun: false, killerExpress: false, killerFlawless: false, doubleKill: false, serialKiller: false, killerComeback: false,
     days: new Set(), dayCount: {}, modesSet: new Set(), numbersHit: new Set(), treblesHit: new Set(), doublesHit: new Set(),
     got26: false, turnPts: new Set(), comeback: false, midnight: false, bullBull: false, almost: {}, almostMax: 0, towel: false, trio: false, beaten: new Set(), oppTotal: 0, loseStreak: 0, bestLose: 0, threeMiss: false, night: false, early: false, streak: 0, bestStreak: 0, maxMarks: 0, maxTreblesTurn: 0,
     bestLegAvg: 0, maxGamesDay: 0, bestDayStreak: 0, bullFinish: false, shanghaiClean: false,
@@ -271,7 +288,7 @@ export function computeAchievements(games, pid) {
           c.darts += 1; legDarts += 1;
           // hors cible : au Shanghai, « Raté » veut juste dire « pas le bon numéro » ;
           // on ne compte que les fléchettes vraiment tapées en dehors de la cible
-          const offBoard = !d.mult && !(g.mode === 'shanghai' && typeof d.x !== 'number');
+          const offBoard = !d.mult && !((g.mode === 'shanghai' || g.mode === 'baseball' || g.mode === 'train-baseball') && typeof d.x !== 'number');
           if (offBoard) { c.misses += 1; missTurn += 1; }
           if (d.mult === 3) { c.triples += 1; trebles += 1; if (d.seg <= 20) c.treblesHit.add(d.seg); }
           if (d.mult === 2) { c.doubles += 1; c.doublesHit.add(d.seg); }
@@ -287,6 +304,11 @@ export function computeAchievements(games, pid) {
         c.maxTreblesTurn = Math.max(c.maxTreblesTurn, trebles);
         if (t.darts.length === 3 && missTurn === 3) c.threeMiss = true;
         if (g.mode === 'shanghai' && t.darts.length) c.turnPts.add(t.darts.reduce((a, d) => a + (d.pts || 0), 0));
+        if (g.mode === 'killer') {
+          if (ownTurnNo === 1 && t.darts[0]?.becameKiller) c.killerExpress = true;
+          if (t.darts.filter((d) => d.killed).length >= 2) c.doubleKill = true;
+        }
+        if (g.mode === 'baseball' && t.darts.reduce((a, d) => a + (d.pts || 0), 0) === 9 && t.darts.length === 3) c.homerun = true;
         if (g.mode === 'cricket') { c.maxMarks = Math.max(c.maxMarks, marks); c.marks += marks; }
         if (g.mode === 'x01') {
           if (t.bust) c.busts += 1;
@@ -320,6 +342,17 @@ export function computeAchievements(games, pid) {
       if (leg.done) gameLegsDone += 1;
       if (won) gameLegsWon += 1;
       if (won && firstTurnMiss && (g.mode === 'x01' || g.mode === 'cricket')) c.comeback = true;
+      if (g.mode === 'baseball' && leg.done) {
+        const mine9 = r.turns.filter((t) => t.p === idx);
+        c.baseballRuns += r.ps[idx].pts; c.bestBaseball = Math.max(c.bestBaseball, r.ps[idx].pts);
+        if (mine9.length === 9 && mine9.every((t) => t.darts.some((d) => d.hit))) c.baseballClean = true;
+      }
+      if (g.mode === 'killer' && leg.done) {
+        const kp = r.ps[idx]; c.kills += kp.kills;
+        if (kp.kills >= 3) c.serialKiller = true;
+        if (won && kp.lost === 0) c.killerFlawless = true;
+        if (won && (Number(g.settings?.lives) || 3) >= 2 && kp.lost === (Number(g.settings?.lives) || 3) - 1) c.killerComeback = true;
+      }
       if (leg.done && leg.finishedAt) {
         const fd = new Date(leg.finishedAt); const mm = fd.getHours() * 60 + fd.getMinutes();
         if (mm === 23 * 60 + 59 || mm === 0 || mm === 1) c.midnight = true;

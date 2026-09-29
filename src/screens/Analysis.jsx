@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Seg } from '../components/ui.jsx';
 import { Delta, HBars, HeatStrip, Ring, Sparkline, StackBar, VBars } from '../components/Charts.jsx';
-import { ALT_BUCKETS, TURN_BUCKETS, atcAdvanced, cricketAdvanced, shanghaiAdvanced, x01Advanced } from '../engine/advanced.js';
+import { ALT_BUCKETS, TURN_BUCKETS, atcAdvanced, baseballAdvanced, cricketAdvanced, killerAdvanced, shanghaiAdvanced, x01Advanced } from '../engine/advanced.js';
 import { playerStats } from '../engine/stats.js';
 import { CRICKET_NUMS, startOf } from '../engine/modes.js';
 
@@ -178,6 +178,73 @@ const ATC_SECTIONS = [
   ['Précision par numéro', ATC_NUMS.map((n) => up(n === 25 ? 'Bull' : String(n), (a) => a.numAcc[n], pc))],
 ];
 
+const BASEBALL_SECTIONS = [
+  ['Général', [['Parties', (a) => a.legs], ['Victoires', (a) => a.won], up('% de victoire', (a) => a.winRate, pc), ['Temps de jeu', (a) => dur(a.duration.total)]]],
+  ['Points', [up('Moyenne / partie', (a) => a.ptsAvg, f1), up('Meilleure partie', (a) => a.best, rec), ['Sans faute', (a) => a.clean], ['Coups de circuit', (a) => a.homeruns]]],
+  ['Fléchettes', [['Tentatives', (a) => n0(a.darts)], ['Triples', (a) => a.t], ['Doubles', (a) => a.d], ['Simples', (a) => a.sgl], ['Ratées', (a) => a.miss]]],
+  ['Précision', [up('Touches', (a) => a.pct.hit, pc), up('Triples', (a) => a.pct.t, pc), up('Doubles', (a) => a.pct.d, pc), ['Simples', (a) => pc(a.pct.s)], dn('Ratées', (a) => a.pct.miss, pc)]],
+  ['Précision par manche', Array.from({ length: 9 }, (_, i) => i + 1).map((n) => up(`Manche ${n}`, (a) => a.numAcc[n], pc))],
+  ['Points moyens par manche', Array.from({ length: 9 }, (_, i) => i + 1).map((n) => up(`Manche ${n}`, (a) => a.numPts[n], f1))],
+];
+const KILLER_SECTIONS = [
+  ['Général', [['Parties', (a) => a.legs], ['Victoires', (a) => a.won], up('% de victoire', (a) => a.winRate, pc), dn('Place moyenne', (a) => a.avgPlace, f1), ['Temps de jeu', (a) => dur(a.duration.total)]]],
+  ['Attaque', [['Éliminations', (a) => a.kills], up('Éliminations / leg', (a) => a.killsPerLeg, f1), up('Doubles qui touchent un adversaire', (a) => a.victimRate, pc)]],
+  ['Défense', [['Vies perdues', (a) => a.lostLives], dn('Vies perdues / leg', (a) => a.lostPerLeg, f1), ['Legs gagnés sans perdre une vie', (a) => a.flawless]]],
+  ['Devenir killer', [up('Legs où tu deviens killer', (a) => a.becameRate, pc), dn('Fléchettes pour devenir killer', (a) => a.dartsToKillerAvg, f1), up('Précision sur ton double', (a) => a.doubleAcc, pc), ['Killer express', (a) => a.express]]],
+];
+
+function BaseballView({ games, prevGames, allGames, period, pid }) {
+  const all = useMemo(() => baseballAdvanced(allGames, pid), [allGames, pid]);
+  const a = useMemo(() => baseballAdvanced(games, pid), [games, pid]);
+  const b = useMemo(() => (prevGames ? baseballAdvanced(prevGames, pid) : null), [prevGames, pid]);
+  if (!a.legs) return <Empty what="partie de Baseball" />;
+  return (<>
+    <Hero label="Points par partie" value={f1(a.ptsAvg)} delta={b ? diff(a.ptsAvg, b.ptsAvg) : undefined}>
+      <Mini k="Précision" v={pc(a.pct.hit)} />
+      <Mini k="Record" v={a.best ?? '-'} s="points" />
+      <Mini k="Victoires" v={pc(a.winRate)} s={`${a.won} / ${a.legs}`} />
+    </Hero>
+    <Card title="Précision par manche" sub="% de fléchettes sur le numéro de la manche">
+      <HeatStrip cells={Array.from({ length: 9 }, (_, i) => i + 1).map((n) => ({
+        label: String(n), value: a.numAcc[n],
+        detail: a.num[n].darts ? `Manche ${n} : ${a.num[n].hits} touches sur ${a.num[n].darts} fléchettes, ${f1(a.numPts[n])} pts par manche` : null,
+      }))} />
+    </Card>
+    <Card title="Qualité des touches">
+      <StackBar parts={[
+        { label: 'Triples', value: a.t, color: 'var(--accent)' },
+        { label: 'Doubles', value: a.d, color: 'var(--sky)' },
+        { label: 'Simples', value: a.sgl, color: 'var(--text-2)' },
+        { label: 'Ratées', value: a.miss, color: 'var(--wire)' },
+      ]} />
+    </Card>
+    <FullTable sections={BASEBALL_SECTIONS} cols={colsFor(a, b, all, period)} />
+  </>);
+}
+
+function KillerView({ games, prevGames, allGames, period, pid }) {
+  const all = useMemo(() => killerAdvanced(allGames, pid), [allGames, pid]);
+  const a = useMemo(() => killerAdvanced(games, pid), [games, pid]);
+  const b = useMemo(() => (prevGames ? killerAdvanced(prevGames, pid) : null), [prevGames, pid]);
+  if (!a.legs) return <Empty what="partie de Killer" />;
+  return (<>
+    <Hero label="Victoires" value={a.winRate == null ? '-' : Math.round(a.winRate * 100)} unit=" %" delta={b && b.winRate != null && a.winRate != null ? (a.winRate - b.winRate) * 100 : undefined} deltaSuffix=" pts">
+      <Mini k="Éliminations" v={a.kills} s={`${f1(a.killsPerLeg)} / leg`} />
+      <Mini k="Vies perdues" v={a.lostLives} s={`${f1(a.lostPerLeg)} / leg`} />
+      <Mini k="Place moyenne" v={f1(a.avgPlace)} />
+    </Hero>
+    <Card title="Devenir killer" sub="ton double de départ">
+      <div className="records">
+        <Mini k="Précision" v={pc(a.doubleAcc)} />
+        <Mini k="Fléchettes pour y arriver" v={f1(a.dartsToKillerAvg)} />
+        <Mini k="Killer express" v={a.express} />
+        <Mini k="Sans perdre de vie" v={a.flawless} s="legs gagnés" />
+      </div>
+    </Card>
+    <FullTable sections={KILLER_SECTIONS} cols={colsFor(a, b, all, period)} />
+  </>);
+}
+
 function X01View({ games, prevGames, allGames, period, pid }) {
   const [start, setStart] = useState('all');
   const a = useMemo(() => x01Advanced(games, pid, start), [games, pid, start]);
@@ -339,14 +406,14 @@ export function Analysis({ games, pid }) {
   const [period, setPeriod] = useState('90');
   const [mode, setMode] = useState('x01');
   const { cur, prev } = useMemo(() => window(games, period), [games, period]);
-  const View = { x01: X01View, cricket: CricketView, shanghai: ShanghaiView, atc: AtcView }[mode];
+  const View = { x01: X01View, cricket: CricketView, shanghai: ShanghaiView, atc: AtcView, baseball: BaseballView, killer: KillerView }[mode];
   return (<>
     <div className="chips-scroll">
       {PERIODS.map(([k, l]) => <button key={k} className={`chip-pill ${period === k ? 'on' : ''}`} onClick={() => setPeriod(k)} aria-pressed={period === k}>{l}</button>)}
     </div>
-    <div className="mode-tabs">
-      {[['x01', 'X01'], ['cricket', 'Cricket'], ['shanghai', 'Shanghai'], ['atc', 'ATC']].map(([k, l]) => (
-        <button key={k} className={mode === k ? 'on' : ''} onClick={() => setMode(k)} aria-pressed={mode === k}>{l}</button>
+    <div className="mode-tabs" style={{ gridTemplateColumns: 'repeat(6, minmax(0, 1fr))' }}>
+      {[['x01', 'X01'], ['cricket', 'Cricket'], ['shanghai', 'Shanghai'], ['atc', 'ATC'], ['baseball', 'Baseball'], ['killer', 'Killer']].map(([k, l]) => (
+        <button key={k} className={mode === k ? 'on' : ''} style={{ fontSize: 12 }} onClick={() => setMode(k)} aria-pressed={mode === k}>{l}</button>
       ))}
     </div>
     {prev && <div className="small muted" style={{ marginTop: -6 }}>Les flèches comparent avec les {PERIODS.find((p) => p[0] === period)[1]} d'avant.</div>}

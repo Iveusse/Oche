@@ -11,7 +11,8 @@ const mins = (ms) => { if (!ms) return null; const m = Math.round(ms / 60000); r
 // fléchette en bref : au Shanghai S/D/T/R, ailleurs T20, 5, R
 function short(mode, d) {
   if (!d.mult) return 'R';
-  if (mode === 'shanghai') return d.hit ? (d.mult === 3 ? 'T' : d.mult === 2 ? 'D' : 'S') : 'R';
+  if (mode === 'killer') return !d.mult ? 'R' : d.becameKiller ? 'K' : d.victim ? '☠' : dartLabel(d);
+  if (mode === 'shanghai' || mode === 'baseball') return d.hit ? (d.mult === 3 ? 'T' : d.mult === 2 ? 'D' : 'S') : 'R';
   if (d.hit === false) return 'R';
   return dartLabel(d);
 }
@@ -35,7 +36,8 @@ function perPlayer(game, legs) {
         if (t.finished && game.mode === 'x01') s.co = Math.max(s.co, t.darts[0].remBefore);
       }
       if (game.mode === 'x01' && leg.ranking?.[0] === id) s.best = s.best == null ? legDarts : Math.min(s.best, legDarts);
-      if (game.mode === 'shanghai') s.best = Math.max(s.best ?? 0, r.ps[idx].pts);
+      if (game.mode === 'shanghai' || game.mode === 'baseball') s.best = Math.max(s.best ?? 0, r.ps[idx].pts);
+      if (game.mode === 'killer') { s.kills = (s.kills || 0) + r.ps[idx].kills; s.lost = (s.lost || 0) + r.ps[idx].lost; }
     });
   }
   return out;
@@ -61,7 +63,8 @@ function LegTable({ game, leg, r, byId }) {
             if (!t) return <span key={j} className="gd-c" />;
             const pts = t.bust ? 0 : t.darts.reduce((a, d) => a + (d.pts || 0), 0);
             const main = x01 ? (t.bust ? 'bust' : t.finished ? '✓' : t.darts[0].remBefore - pts)
-              : game.mode === 'cricket' ? t.darts.reduce((a, d) => a + (d.marks || 0), 0) : pts;
+              : game.mode === 'cricket' ? t.darts.reduce((a, d) => a + (d.marks || 0), 0)
+              : game.mode === 'killer' ? (t.darts.filter((d) => d.victim).length ? `☠ ${t.darts.filter((d) => d.victim).length}` : t.darts.some((d) => d.becameKiller) ? 'K' : '-') : pts;
             return (
               <span key={j} className={`gd-c ${t.finished ? 'fin' : ''} ${t.bust ? 'bust' : ''}`}>
                 <b>{main}</b>
@@ -83,7 +86,7 @@ export function GameDetail({ game, players, onClose }) {
   const active = legs.reduce((a, { leg }) => a + (leg.activeMs || 0), 0);
   const d = new Date(game.created_at);
   const ids = [...game.player_ids].sort((a, b) => stats[b].won - stats[a].won);
-  const x01 = game.mode === 'x01'; const sh = game.mode === 'shanghai'; const cr = game.mode === 'cricket';
+  const x01 = game.mode === 'x01'; const sh = game.mode === 'shanghai' || game.mode === 'baseball'; const ki = game.mode === 'killer'; const cr = game.mode === 'cricket';
 
   return (
     <Sheet onClose={onClose} label="Détail de la partie">
@@ -111,6 +114,7 @@ export function GameDetail({ game, players, onClose }) {
               <div className="gd-kpis">
                 {x01 && <><span>Moy. <b>{s.darts ? f1((s.pts / s.darts) * 3) : '-'}</b></span><span>Meilleur tour <b>{s.high || '-'}</b></span><span>Finish <b>{s.co || '-'}</b></span><span>Leg le + court <b>{s.best ?? '-'}</b></span></>}
                 {sh && <><span>Points <b>{s.pts}</b></span><span>Meilleur tour <b>{s.high || '-'}</b></span></>}
+                {ki && <><span>Éliminations <b>{s.kills || 0}</b></span><span>Vies perdues <b>{s.lost || 0}</b></span></>}
                 {cr && <><span>MPR <b>{s.turns ? (s.marks / s.turns).toFixed(2) : '-'}</b></span><span>Marques <b>{s.marks}</b></span></>}
                 <span>Fléchettes <b>{s.darts}</b></span>
               </div>

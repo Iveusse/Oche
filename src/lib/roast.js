@@ -166,7 +166,7 @@ const LOSS = [
   (n) => `${n}, la prochaine fois, essaie de viser la cible`,
 ];
 
-const SINGLE = new Set(['shanghai', 'atc', 'train-atc', 'train-doubles', 'train-focus20']);
+const SINGLE = new Set(['shanghai', 'baseball', 'killer', 'atc', 'train-atc', 'train-doubles', 'train-focus20']);
 const isMiss = (d) => !d.mult || d.hit === false;
 
 // t : le tour qui vient de finir ; renvoie une phrase ou null

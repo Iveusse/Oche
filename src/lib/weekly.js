@@ -9,7 +9,7 @@ const inWeek = (g, start) => { const t = new Date(g.created_at).getTime(); retur
 function aggregate(games, players) {
   const byId = Object.fromEntries(players.map((p) => [p.id, p]));
   const P = {};
-  const get = (id) => (P[id] ||= { id, name: byId[id]?.name || '?', color: byId[id]?.color || '#888', games: 0, legs: 0, won: 0, darts: 0, pts: 0, high: 0, c180: 0, co: 0, busts: 0, offBoard: 0, shanghai: 0 });
+  const get = (id) => (P[id] ||= { id, name: byId[id]?.name || '?', color: byId[id]?.color || '#888', games: 0, legs: 0, won: 0, darts: 0, pts: 0, high: 0, c180: 0, co: 0, busts: 0, offBoard: 0, shanghai: 0, baseball: 0, kills: 0, lives: 0 });
   let legsN = 0;
   for (const g of games) {
     if (isTraining(g.mode)) continue;
@@ -22,7 +22,7 @@ function aggregate(games, players) {
         if (leg.order.length > 1 && leg.ranking?.[0] === id) p.won += 1;
         for (const t of r.turns) {
           if (t.p !== idx) continue;
-          for (const d of t.darts) if (!d.mult && !(g.mode === 'shanghai' && typeof d.x !== 'number')) p.offBoard += 1;
+          for (const d of t.darts) if (!d.mult && !((g.mode === 'shanghai' || g.mode === 'baseball') && typeof d.x !== 'number')) p.offBoard += 1;
           if (g.mode !== 'x01') continue;
           const s = t.bust ? 0 : t.darts.reduce((a, d) => a + (d.pts || 0), 0);
           p.darts += t.darts.length; p.pts += s; p.high = Math.max(p.high, s);
@@ -31,6 +31,8 @@ function aggregate(games, players) {
           if (t.finished) p.co = Math.max(p.co, t.darts[0].remBefore);
         }
         if (g.mode === 'shanghai') p.shanghai = Math.max(p.shanghai, r.ps[idx].pts);
+        if (g.mode === 'baseball') p.baseball = Math.max(p.baseball, r.ps[idx].pts);
+        if (g.mode === 'killer') { p.kills += r.ps[idx].kills; p.lives += r.ps[idx].lost; }
       });
     }
   }
@@ -57,6 +59,8 @@ export function computeWeekly(allGames, players, start = weekStartOf()) {
   const c1 = pick((p) => p.c180, 1); add('🔥', '180', c1, c1 && `${c1.c180} ×`);
   const co = pick((p) => p.co, 50); add('🏁', 'Plus beau finish', co, co && String(co.co));
   const sh = pick((p) => p.shanghai, 20); add('🀄', 'Meilleur Shanghai', sh, sh && `${sh.shanghai} pts`);
+  const bb = pick((p) => p.baseball, 10); add('⚾', 'Meilleur Baseball', bb, bb && `${bb.baseball} pts`);
+  const kl = pick((p) => p.kills, 1); add('☠️', 'Tueur de la semaine', kl, kl && `${kl.kills} élim.`);
   const bu = pick((p) => p.busts, 2); add('💥', 'Roi du bust', bu, bu && `${bu.busts} ×`);
   const mu = pick((p) => p.offBoard, 3); add('🧱', 'Mur de la cuisine', mu, mu && `${mu.offBoard} hors cible`);
   const as = pick((p) => p.games, 2); add('📅', 'Le plus assidu', as, as && `${as.games} parties`);
