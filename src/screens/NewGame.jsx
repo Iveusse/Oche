@@ -66,13 +66,10 @@ export function NewGame({ players, games, meId, lastPlayedMap, onBack, onStart, 
 
       <div className="col">
         <div className="label">Mode</div>
-        <div className="grid2">
-          {MODES.map(([k, t, d]) => (
-            <button key={k} className={`choice ${mode === k ? 'on' : ''}`} onClick={() => setMode(k)} aria-pressed={mode === k}>
-              <div className="t">{t}</div><div className="d">{d}</div>
-            </button>
-          ))}
-        </div>
+        <select className="input" style={{ fontWeight: 800, fontSize: 16 }} value={mode} onChange={(e) => setMode(e.target.value)} aria-label="Mode de jeu">
+          {MODES.map(([k, t]) => <option key={k} value={k}>{t}</option>)}
+        </select>
+        <div className="small muted" style={{ lineHeight: 1.4 }}>{MODES.find((m) => m[0] === mode)[2]}</div>
       </div>
 
       <div className="panel">
@@ -172,9 +169,9 @@ export function NewGame({ players, games, meId, lastPlayedMap, onBack, onStart, 
         </div>
       </div>
 
-      <button className="btn btn-primary" style={{ marginTop: 'auto' }} disabled={ids.length === 0 || (mode === 'killer' && ids.length < 2)} onClick={start}>
+      <div className="start-bar"><button className="btn btn-primary" style={{ width: '100%' }} disabled={ids.length === 0 || (mode === 'killer' && ids.length < 2)} onClick={start}>
         {ids.length === 0 ? 'Ajoute au moins un joueur' : mode === 'killer' && ids.length < 2 ? 'Le Killer se joue à 2 minimum' : 'Lancer la partie'}
-      </button>
+      </button></div>
 
       {picker && (
         <PlayerPicker
