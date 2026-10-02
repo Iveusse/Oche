@@ -245,7 +245,7 @@ describe('Around the Clock complet en entraînement', () => {
   });
 });
 
-import { roastTurn, setTrashOn } from '../lib/roast.js';
+import { roastTurn, setTrashOn, praiseTurn, resetRoast } from '../lib/roast.js';
 describe('Mode vanne', () => {
   const mem = {};
   globalThis.localStorage = { getItem: (k) => mem[k] ?? null, setItem: (k, v) => { mem[k] = v; }, removeItem: (k) => { delete mem[k]; } };
@@ -491,5 +491,23 @@ describe('Entraînements Baseball / Killer et succès des nouveaux modes', () =>
     expect(c.ready).toBe(true);
     expect(c.main.mode).toBe('Killer');
     expect(c.main.drill.kind).toBe('train-killer');
+  });
+});
+
+describe('félicitations', () => {
+  const T = (pts, extra = {}) => ({ darts: [{ mult: 1, seg: 20 }, { mult: 1, seg: 20 }, { mult: 1, seg: 20 }], ...extra });
+  it('x01 : bien au-dessus de la moyenne', () => {
+    resetRoast();
+    expect(praiseTurn('x01', T(), 'Yves', 100, { avg: 45 })).toMatch(/Yves/);
+    expect(praiseTurn('x01', T(), 'Yves', 60, { avg: 45 })).toBeNull();
+    expect(praiseTurn('x01', T(), 'Yves', 100, { avg: 80 })).toBeNull();
+    expect(praiseTurn('x01', T(0, { bust: true }), 'Yves', 100, { avg: 45 })).toBeNull();
+  });
+  it('cricket : marques', () => {
+    resetRoast();
+    const t = { darts: [{ marks: 3 }, { marks: 3 }, { marks: 2 }] };
+    expect(praiseTurn('cricket', t, 'Yves', 0, { mpr: 2 })).toMatch(/Yves/);
+    resetRoast();
+    expect(praiseTurn('cricket', t, 'Yves', 0, { mpr: 5 })).toBeNull();
   });
 });

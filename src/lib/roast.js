@@ -182,4 +182,33 @@ export function roastTurn(mode, t, name, pts) {
   if (nMiss === 1 && !t.finished) return draw('d', DART, name);
   return null;
 }
+// Félicitations (toujours actives, voix seule) quand la volée est bien au-dessus de la moyenne du joueur
+const PRAISE = [
+  (n) => `Waouh ${n}, bien au-dessus de ta moyenne !`,
+  (n) => `${n}, quelle volée ! Tu te surpasses`,
+  (n) => `Bravo ${n}, ça c'est du niveau supérieur`,
+  (n) => `${n}, tu es en feu !`,
+  (n) => `Belle volée ${n}, très au-dessus de ton niveau habituel`,
+  (n) => `${n}, magnifique, continue comme ça`,
+  (n) => `Ça, c'est du lourd ${n}`,
+  (n) => `${n}, on dirait que tu as retrouvé tes lunettes`,
+  (n) => `Impressionnant ${n}, tu viens de t'offrir une belle volée`,
+  (n) => `${n}, là tu régales !`,
+];
+// base : { avg, mpr } du joueur sur ses parties passées (null si pas assez d'historique)
+export function praiseTurn(mode, t, name, pts, base) {
+  if (!name || t.darts.length < 3 || t.bust || t.finished) return null;
+  if (mode === 'x01') {
+    const avg = base?.avg;
+    const ok = avg ? pts >= Math.max(avg * 1.5, avg + 20, 60) : pts >= 100;
+    return ok ? draw('k', PRAISE, name) : null;
+  }
+  if (mode === 'cricket') {
+    const marks = t.darts.reduce((a, d) => a + (d.marks || 0), 0);
+    const mpr = base?.mpr;
+    const ok = mpr ? marks >= Math.max(mpr * 1.8, mpr + 2.5, 5) : marks >= 7;
+    return ok ? draw('k', PRAISE, name) : null;
+  }
+  return null;
+}
 export const roastLoss = (name) => (trashOn() && name ? draw('p', LOSS, name) : null);

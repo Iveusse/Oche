@@ -5,12 +5,12 @@ import { dartLabel, dartScore, suggestCheckout } from '../lib/board.js';
 import { Dartboard } from '../components/Dartboard.jsx';
 import { Icon, Seg, Sheet, Switch, TopBar, tap } from '../components/ui.jsx';
 import { PlayerOrder, shuffle } from '../components/PlayerOrder.jsx';
-import { trainingResult } from '../engine/stats.js';
+import { trainingResult, playerStats } from '../engine/stats.js';
 import { bestLegDarts, computeAchievements, newlyUnlocked, TIER } from '../engine/achievements.js';
 import { Medal } from './Achievements.jsx';
 import { load, save } from '../lib/store.js';
 import { usePlayClock, useWakeLock } from '../lib/playclock.js';
-import { numberQuip, roastTurn, roastLoss, resetRoast, trashOn, setTrashOn } from '../lib/roast.js';
+import { numberQuip, praiseTurn, roastTurn, roastLoss, resetRoast, trashOn, setTrashOn } from '../lib/roast.js';
 import { canListen, dartWords, parseSpeech, speak, startListening, voiceOn, setVoiceOn } from '../lib/voice.js';
 
 // ---------- annonces vocales ----------
@@ -321,7 +321,13 @@ export function Play({ game, players, records, history = [], onUpdate, onLegDone
       const r3 = runLeg(game.mode, game.settings, nl);
       const pre = word ? `${word}. ` : '';
       const tpts = t.darts.reduce((a, d) => a + (d.pts ?? dartScore(d) ?? 0), 0);
-      const roast = numberQuip(game.mode, t, tpts) || roastTurn(game.mode, t, byId[r2.ps[t.p].id]?.name || '', tpts);
+      const who = byId[r2.ps[t.p].id]?.name || '';
+      let base = null;
+      if (game.mode === 'x01' || game.mode === 'cricket') {
+        const ps = playerStats(history.filter((g) => g.id !== game.id), r2.ps[t.p].id);
+        base = { avg: ps.x01Darts >= 30 ? ps.avg : null, mpr: ps.cricketTurns >= 10 ? ps.mpr : null };
+      }
+      const roast = numberQuip(game.mode, t, tpts) || praiseTurn(game.mode, t, who, tpts, base) || roastTurn(game.mode, t, byId[r2.ps[t.p].id]?.name || '', tpts);
       const nx = (!r3.over && !r3.needDecision) ? nextSpeech(game, nl, r3, byId) : null;
       if (!r3.over && !r3.needDecision) patch.validated = r2.turns.length;
       speak([`${pre}${said}`, roast, ...(Array.isArray(nx) ? nx : [nx])]);
