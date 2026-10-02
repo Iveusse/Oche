@@ -323,9 +323,19 @@ export function Play({ game, players, records, history = [], onUpdate, onLegDone
       const tpts = t.darts.reduce((a, d) => a + (d.pts ?? dartScore(d) ?? 0), 0);
       const who = byId[r2.ps[t.p].id]?.name || '';
       let base = null;
-      if (game.mode === 'x01' || game.mode === 'cricket') {
+      if (game.mode === 'x01') {
+        // référence : la moyenne de la partie en cours (tous les joueurs, tous les legs), sans la volée qui vient de finir
+        const prev = [];
+        for (const l of game.data?.legs || []) {
+          if (l.done && l !== leg) prev.push(...runLeg(game.mode, game.settings, l).turns);
+        }
+        prev.push(...r2.turns.slice(0, -1));
+        const full = prev.filter((x) => x.darts.length === 3);
+        const sum = full.reduce((a, x) => a + (x.bust ? 0 : x.darts.reduce((b, d) => b + (d.pts || 0), 0)), 0);
+        base = { avg: full.length >= 6 ? sum / full.length : null };
+      } else if (game.mode === 'cricket') {
         const ps = playerStats(history.filter((g) => g.id !== game.id), r2.ps[t.p].id);
-        base = { avg: ps.x01Darts >= 30 ? ps.avg : null, mpr: ps.cricketTurns >= 10 ? ps.mpr : null };
+        base = { mpr: ps.cricketTurns >= 10 ? ps.mpr : null };
       }
       const roast = numberQuip(game.mode, t, tpts) || praiseTurn(game.mode, t, who, tpts, base) || roastTurn(game.mode, t, byId[r2.ps[t.p].id]?.name || '', tpts);
       const nx = (!r3.over && !r3.needDecision) ? nextSpeech(game, nl, r3, byId) : null;
