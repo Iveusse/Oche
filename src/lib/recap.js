@@ -34,9 +34,16 @@ export function recapDays(games) {
   }
   return [...m.values()].sort((a, b) => (a.key < b.key ? 1 : -1));
 }
-// session d'un jour donné, restreinte aux parties jouées uniquement entre les joueurs choisis
+// groupe de joueurs (ensemble exact) qui a joué le plus de parties ce jour-là
+export function mainGroup(dayGames) {
+  const m = new Map();
+  for (const g of dayGames) { const k = [...new Set(g.player_ids)].sort().join('|'); m.set(k, (m.get(k) || 0) + 1); }
+  const best = [...m.entries()].sort((a, b) => b[1] - a[1] || b[0].split('|').length - a[0].split('|').length)[0];
+  return best ? best[0].split('|') : [];
+}
+// session d'un jour donné, restreinte aux parties jouées exactement entre les joueurs choisis (même nombre de parties pour tous)
 export function sessionOfDay(games, key, pids) {
-  const gs = finishedGames(games).filter((g) => dayKey(g.created_at) === key && (!pids || g.player_ids.every((id) => pids.has(id))))
+  const gs = finishedGames(games).filter((g) => dayKey(g.created_at) === key && (!pids || (g.player_ids.length === pids.size && g.player_ids.every((id) => pids.has(id)))))
     .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
   if (!gs.length) return null;
   return { games: gs, start: new Date(gs[0].created_at).getTime(), end: Math.max(...gs.map(endOf)) };

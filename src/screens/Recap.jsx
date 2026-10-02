@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Icon, Sheet } from '../components/ui.jsx';
-import { computeRecap, drawRecap, recapDays, sessionOfDay } from '../lib/recap.js';
+import { computeRecap, drawRecap, mainGroup, recapDays, sessionOfDay } from '../lib/recap.js';
 import { computeWeekly, weekStartOf } from '../lib/weekly.js';
 import { Seg } from '../components/ui.jsx';
 
@@ -10,7 +10,7 @@ export function RecapSheet({ games, players, onClose, weekly = false }) {
   const title = weekly ? 'Palmarès de la semaine' : 'Récap de la soirée';
   const days = useMemo(() => (weekly ? [] : recapDays(games)), [games, weekly]);
   const [day, setDay] = useState(() => days[0]?.key || '');
-  const [off, setOff] = useState([]); // joueurs décochés
+  const [off, setOff] = useState(() => { const d = days[0]; if (!d) return []; const g = mainGroup(d.games); return [...d.pids].filter((id) => !g.includes(id)); }); // joueurs décochés
   const dayInfo = days.find((d) => d.key === day);
   const dayPlayers = dayInfo ? players.filter((p) => dayInfo.pids.has(p.id)) : [];
   const pids = useMemo(() => new Set(dayPlayers.map((p) => p.id).filter((id) => !off.includes(id))), [dayInfo, off, players]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -48,7 +48,7 @@ export function RecapSheet({ games, players, onClose, weekly = false }) {
       {!weekly && days.length > 0 && (<>
         <div className="col" style={{ gap: 6 }}>
           <span className="label">Jour</span>
-          <select className="input" value={day} onChange={(e) => { setDay(e.target.value); setOff([]); }} aria-label="Jour de la soirée">
+          <select className="input" value={day} onChange={(e) => { const d = days.find((x) => x.key === e.target.value); setDay(e.target.value); const g = mainGroup(d.games); setOff([...d.pids].filter((id) => !g.includes(id))); }} aria-label="Jour de la soirée">
             {days.map((d) => <option key={d.key} value={d.key}>{d.date.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })} · {d.games.length} partie{d.games.length > 1 ? 's' : ''}</option>)}
           </select>
         </div>
@@ -61,8 +61,9 @@ export function RecapSheet({ games, players, onClose, weekly = false }) {
             })}
           </div>
         </div>
+        {recap && <div className="small muted">{recap.games} partie{recap.games > 1 ? 's' : ''} jouée{recap.games > 1 ? 's' : ''} exactement entre ces joueurs</div>}
       </>)}
-      {!recap ? <div className="muted">{weekly ? 'Aucune partie terminée sur cette semaine.' : days.length ? 'Choisis au moins un joueur.' : 'Pas encore de partie terminée.'}</div> : (<>
+      {!recap ? <div className="muted">{weekly ? 'Aucune partie terminée sur cette semaine.' : days.length ? 'Aucune partie jouée exactement entre ces joueurs ce jour-là.' : 'Pas encore de partie terminée.'}</div> : (<>
         {img ? <img src={img.url} alt={title} className="recap-img" /> : <div className="muted small">Préparation de l'image…</div>}
         <button className="btn btn-primary" onClick={share} disabled={!img}><Icon.Share />Partager sur le groupe</button>
         {msg && <div className="small muted" style={{ textAlign: 'center' }}>{msg}</div>}
