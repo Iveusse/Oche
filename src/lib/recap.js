@@ -34,9 +34,9 @@ export function recapDays(games) {
   }
   return [...m.values()].sort((a, b) => (a.key < b.key ? 1 : -1));
 }
-// session d'un jour donné, restreinte aux parties où jouent les joueurs choisis
+// session d'un jour donné, restreinte aux parties jouées uniquement entre les joueurs choisis
 export function sessionOfDay(games, key, pids) {
-  const gs = finishedGames(games).filter((g) => dayKey(g.created_at) === key && (!pids || g.player_ids.some((id) => pids.has(id))))
+  const gs = finishedGames(games).filter((g) => dayKey(g.created_at) === key && (!pids || g.player_ids.every((id) => pids.has(id))))
     .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
   if (!gs.length) return null;
   return { games: gs, start: new Date(gs[0].created_at).getTime(), end: Math.max(...gs.map(endOf)) };
@@ -100,6 +100,7 @@ export function computeRecap(allGames, players, session = lastSession(allGames),
     const res = computeAchievements(allGames, p.id);
     for (const ach of ACHIEVEMENTS) {
       const d = res[ach.id].unlocked;
+      if (pids && res[ach.id].game && !session.games.some((g) => g.id === res[ach.id].game)) continue;
       if (d && new Date(d).getTime() >= session.start - 60000 && new Date(d).getTime() <= session.end + 60000) unlocked.push({ name: p.name, color: p.color, ach });
     }
   }
