@@ -66,7 +66,7 @@ export function Home({ me, players, games, lives = [], team, onTeams, onNew, onR
   const showWeek = weekDay === 5 || weekDay === 6 || weekDay === 0 || weekDay === 1;
   const [detail, setDetail] = useState(null);
   const session = useMemo(() => lastSession(games), [games]);
-  const showRecap = session && Date.now() - session.end < 48 * 3600000;
+  const showRecap = !!session;
   return (
     <div className="screen with-tabs">
       {settings && <SettingsSheet onClose={() => setSettings(false)} onProfile={onProfile} demo={demo} onDemo={onDemo} players={players} onResetPlayer={onResetPlayer} />}

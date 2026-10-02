@@ -21,7 +21,28 @@ export function lastSession(games) {
   return { games: out, start: new Date(out[0].created_at).getTime(), end: Math.max(...out.map(endOf)) };
 }
 
-export function computeRecap(allGames, players, session = lastSession(allGames)) {
+// Soirées par jour : une soirée qui passe minuit reste sur le jour où elle a commencé (coupure à 6 h du matin)
+const dayKey = (iso) => { const d = new Date(new Date(iso).getTime() - 6 * 3600000); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+const finishedGames = (games) => games.filter((g) => !isTraining(g.mode) && g.status === 'finished' && g.data?.legs?.some((l) => l.done));
+// jours avec des parties terminées, le plus récent d'abord : [{ key, date, games, pids }]
+export function recapDays(games) {
+  const m = new Map();
+  for (const g of finishedGames(games)) {
+    const k = dayKey(g.created_at);
+    const e = m.get(k) || { key: k, date: new Date(new Date(g.created_at).getTime() - 6 * 3600000), games: [], pids: new Set() };
+    e.games.push(g); g.player_ids.forEach((id) => e.pids.add(id)); m.set(k, e);
+  }
+  return [...m.values()].sort((a, b) => (a.key < b.key ? 1 : -1));
+}
+// session d'un jour donné, restreinte aux parties où jouent les joueurs choisis
+export function sessionOfDay(games, key, pids) {
+  const gs = finishedGames(games).filter((g) => dayKey(g.created_at) === key && (!pids || g.player_ids.some((id) => pids.has(id))))
+    .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+  if (!gs.length) return null;
+  return { games: gs, start: new Date(gs[0].created_at).getTime(), end: Math.max(...gs.map(endOf)) };
+}
+
+export function computeRecap(allGames, players, session = lastSession(allGames), pids = null) {
   if (!session) return null;
   const byId = Object.fromEntries(players.map((p) => [p.id, p]));
   const P = {};
@@ -32,6 +53,7 @@ export function computeRecap(allGames, players, session = lastSession(allGames))
     for (const { leg, r } of replayed(g)) {
       legsN += 1; activeMs += leg.activeMs || 0;
       leg.order.forEach((id, idx) => {
+        if (pids && !pids.has(id)) return;
         const p = get(id);
         p.legs += 1;
         if (leg.order.length > 1 && leg.ranking?.[0] === id) p.won += 1;
@@ -54,6 +76,7 @@ export function computeRecap(allGames, players, session = lastSession(allGames))
       });
     }
   }
+  if (!Object.keys(P).length) return null;
   const rows = Object.values(P).map((p) => ({ ...p, avg: p.darts ? (p.pts / p.darts) * 3 : null, mpr: p.cTurns ? p.marks / p.cTurns : null, rate: p.legs ? p.won / p.legs : 0 }))
     .sort((a, b) => b.won - a.won || b.rate - a.rate || (b.avg || 0) - (a.avg || 0));
 
