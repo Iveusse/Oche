@@ -124,7 +124,7 @@ export function Home({ me, players, games, lives = [], team, onTeams, onNew, onR
           <Icon.Share style={{ color: 'var(--accent)' }} />
         </button>
       )}
-      {showRecap && !lives.length && (
+      {showRecap && (
         <button onClick={() => setRecapOpen(true)} className="card between recap-card" style={{ textAlign: 'left', padding: 16 }}>
           <div>
             <div className="label">{new Date(session.end).toDateString() === new Date().toDateString() ? 'Ce soir' : 'Dernière soirée'}</div>
@@ -420,6 +420,7 @@ export function Ranking({ players, games, me }) {
   const [period, setPeriod] = useState('all');
   const [detail, setDetail] = useState(null);
   const [weekOpen, setWeekOpen] = useState(false);
+  const [recapOpen, setRecapOpen] = useState(false);
   const byId = Object.fromEntries(players.map((p) => [p.id, p]));
   const allReal = realGames(games);
   const session = useMemo(() => lastSession(games), [games]);
@@ -449,7 +450,11 @@ export function Ranking({ players, games, me }) {
           <button key={k} className={`chip-pill ${period === k ? 'on' : ''}`} onClick={() => setPeriod(k)} aria-pressed={period === k}>{l}</button>
         ))}
       </div>
-      <button className="btn btn-ghost" onClick={() => setWeekOpen(true)}>🏅 Palmarès de la semaine</button>
+      <div className="row" style={{ gap: 8 }}>
+        <button className="btn btn-ghost grow" onClick={() => setRecapOpen(true)}>🎉 Récap de soirée</button>
+        <button className="btn btn-ghost grow" onClick={() => setWeekOpen(true)}>🏅 Palmarès semaine</button>
+      </div>
+      {recapOpen && <RecapSheet games={games} players={players} onClose={() => setRecapOpen(false)} />}
       {weekOpen && <RecapSheet weekly games={games} players={players} onClose={() => setWeekOpen(false)} />}
       <Seg options={[['win', 'Victoires'], ['avg', 'Moyenne'], ['co', 'Checkout'], ['mpr', 'Cricket']]} value={sortBy} onChange={setSortBy} />
       <div className="small muted" style={{ marginTop: -4 }}>Classé par : {RULE}</div>
