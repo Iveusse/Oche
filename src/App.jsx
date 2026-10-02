@@ -3,6 +3,7 @@ import { addPlayer, clearLegacyCode, dropTeam, fetchGames, fetchPlayers, flushPe
 import { adoptLegacy, forgetTeam, load, save, setScope, uuid, PLAYER_COLORS } from './lib/store.js';
 import { atcTargets, checkoutTargets, isTraining, killerNumbers } from './engine/modes.js';
 import { lastPlayed, setResets } from './engine/stats.js';
+import { runLeg } from './engine/runner.js';
 import { TabBar } from './components/ui.jsx';
 import { ProfileScreen } from './screens/Setup.jsx';
 import { TeamSheet, Welcome } from './screens/Teams.jsx';
@@ -239,11 +240,17 @@ function TeamApp({ team, onTeams, onInvalid, onRenamed }) {
       setCur(final); persist(final);
       return; // l'écran de fin d'entraînement s'affiche
     }
+    // dernier leg terminé mais pas encore validé (en attente de « Valider la fin ») : on le garde plutôt que de le perdre
+    const finishedLegs = legs.map((l, i) => {
+      if (l.done || i !== legs.length - 1 || !l.darts?.length) return l;
+      const rr = runLeg(g.mode, g.settings || {}, l);
+      return rr.over && !rr.needDecision ? { ...l, done: true, ranking: rr.ranking, finishedAt: new Date().toISOString() } : l;
+    });
     if (opts.abandon) {
-      const done = legs.filter((l) => l.done);
+      const done = finishedLegs.filter((l) => l.done);
       if (done.length) final = { ...g, status: 'finished', data: { ...g.data, legs: done } };
     } else {
-      final = { ...g, status: 'finished', data: { ...g.data, legs: legs.filter((l) => l.done) } };
+      final = { ...g, status: 'finished', data: { ...g.data, legs: finishedLegs.filter((l) => l.done) } };
     }
     // rien de joué : on clôt quand même la partie côté serveur pour qu'elle ne revienne pas
     persist(final || { ...g, status: 'finished', data: { ...g.data, legs: [] } });
