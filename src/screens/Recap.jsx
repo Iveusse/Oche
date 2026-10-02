@@ -61,9 +61,9 @@ export function RecapSheet({ games, players, onClose, weekly = false }) {
             })}
           </div>
         </div>
-        {recap && <div className="small muted">{recap.games} partie{recap.games > 1 ? 's' : ''} jouée{recap.games > 1 ? 's' : ''} exactement entre ces joueurs</div>}
+        {recap && <div className="small muted">{recap.games} partie{recap.games > 1 ? 's' : ''} où tous ces joueurs ont joué</div>}
       </>)}
-      {!recap ? <div className="muted">{weekly ? 'Aucune partie terminée sur cette semaine.' : days.length ? 'Aucune partie jouée exactement entre ces joueurs ce jour-là.' : 'Pas encore de partie terminée.'}</div> : (<>
+      {!recap ? <div className="muted">{weekly ? 'Aucune partie terminée sur cette semaine.' : days.length ? 'Aucune partie où tous ces joueurs ont joué ce jour-là.' : 'Pas encore de partie terminée.'}</div> : (<>
         {img ? <img src={img.url} alt={title} className="recap-img" /> : <div className="muted small">Préparation de l'image…</div>}
         <button className="btn btn-primary" onClick={share} disabled={!img}><Icon.Share />Partager sur le groupe</button>
         {msg && <div className="small muted" style={{ textAlign: 'center' }}>{msg}</div>}

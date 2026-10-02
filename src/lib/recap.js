@@ -34,16 +34,21 @@ export function recapDays(games) {
   }
   return [...m.values()].sort((a, b) => (a.key < b.key ? 1 : -1));
 }
-// groupe de joueurs (ensemble exact) qui a joué le plus de parties ce jour-là
+// groupe de joueurs le plus représentatif du jour (le plus de parties jouées ensemble, à taille égale de groupe)
 export function mainGroup(dayGames) {
-  const m = new Map();
-  for (const g of dayGames) { const k = [...new Set(g.player_ids)].sort().join('|'); m.set(k, (m.get(k) || 0) + 1); }
-  const best = [...m.entries()].sort((a, b) => b[1] - a[1] || b[0].split('|').length - a[0].split('|').length)[0];
-  return best ? best[0].split('|') : [];
+  const groups = new Set(dayGames.map((g) => [...new Set(g.player_ids)].sort().join('|')));
+  let best = null;
+  for (const k of groups) {
+    const ids = k.split('|');
+    const n = dayGames.filter((g) => ids.every((id) => g.player_ids.includes(id))).length;
+    const score = n * ids.length; // parties jouées par tout le groupe × taille du groupe
+    if (!best || score > best.score || (score === best.score && ids.length > best.ids.length)) best = { ids, score };
+  }
+  return best ? best.ids : [];
 }
-// session d'un jour donné, restreinte aux parties jouées exactement entre les joueurs choisis (même nombre de parties pour tous)
+// session d'un jour donné, restreinte aux parties où tous les joueurs choisis ont joué (même nombre de parties pour tous ; les autres joueurs de la partie sont ignorés)
 export function sessionOfDay(games, key, pids) {
-  const gs = finishedGames(games).filter((g) => dayKey(g.created_at) === key && (!pids || (g.player_ids.length === pids.size && g.player_ids.every((id) => pids.has(id)))))
+  const gs = finishedGames(games).filter((g) => dayKey(g.created_at) === key && (!pids || [...pids].every((id) => g.player_ids.includes(id))))
     .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
   if (!gs.length) return null;
   return { games: gs, start: new Date(gs[0].created_at).getTime(), end: Math.max(...gs.map(endOf)) };
@@ -63,7 +68,8 @@ export function computeRecap(allGames, players, session = lastSession(allGames),
         if (pids && !pids.has(id)) return;
         const p = get(id);
         p.legs += 1;
-        if (leg.order.length > 1 && leg.ranking?.[0] === id) p.won += 1;
+        const rk = (leg.ranking || []).filter((x) => !pids || pids.has(x));
+        if (leg.order.filter((x) => !pids || pids.has(x)).length > 1 && rk[0] === id) p.won += 1;
         let legDarts = 0;
         for (const t of r.turns) {
           if (t.p !== idx) continue;
@@ -76,7 +82,7 @@ export function computeRecap(allGames, players, session = lastSession(allGames),
           }
           if (g.mode === 'cricket') { p.marks += t.darts.reduce((a, d) => a + (d.marks || 0), 0); p.cTurns += 1; }
         }
-        if (g.mode === 'x01' && leg.ranking?.[0] === id && (p.bestLeg == null || legDarts < p.bestLeg)) { p.bestLeg = legDarts; p.bestLegStart = startOf(g, id); }
+        if (g.mode === 'x01' && rk[0] === id && (p.bestLeg == null || legDarts < p.bestLeg)) { p.bestLeg = legDarts; p.bestLegStart = startOf(g, id); }
         if (g.mode === 'shanghai') p.shanghai = Math.max(p.shanghai, r.ps[idx].pts);
         if (g.mode === 'countup') p.countup = Math.max(p.countup, r.ps[idx].pts);
         if (g.mode === 'baseball') p.baseball = Math.max(p.baseball, r.ps[idx].pts);
