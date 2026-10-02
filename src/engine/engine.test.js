@@ -531,3 +531,18 @@ describe('count up', () => {
     expect(r.ps[0].pts).toBe(60);
   });
 });
+
+describe('hors cible', () => {
+  it('deux taux : toute la cible vs tous modes', async () => {
+    const { playerStats } = await import('./stats.js');
+    const M = { seg: 0, mult: 0 }; const S = { seg: 20, mult: 1 };
+    const mk = (mode, settings, darts) => ({ id: `${mode}-${Math.random()}`, mode, settings, player_ids: ['a'], status: 'finished', created_at: new Date().toISOString(), data: { legs: [{ order: ['a'], darts, validated: 0, done: true, ranking: ['a'] }], legsToWin: 1 } });
+    const x = mk('x01', { start: 301, in: 'single', out: 'single' }, [S, M, S]);
+    const sh = mk('shanghai', { from: 1, to: 7, instantWin: true }, [M, M, M]);
+    const s = playerStats([x, sh], 'a');
+    expect(s.wholeDarts).toBe(3);
+    expect(s.wholeMiss).toBe(1);
+    expect(s.totalDarts).toBe(6);
+    expect(s.missDarts).toBe(4);
+  });
+});

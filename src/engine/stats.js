@@ -33,13 +33,16 @@ export function replayed(game) {
   return legs;
 }
 
+// modes où l'on vise toute la cible (pas un numéro imposé) : sert au « hors cible » principal
+export const WHOLE_BOARD = new Set(['x01', 'countup', 'train-free']);
+
 export function emptyStats() {
   return {
     x01Darts: 0, x01Points: 0, first9Darts: 0, first9Points: 0,
     coAttempts: 0, coHits: 0, bestFinish: 0, c180: 0, c140: 0, c100: 0,
     legsPlayed: 0, legsWon: 0, gamesPlayed: 0,
     cricketMarks: 0, cricketTurns: 0,
-    doubles: {}, heat: [], totalDarts: 0, missDarts: 0,
+    doubles: {}, heat: [], totalDarts: 0, missDarts: 0, wholeDarts: 0, wholeMiss: 0,
     series: [],
   };
 }
@@ -65,6 +68,8 @@ export function playerStats(allGames, pid) {
         for (const d of t.darts) {
           s.totalDarts += 1;
           if (!d.mult) s.missDarts += 1;
+          // modes où l'on vise toute la cible : X01, Count Up, entraînement libre
+          if (WHOLE_BOARD.has(g.mode)) { s.wholeDarts += 1; if (!d.mult) s.wholeMiss += 1; }
           if (typeof d.x === 'number') s.heat.push({ x: d.x, y: d.y, mode: g.mode });
         }
         if (g.mode === 'x01') {
@@ -107,6 +112,7 @@ export function playerStats(allGames, pid) {
   s.winRate = s.legsPlayed ? s.legsWon / s.legsPlayed : null;
   s.mpr = s.cricketTurns ? s.cricketMarks / s.cricketTurns : null;
   s.missRate = s.totalDarts ? s.missDarts / s.totalDarts : null;
+  s.missRateWhole = s.wholeDarts ? s.wholeMiss / s.wholeDarts : null;
   return s;
 }
 

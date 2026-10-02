@@ -102,7 +102,7 @@ const METRICS = [
   { k: 'first9', label: 'Moy. 9 premières', val: (s) => s.first9, ok: (s) => s.first9Darts >= 18, f: (v) => v.toFixed(1), d: (v) => `${v > 0 ? '+' : ''}${v.toFixed(1)}`, better: 1 },
   { k: 'checkout', label: 'Checkout', val: (s) => s.checkout, ok: (s) => s.coAttempts >= 5, f: (v) => `${Math.round(v * 100)} %`, d: (v) => `${v > 0 ? '+' : ''}${Math.round(v * 100)} pts`, better: 1, rate: true },
   { k: 'win', label: 'Legs gagnés', val: (s) => s.winRate, ok: (s) => s.legsPlayed >= 3, f: (v) => `${Math.round(v * 100)} %`, d: (v) => `${v > 0 ? '+' : ''}${Math.round(v * 100)} pts`, better: 1, rate: true },
-  { k: 'miss', label: 'Hors cible', val: (s) => s.missRate, ok: (s) => s.totalDarts >= 60, f: (v) => `${Math.round(v * 100)} %`, d: (v) => `${v > 0 ? '+' : ''}${Math.round(v * 100)} pts`, better: -1, rate: true },
+  { k: 'miss', label: 'Hors cible', val: (s) => s.missRateWhole, ok: (s) => s.wholeDarts >= 60, f: (v) => `${Math.round(v * 100)} %`, d: (v) => `${v > 0 ? '+' : ''}${Math.round(v * 100)} pts`, better: -1, rate: true },
   { k: 'mpr', label: 'Cricket (MPR)', val: (s) => s.mpr, ok: (s) => s.cricketTurns >= 5, f: (v) => v.toFixed(2), d: (v) => `${v > 0 ? '+' : ''}${v.toFixed(2)}`, better: 1 },
   { k: 'finish', label: 'Meilleur finish', val: (s) => s.bestFinish || null, ok: (s) => s.bestFinish > 0, f: (v) => String(v), d: (v) => `${v > 0 ? '+' : ''}${v}`, better: 1 },
 ];

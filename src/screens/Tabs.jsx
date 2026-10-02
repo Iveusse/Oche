@@ -244,7 +244,8 @@ export function Stats({ me, players, games }) {
         <div className="kpi"><div className="k">Gros tours</div><div className="v">{s.c180} × 180</div><div className="s">{s.c140} × 140+ · {s.c100} × 100+</div></div>
         <div className="kpi"><div className="k">Legs gagnés</div><div className="v">{pct(s.winRate)}</div><div className="s">{s.legsWon} sur {s.legsPlayed}</div></div>
         <div className="kpi"><div className="k">Cricket</div><div className="v">{s.mpr == null ? '-' : s.mpr.toFixed(2)}</div><div className="s">marques par tour (MPR)</div></div>
-        <div className="kpi"><div className="k">Hors cible</div><div className="v">{pct(s.missRate)}</div><div className="s">{s.totalDarts} fléchettes en tout</div></div>
+        <div className="kpi"><div className="k">Hors cible</div><div className="v">{pct(s.missRateWhole)}</div><div className="s">X01, Count Up, libre · {s.wholeDarts} fl.</div></div>
+        <div className="kpi" style={{ gridColumn: 'span 2' }}><div className="k">Ratés, tous modes</div><div className="v">{pct(s.missRate)}</div><div className="s">{s.missDarts} sur {s.totalDarts} fléchettes (Shanghai, Cricket, entraînements inclus)</div></div>
       </div>
 
       <div className="panel">
@@ -294,7 +295,8 @@ const CMP_ROWS = [
   ['100+', (s) => s.c100, 'high', (v) => v],
   ['Legs gagnés', (s) => s.winRate, 'high', pct],
   ['Cricket (MPR)', (s) => s.mpr, 'high', (v) => (v == null ? '-' : v.toFixed(2))],
-  ['Hors cible', (s) => s.missRate, 'low', pct],
+  ['Hors cible', (s) => s.missRateWhole, 'low', pct],
+  ['Ratés, tous modes', (s) => s.missRate, 'low', pct],
   ['Parties', (s) => s.gamesPlayed, null, (v) => v],
   ['Fléchettes', (s) => s.totalDarts, null, (v) => v],
 ];
