@@ -1,5 +1,5 @@
 // Palmarès de la semaine : titres décernés d'après les parties du lundi au dimanche.
-import { replayed } from '../engine/stats.js';
+import { replayed, playerStats } from '../engine/stats.js';
 import { isTraining, MODE_LABEL } from '../engine/modes.js';
 import { computeAchievements, ACHIEVEMENTS } from '../engine/achievements.js';
 
@@ -92,5 +92,64 @@ export function computeWeekly(allGames, players, start = weekStartOf()) {
     date: start, sub: `Du ${fmt(start)} au ${fmt(end)} · ${cur.length} partie${cur.length > 1 ? 's' : ''} · ${legsN} leg${legsN > 1 ? 's' : ''}`,
     modes: Object.entries(modes).map(([m, n]) => `${n} ${MODE_LABEL[m]}`).join(' · '),
     activeMs: 0, games: cur.length, legs: legsN, rows, highlights: awards, unlocked, hlTitle: 'Les titres',
+  };
+}
+
+
+// ---------- Ma semaine : bilan perso, progrès et reculs par rapport à la semaine d'avant ----------
+const METRICS = [
+  { k: 'avg', label: 'Moyenne X01', val: (s) => s.avg, ok: (s) => s.x01Darts >= 30, f: (v) => v.toFixed(1), d: (v) => `${v > 0 ? '+' : ''}${v.toFixed(1)}`, better: 1 },
+  { k: 'first9', label: 'Moy. 9 premières', val: (s) => s.first9, ok: (s) => s.first9Darts >= 18, f: (v) => v.toFixed(1), d: (v) => `${v > 0 ? '+' : ''}${v.toFixed(1)}`, better: 1 },
+  { k: 'checkout', label: 'Checkout', val: (s) => s.checkout, ok: (s) => s.coAttempts >= 5, f: (v) => `${Math.round(v * 100)} %`, d: (v) => `${v > 0 ? '+' : ''}${Math.round(v * 100)} pts`, better: 1, rate: true },
+  { k: 'win', label: 'Legs gagnés', val: (s) => s.winRate, ok: (s) => s.legsPlayed >= 3, f: (v) => `${Math.round(v * 100)} %`, d: (v) => `${v > 0 ? '+' : ''}${Math.round(v * 100)} pts`, better: 1, rate: true },
+  { k: 'miss', label: 'Hors cible', val: (s) => s.missRate, ok: (s) => s.totalDarts >= 60, f: (v) => `${Math.round(v * 100)} %`, d: (v) => `${v > 0 ? '+' : ''}${Math.round(v * 100)} pts`, better: -1, rate: true },
+  { k: 'mpr', label: 'Cricket (MPR)', val: (s) => s.mpr, ok: (s) => s.cricketTurns >= 5, f: (v) => v.toFixed(2), d: (v) => `${v > 0 ? '+' : ''}${v.toFixed(2)}`, better: 1 },
+  { k: 'finish', label: 'Meilleur finish', val: (s) => s.bestFinish || null, ok: (s) => s.bestFinish > 0, f: (v) => String(v), d: (v) => `${v > 0 ? '+' : ''}${v}`, better: 1 },
+];
+
+export function computePersonalWeekly(allGames, players, pid, start = weekStartOf()) {
+  const me = players.find((p) => p.id === pid);
+  if (!me) return null;
+  const mine = allGames.filter((g) => g.player_ids.includes(pid));
+  const cur = mine.filter((g) => inWeek(g, start));
+  if (!cur.some((g) => g.data?.legs?.some((l) => l.done))) return null;
+  const prevStart = new Date(start.getTime() - 7 * 86400000);
+  const prev = mine.filter((g) => inWeek(g, prevStart));
+  const sc = playerStats(cur, pid); const sp = playerStats(prev, pid);
+  const stats = [];
+  for (const m of METRICS) {
+    if (!m.ok(sc)) continue;
+    const c = m.val(sc);
+    const p = m.ok(sp) ? m.val(sp) : null;
+    let dir = 'new'; let delta = null; let rel = 0;
+    if (p != null) {
+      const diff = c - p;
+      delta = m.d(diff);
+      rel = m.rate ? diff : diff / Math.abs(p || 1);
+      const sig = Math.abs(rel) >= 0.03;
+      dir = !sig ? 'same' : rel * m.better > 0 ? 'up' : 'down';
+    }
+    stats.push({ k: m.k, label: m.label, cur: m.f(c), prev: p != null ? m.f(p) : null, delta, dir, strength: Math.abs(rel) });
+  }
+  const up = stats.filter((s) => s.dir === 'up').sort((a, b) => b.strength - a.strength);
+  const down = stats.filter((s) => s.dir === 'down').sort((a, b) => b.strength - a.strength);
+  const t0 = start.getTime(); const t1 = t0 + 7 * 86400000;
+  const res = computeAchievements(allGames, pid);
+  const best = new Map();
+  for (const ach of ACHIEVEMENTS) {
+    const d = res[ach.id].unlocked && new Date(res[ach.id].unlocked).getTime();
+    if (!d || d < t0 || d >= t1) continue;
+    const k = ach.series || ach.id; const c = best.get(k);
+    if (!c || (ach.level || 0) > (c.ach.level || 0)) best.set(k, { name: me.name, color: me.color, ach });
+  }
+  const unlocked = [...best.values()].sort((x, y) => y.ach.tier - x.ach.tier);
+  const real = cur.filter((g) => !isTraining(g.mode));
+  const fmt = (d) => d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' });
+  const end = new Date(t1 - 86400000);
+  return {
+    personal: true, title: `La semaine de ${me.name}`, date: start, name: me.name, color: me.color,
+    sub: `Du ${fmt(start)} au ${fmt(end)}`,
+    tiles: [['Parties', String(real.length)], ['Legs gagnés', `${sc.legsWon} / ${sc.legsPlayed}`], ['Fléchettes', String(sc.totalDarts)]],
+    stats, up, down, unlocked, hasPrev: sp.totalDarts > 0,
   };
 }

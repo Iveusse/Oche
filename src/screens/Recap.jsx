@@ -1,13 +1,15 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Icon, Sheet } from '../components/ui.jsx';
 import { computeRecap, drawRecap, mainGroup, recapDays, sessionOfDay } from '../lib/recap.js';
-import { computeWeekly, weekStartOf } from '../lib/weekly.js';
+import { computePersonalWeekly, computeWeekly, weekStartOf } from '../lib/weekly.js';
 import { Seg } from '../components/ui.jsx';
 
-export function RecapSheet({ games, players, onClose, weekly = false }) {
+export function RecapSheet({ games, players, onClose, weekly = false, meId }) {
+  const [view, setView] = useState('global'); // semaine : global ou perso
+  const [who, setWho] = useState(() => (players.some((p) => p.id === meId) ? meId : players[0]?.id));
   // le lundi, la semaine qui vient de commencer est vide : on ouvre directement la précédente
   const [wk, setWk] = useState(() => (weekly && new Date().getDay() === 1 ? 'prev' : 'cur'));
-  const title = weekly ? 'Palmarès de la semaine' : 'Récap de la soirée';
+  const title = weekly ? (view === 'perso' ? 'Ma semaine' : 'Palmarès de la semaine') : 'Récap de la soirée';
   const days = useMemo(() => (weekly ? [] : recapDays(games)), [games, weekly]);
   const [day, setDay] = useState(() => days[0]?.key || '');
   const [off, setOff] = useState(() => { const d = days[0]; if (!d) return []; const g = mainGroup(d.games); return [...d.pids].filter((id) => !g.includes(id)); }); // joueurs décochés
@@ -17,8 +19,8 @@ export function RecapSheet({ games, players, onClose, weekly = false }) {
   const recap = useMemo(() => {
     if (!weekly) return day ? computeRecap(games, players, sessionOfDay(games, day, pids), pids) : null;
     const s = weekStartOf(); if (wk === 'prev') s.setDate(s.getDate() - 7);
-    return computeWeekly(games, players, s);
-  }, [games, players, weekly, wk, day, pids]);
+    return view === 'perso' ? computePersonalWeekly(games, players, who, s) : computeWeekly(games, players, s);
+  }, [games, players, weekly, wk, day, pids, view, who]);
   const [img, setImg] = useState(null);
   const [msg, setMsg] = useState('');
   useEffect(() => {
@@ -30,7 +32,7 @@ export function RecapSheet({ games, players, onClose, weekly = false }) {
 
   const share = async () => {
     if (!img) return;
-    const file = new File([img.blob], `oche-${weekly ? 'semaine' : 'soiree'}-${recap.date.toISOString().slice(0, 10)}.png`, { type: 'image/png' });
+    const file = new File([img.blob], `oche-${weekly ? (view === 'perso' ? 'perso' : 'semaine') : 'soiree'}-${recap.date.toISOString().slice(0, 10)}.png`, { type: 'image/png' });
     try {
       if (navigator.canShare?.({ files: [file] })) { await navigator.share({ files: [file], title }); return; }
     } catch (e) { if (e?.name === 'AbortError') return; }
@@ -45,6 +47,12 @@ export function RecapSheet({ games, players, onClose, weekly = false }) {
         <button style={{ color: 'var(--accent)', fontWeight: 700, minHeight: 44 }} onClick={onClose}>OK</button>
       </div>
       {weekly && <Seg options={[['cur', 'Cette semaine'], ['prev', 'La précédente']]} value={wk} onChange={setWk} />}
+      {weekly && <Seg options={[['global', 'Global'], ['perso', 'Perso']]} value={view} onChange={setView} />}
+      {weekly && view === 'perso' && (
+        <select className="input" value={who} onChange={(e) => setWho(e.target.value)} aria-label="Joueur du bilan perso">
+          {players.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+        </select>
+      )}
       {!weekly && days.length > 0 && (<>
         <div className="col" style={{ gap: 6 }}>
           <span className="label">Jour</span>
@@ -63,7 +71,7 @@ export function RecapSheet({ games, players, onClose, weekly = false }) {
         </div>
         {recap && <div className="small muted">{recap.games} partie{recap.games > 1 ? 's' : ''} où tous ces joueurs ont joué</div>}
       </>)}
-      {!recap ? <div className="muted">{weekly ? 'Aucune partie terminée sur cette semaine.' : days.length ? 'Aucune partie où tous ces joueurs ont joué ce jour-là.' : 'Pas encore de partie terminée.'}</div> : (<>
+      {!recap ? <div className="muted">{weekly ? (view === 'perso' ? 'Aucune partie terminée par ce joueur sur cette semaine.' : 'Aucune partie terminée sur cette semaine.') : days.length ? 'Aucune partie où tous ces joueurs ont joué ce jour-là.' : 'Pas encore de partie terminée.'}</div> : (<>
         {img ? <img src={img.url} alt={title} className="recap-img" /> : <div className="muted small">Préparation de l'image…</div>}
         <button className="btn btn-primary" onClick={share} disabled={!img}><Icon.Share />Partager sur le groupe</button>
         {msg && <div className="small muted" style={{ textAlign: 'center' }}>{msg}</div>}

@@ -140,6 +140,7 @@ export function computeRecap(allGames, players, session = lastSession(allGames),
 const TIER_COLOR = { 1: '#d08b52', 2: '#c3cbd6', 3: '#f2c14e', 4: '#8fe3ff' };
 
 export function drawRecap(recap) {
+  if (recap.personal) return drawPersonal(recap);
   const css = getComputedStyle(document.documentElement);
   const v = (n, f) => css.getPropertyValue(n).trim() || f;
   const C = { bg: v('--bg', '#0f1115'), panel: v('--panel', '#171a21'), card: v('--card', '#1f232c'), text: v('--text', '#f4f5f7'), muted: v('--muted', '#8b93a3'), accent: v('--accent', '#e8ff59'), good: v('--good', '#6ee7b7') };
@@ -202,6 +203,71 @@ export function drawRecap(recap) {
       y += 64;
     }
     if (recap.unlocked.length > ach.length) { font(500, 24); txt(`+ ${recap.unlocked.length - ach.length} autres`, pad + 48, y + 20, C.muted); }
+  }
+  font(500, 22); txt('Oche · compteur de fléchettes maison', W / 2, H - 40, C.muted, 'center');
+  return cv;
+}
+
+// bilan personnel de la semaine : tuiles, progrès, reculs, toutes les stats avec l'écart à la semaine d'avant
+function drawPersonal(recap) {
+  const css = getComputedStyle(document.documentElement);
+  const v = (n, f) => css.getPropertyValue(n).trim() || f;
+  const C = { bg: v('--bg', '#0f1115'), panel: v('--panel', '#171a21'), card: v('--card', '#1f232c'), text: v('--text', '#f4f5f7'), muted: v('--muted', '#8b93a3'), accent: v('--accent', '#e8ff59'), good: v('--good', '#6ee7b7'), bad: v('--bad', '#ff7a7a') };
+  const W = 1080; const pad = 64;
+  const ach = recap.unlocked.slice(0, 5);
+  const block = (n) => (n ? 70 + n * 72 : 0);
+  const H = 330 + 190 + block(recap.up.length) + block(recap.down.length) + block(recap.stats.length) + (ach.length ? 80 + ach.length * 64 : 0) + 110;
+  const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+  const x = cv.getContext('2d');
+  const font = (w, s) => { x.font = `${w} ${s}px -apple-system, "SF Pro Display", "Segoe UI", Roboto, sans-serif`; };
+  const rr = (X, Y, w, h, r, fill) => { x.beginPath(); x.roundRect(X, Y, w, h, r); x.fillStyle = fill; x.fill(); };
+  const txt = (t, X, Y, color, align = 'left') => { x.fillStyle = color; x.textAlign = align; x.fillText(t, X, Y); };
+  const fit = (t, max) => { let s = t; while (x.measureText(s).width > max && s.length > 3) s = s.slice(0, -2); return s === t ? t : `${s}…`; };
+  const arrow = { up: ['▲', C.good], down: ['▼', C.bad], same: ['=', C.muted], new: ['•', C.muted] };
+
+  x.fillStyle = C.bg; x.fillRect(0, 0, W, H);
+  font(800, 30); txt('OCHE', pad, 96, C.accent);
+  x.beginPath(); x.arc(pad + 22, 168, 22, 0, Math.PI * 2); x.fillStyle = recap.color; x.fill();
+  font(800, 60); txt(fit(recap.title, W - pad * 2 - 70), pad + 60, 190, C.text);
+  font(500, 32); txt(recap.sub, pad, 246, C.muted);
+  font(500, 26); txt(recap.hasPrev ? 'Écarts par rapport à la semaine précédente' : 'Pas de semaine précédente pour comparer', pad, 290, C.muted);
+
+  let y = 330;
+  const tw = (W - pad * 2 - 48) / 3;
+  recap.tiles.forEach(([k, val], i) => {
+    const cx = pad + i * (tw + 24);
+    rr(cx, y, tw, 150, 22, C.panel);
+    font(600, 24); txt(k, cx + 26, y + 46, C.muted);
+    font(800, 52); txt(val, cx + 26, y + 112, C.accent);
+  });
+  y += 190;
+
+  const section = (title, rows, color, showDelta = true, big = false) => {
+    if (!rows.length) return;
+    font(800, 34); txt(title, pad, y + 20, color || C.text); y += 54;
+    rows.forEach((s, i) => {
+      rr(pad, y, W - pad * 2, 62, 16, i % 2 ? C.panel : C.card);
+      const [sym, col] = arrow[s.dir];
+      font(800, 26); txt(sym, pad + 30, y + 41, col, 'center');
+      font(600, 28); txt(s.label, pad + 62, y + 41, C.text);
+      font(800, 32); txt(s.cur, W - pad - (showDelta ? 250 : 28), y + 42, C.text, 'right');
+      if (showDelta && s.delta != null) { font(700, 26); txt(`${s.delta}`, W - pad - 28, y + 41, col, 'right'); }
+      else if (showDelta) { font(600, 24); txt('nouveau', W - pad - 28, y + 41, C.muted, 'right'); }
+      y += 72;
+    });
+    y += 16;
+  };
+  section('En progrès', recap.up, C.good);
+  section('En recul', recap.down, C.bad);
+  section('Les stats de la semaine', recap.stats, C.text);
+
+  if (ach.length) {
+    font(800, 34); txt('Succès débloqués', pad, y + 30, C.text); y += 70;
+    for (const u of ach) {
+      x.beginPath(); x.arc(pad + 16, y + 26, 14, 0, Math.PI * 2); x.fillStyle = TIER_COLOR[u.ach.tier]; x.fill();
+      font(700, 28); txt(fit(u.ach.name, W - pad * 2 - 60), pad + 48, y + 36, C.text);
+      y += 64;
+    }
   }
   font(500, 22); txt('Oche · compteur de fléchettes maison', W / 2, H - 40, C.muted, 'center');
   return cv;

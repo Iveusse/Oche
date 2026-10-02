@@ -113,7 +113,7 @@ export function Home({ me, players, games, lives = [], team, onTeams, onNew, onR
 
       {detail && <GameDetail game={detail} players={players} onClose={() => setDetail(null)} />}
       {recapOpen && <RecapSheet games={games} players={players} onClose={() => setRecapOpen(false)} />}
-      {weekOpen && <RecapSheet weekly games={games} players={players} onClose={() => setWeekOpen(false)} />}
+      {weekOpen && <RecapSheet weekly meId={me?.id} games={games} players={players} onClose={() => setWeekOpen(false)} />}
       {showWeek && !lives.length && realGames(games).length > 0 && (
         <button onClick={() => setWeekOpen(true)} className="card between recap-card" style={{ textAlign: 'left', padding: 16 }}>
           <div>
@@ -318,26 +318,26 @@ function H2HDetail({ h2h, aName, bName, aColor = 'var(--accent)', bColor = 'var(
   </>);
 }
 
-// « Bête noire » et « victime préférée » d'un joueur, d'après les legs joués l'un contre l'autre
+// « Bête noire » = l'adversaire contre qui on a perdu le plus de legs ; « victime préférée » = celui à qui on en a fait perdre le plus
 function Rivalries({ me, players, games }) {
-  const list = players.filter((p) => p.id !== me.id).map((p) => ({ p, h: headToHead(realGames(games), me.id, p.id) })).filter((x) => x.h.legs >= 3);
+  const list = players.filter((p) => p.id !== me.id).map((p) => ({ p, h: headToHead(realGames(games), me.id, p.id) })).filter((x) => x.h.legs >= 1);
   if (list.length < 1) return null;
-  const rate = (x) => x.h.a / x.h.legs;
-  const sorted = [...list].sort((x, y) => rate(x) - rate(y));
-  const worst = sorted[0]; const best = sorted[sorted.length - 1];
-  const line = (x, label, emoji) => (
+  const most = (f) => [...list].sort((x, y) => f(y) - f(x) || (f === wins ? (y.h.a / y.h.legs) - (x.h.a / x.h.legs) : (y.h.b / y.h.legs) - (x.h.b / x.h.legs)))[0];
+  const wins = (x) => x.h.a; const losses = (x) => x.h.b;
+  const victim = most(wins); const worst = most(losses);
+  const line = (x, label, emoji, n) => (
     <div className="between" key={label}>
       <span>{emoji} <b>{label}</b> : {x.p.name}</span>
-      <span className="small muted">{x.h.a} - {x.h.b} en legs</span>
+      <span className="small muted" style={{ whiteSpace: 'nowrap' }}>{n}</span>
     </div>
   );
   return (
     <div className="panel">
       <span className="h3">Rivalités</span>
-      {rate(worst) < 0.5 && line(worst, 'Bête noire', '😈')}
-      {rate(best) > 0.5 && line(best, 'Victime préférée', '🎯')}
-      {rate(worst) >= 0.5 && rate(best) <= 0.5 && <span className="small muted">Pas encore de rivalité tranchée : ça se joue à égalité.</span>}
-      <span className="small muted">Basé sur les legs joués l'un contre l'autre (3 minimum).</span>
+      {worst.h.b > 0 && line(worst, 'Bête noire', '😈', `${worst.h.b} défaite${worst.h.b > 1 ? 's' : ''} sur ${worst.h.legs}`)}
+      {victim.h.a > 0 && line(victim, 'Victime préférée', '🎯', `${victim.h.a} victoire${victim.h.a > 1 ? 's' : ''} sur ${victim.h.legs}`)}
+      {worst.h.b === 0 && victim.h.a === 0 && <span className="small muted">Pas encore de rivalité : aucun leg gagné ni perdu contre un adversaire.</span>}
+      <span className="small muted">Bête noire : l'adversaire contre qui tu as perdu le plus de legs. Victime préférée : celui à qui tu en as fait perdre le plus.</span>
     </div>
   );
 }
@@ -455,7 +455,7 @@ export function Ranking({ players, games, me }) {
         <button className="btn btn-ghost grow" onClick={() => setWeekOpen(true)}>🏅 Palmarès semaine</button>
       </div>
       {recapOpen && <RecapSheet games={games} players={players} onClose={() => setRecapOpen(false)} />}
-      {weekOpen && <RecapSheet weekly games={games} players={players} onClose={() => setWeekOpen(false)} />}
+      {weekOpen && <RecapSheet weekly meId={me?.id} games={games} players={players} onClose={() => setWeekOpen(false)} />}
       <Seg options={[['win', 'Victoires'], ['avg', 'Moyenne'], ['co', 'Checkout'], ['mpr', 'Cricket']]} value={sortBy} onChange={setSortBy} />
       <div className="small muted" style={{ marginTop: -4 }}>Classé par : {RULE}</div>
       <div className="col" style={{ gap: 8 }}>
