@@ -240,11 +240,11 @@ function TeamApp({ team, onTeams, onInvalid, onRenamed }) {
       setCur(final); persist(final);
       return; // l'écran de fin d'entraînement s'affiche
     }
-    // dernier leg terminé mais pas encore validé (en attente de « Valider la fin ») : on le garde plutôt que de le perdre
+    // dernier leg avec un vainqueur mais pas encore validé (« Valider la fin » ou « On continue pour les places ? » en attente) : on le garde plutôt que de le perdre
     const finishedLegs = legs.map((l, i) => {
       if (l.done || i !== legs.length - 1 || !l.darts?.length) return l;
       const rr = runLeg(g.mode, g.settings || {}, l);
-      return rr.over && !rr.needDecision ? { ...l, done: true, ranking: rr.ranking, finishedAt: new Date().toISOString() } : l;
+      return (rr.over || rr.needDecision || rr.finishedOrder.length > 0) ? { ...l, done: true, ranking: rr.ranking, finishedAt: new Date().toISOString() } : l;
     });
     if (opts.abandon) {
       const done = finishedLegs.filter((l) => l.done);
