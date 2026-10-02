@@ -511,3 +511,23 @@ describe('félicitations', () => {
     expect(praiseTurn('cricket', t, 'Yves', 0, { mpr: 5 })).toBeNull();
   });
 });
+
+describe('count up', () => {
+  it('additionne les fléchettes sur 8 manches', async () => {
+    const { runLeg } = await import('./runner.js');
+    const T20 = { seg: 20, mult: 3 }; const M = { seg: 0, mult: 0 };
+    const darts = [];
+    for (let i = 0; i < 8; i++) darts.push(T20, { seg: 25, mult: 2 }, M, M, M, M);
+    const leg = { order: ['a', 'b'], darts, validated: 16 };
+    const r = runLeg('countup', { rounds: 8 }, leg);
+    expect(r.ps[0].pts).toBe(8 * 110);
+    expect(r.ps[1].pts).toBe(0);
+    expect(r.over).toBe(true);
+  });
+  it('pas fini avant la dernière manche', async () => {
+    const { runLeg } = await import('./runner.js');
+    const r = runLeg('countup', { rounds: 8 }, { order: ['a'], darts: [{ seg: 20, mult: 1 }, { seg: 20, mult: 1 }, { seg: 20, mult: 1 }], validated: 0 });
+    expect(r.over).toBe(false);
+    expect(r.ps[0].pts).toBe(60);
+  });
+});

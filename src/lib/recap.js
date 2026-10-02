@@ -46,7 +46,7 @@ export function computeRecap(allGames, players, session = lastSession(allGames),
   if (!session) return null;
   const byId = Object.fromEntries(players.map((p) => [p.id, p]));
   const P = {};
-  const get = (id) => (P[id] ||= { id, name: byId[id]?.name || '?', color: byId[id]?.color || '#888', legs: 0, won: 0, darts: 0, pts: 0, high: 0, c180: 0, co: 0, bestLeg: null, bestLegStart: null, shanghai: 0, marks: 0, cTurns: 0, baseball: 0, kills: 0 });
+  const get = (id) => (P[id] ||= { id, name: byId[id]?.name || '?', color: byId[id]?.color || '#888', legs: 0, won: 0, darts: 0, pts: 0, high: 0, c180: 0, co: 0, bestLeg: null, bestLegStart: null, shanghai: 0, marks: 0, cTurns: 0, baseball: 0, countup: 0, kills: 0 });
   let legsN = 0; let activeMs = 0; const modes = {};
   for (const g of session.games) {
     modes[g.mode] = (modes[g.mode] || 0) + 1;
@@ -71,6 +71,7 @@ export function computeRecap(allGames, players, session = lastSession(allGames),
         }
         if (g.mode === 'x01' && leg.ranking?.[0] === id && (p.bestLeg == null || legDarts < p.bestLeg)) { p.bestLeg = legDarts; p.bestLegStart = startOf(g, id); }
         if (g.mode === 'shanghai') p.shanghai = Math.max(p.shanghai, r.ps[idx].pts);
+        if (g.mode === 'countup') p.countup = Math.max(p.countup, r.ps[idx].pts);
         if (g.mode === 'baseball') p.baseball = Math.max(p.baseball, r.ps[idx].pts);
         if (g.mode === 'killer') p.kills += r.ps[idx].kills;
       });
@@ -91,6 +92,7 @@ export function computeRecap(allGames, players, session = lastSession(allGames),
   if (fast) hl.push(['Leg le plus rapide', `${fast.bestLeg} fl.`, `${fast.name} (${fast.bestLegStart})`]);
   const sh = top((p) => p.shanghai); if (sh) hl.push(['Meilleur Shanghai', `${sh.v} pts`, sh.p.name]);
   const bb = top((p) => p.baseball); if (bb) hl.push(['Meilleur Baseball', `${bb.v} pts`, bb.p.name]);
+  const cu = top((p) => p.countup); if (cu) hl.push(['Meilleur Count Up', `${cu.v} pts`, cu.p.name]);
   const kl = top((p) => p.kills); if (kl) hl.push(['Éliminations au Killer', `${kl.v} ☠`, kl.p.name]);
   const mp = top((p) => p.mpr); if (mp) hl.push(['Meilleur MPR', mp.v.toFixed(2), mp.p.name]);
 

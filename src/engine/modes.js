@@ -233,6 +233,23 @@ export const baseball = {
   rankKey: (ps) => ps.pts,
 };
 
+// ---------- Count Up ----------
+// 8 manches (réglable) de 3 fléchettes : on additionne tout ce qu'on touche (T20 = 60, bull = 50).
+// Le plus gros total gagne.
+export const COUNTUP_ROUNDS = 8;
+export const countUpRounds = (s) => Number(s?.rounds) || COUNTUP_ROUNDS;
+export const countup = {
+  race: false,
+  init: () => ({ pts: 0 }),
+  dart(ps, d) {
+    const pts = dartScore(d);
+    ps.pts += pts;
+    return { info: { pts } };
+  },
+  status: ({ turns, n, settings }) => ({ over: turns.length >= n * countUpRounds(settings), needDecision: false }),
+  rankKey: (ps) => ps.pts,
+};
+
 // ---------- Killer ----------
 // Chaque joueur a un numéro. On devient « killer » en touchant le DOUBLE de son propre numéro.
 // Ensuite, chaque double sur le numéro d'un adversaire lui retire une vie. Le dernier en vie gagne.
@@ -290,7 +307,7 @@ export const trainKiller = {
 };
 
 export const MODES = {
-  x01, cricket, atc, shanghai, baseball, killer,
+  x01, cricket, atc, shanghai, baseball, killer, countup,
   'train-free': trainFree,
   'train-baseball': trainBaseball,
   'train-killer': trainKiller,
@@ -301,7 +318,7 @@ export const MODES = {
 };
 
 export const MODE_LABEL = {
-  x01: 'X01', cricket: 'Cricket', atc: 'Around the Clock', shanghai: 'Shanghai', baseball: 'Baseball', killer: 'Killer',
+  x01: 'X01', cricket: 'Cricket', atc: 'Around the Clock', shanghai: 'Shanghai', baseball: 'Baseball', killer: 'Killer', countup: 'Count Up',
   'train-baseball': 'Baseball solo', 'train-killer': 'Doubles de Killer',
   'train-free': 'Session libre', 'train-doubles': 'Tour des doubles',
   'train-focus20': 'Focus 20', 'train-checkout': 'Checkouts 41-100', 'train-atc': 'Around the Clock ciblé',

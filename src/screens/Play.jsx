@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { runLeg, legsWon } from '../engine/runner.js';
-import { MODE_LABEL, CRICKET_NUMS, isTraining, shanghaiNumbers, atcTargets, startOf, hasHandicap, BASEBALL_INNINGS, killerNumbers, killerTargets } from '../engine/modes.js';
+import { MODE_LABEL, CRICKET_NUMS, isTraining, shanghaiNumbers, atcTargets, startOf, hasHandicap, BASEBALL_INNINGS, countUpRounds, killerNumbers, killerTargets } from '../engine/modes.js';
 import { dartLabel, dartScore, suggestCheckout } from '../lib/board.js';
 import { Dartboard } from '../components/Dartboard.jsx';
 import { Icon, Seg, Sheet, Switch, TopBar, tap } from '../components/ui.jsx';
@@ -24,6 +24,7 @@ function turnSpeech(mode, t, name, byId = {}) {
   }
   if (mode === 'cricket') { const m = sum((d) => d.marks); return m ? `${m} marque${m > 1 ? 's' : ''}` : 'Rien'; }
   if (mode === 'shanghai') { if (t.darts.some((d) => d.shanghai)) return 'Shanghai !'; const p = sum((d) => d.pts); return p ? `${p} point${p > 1 ? 's' : ''}` : 'Rien'; }
+  if (mode === 'countup') { const p = sum((d) => d.pts); return p === 180 ? 'Cent quatre-vingts !' : p ? String(p) : 'Rien'; }
   if (mode === 'baseball') { const p = sum((d) => d.pts); return p ? `${p} point${p > 1 ? 's' : ''}` : 'Rien'; }
   if (mode === 'killer') {
     const say = [];
@@ -74,6 +75,11 @@ function nextSpeech(game, leg, r, byId) {
     const t = leg.targets?.[ps.pos];
     return t == null ? who : `${who}Cible ${game.mode === 'train-doubles' ? (t === 25 ? 'boul' : `double ${t}`) : (t === 25 ? 'boul' : t)}`;
   }
+  if (game.mode === 'countup') {
+    const R = countUpRounds(game.settings);
+    const n = Math.min(r.turns.filter((t) => t.p === i).length + 1, R);
+    return `${who}Manche ${n} sur ${R}`;
+  }
   if (game.mode === 'baseball') {
     const n = r.turns.filter((t) => t.p === i).length + 1;
     return `${who}Manche ${Math.min(n, BASEBALL_INNINGS)}, le ${Math.min(n, BASEBALL_INNINGS)}`;
@@ -109,6 +115,7 @@ export function modeSubtitle(game) {
     case 'shanghai': return `${s.from} à ${s.to} · Leg ${legNo}`;
     case 'cricket': return `${s.points === false ? 'Sans points' : 'Avec points'} · Leg ${legNo}`;
     case 'baseball': return `9 manches · Leg ${legNo}`;
+    case 'countup': return `${countUpRounds(s)} manches · Leg ${legNo}`;
     case 'killer': return `${s.lives || 3} vies · Leg ${legNo}`;
     case 'train-atc': return `Entraînement · ${(s.zones || []).join(' + ')} · ${(s.nums || []).map((n) => (n === 25 ? 'bull' : n)).join(', ') || '1 → 20'}`;
     default: return 'Entraînement';
@@ -195,6 +202,7 @@ function cardInfo(game, r, ps, idx) {
     case 'x01': { const a = legAvg(r, idx); return { v: ps.rem, s: a == null ? 'Moy. -' : `Moy. ${a.toFixed(1)}` }; }
     case 'atc': return { v: ps.finished ? '✓' : targetLabel(leg.targets[ps.pos]), s: `${ps.pos} / ${leg.targets.length}` };
     case 'shanghai': return { v: ps.pts, s: 'points' };
+    case 'countup': return { v: ps.pts, s: `manche ${Math.min(r.turns.filter((t) => t.p === idx).length + 1, countUpRounds(game.settings))}/${countUpRounds(game.settings)}` };
     case 'baseball': return { v: ps.pts, s: `manche ${Math.min(r.turns.filter((t) => t.p === idx).length + 1, BASEBALL_INNINGS)}/${BASEBALL_INNINGS}` };
     case 'killer': return { v: ps.out ? '☠' : '♥'.repeat(Math.max(ps.lives, 0)), s: ps.out ? 'éliminé' : ps.killer ? `killer · n°${ps.num}` : `D${ps.num} pour tuer` };
     case 'cricket': return { v: ps.pts, s: `${CRICKET_NUMS.filter((k) => ps.marks[k] >= 3).length} / 7 fermés` };
@@ -239,7 +247,7 @@ export function Play({ game, players, records, history = [], onUpdate, onLegDone
   const r = useMemo(() => runLeg(game.mode, game.settings, leg), [game, leg]);
   const [menu, setMenu] = useState(false);
   // saisie : cible ou boutons, mémorisé par mode (X01, Cricket, Shanghai…)
-  const PAD_MODES = ['shanghai', 'baseball', 'train-baseball', 'x01', 'cricket', 'train-checkout', 'atc', 'killer'];
+  const PAD_MODES = ['shanghai', 'baseball', 'countup', 'train-baseball', 'x01', 'cricket', 'train-checkout', 'atc', 'killer'];
   const TARGET_MODE = ['shanghai', 'baseball', 'train-baseball'].includes(game.mode);
   const inputKey = game.mode === 'shanghai' ? 'shanghaiInput' : `input.${game.mode}`;
   const [input, setInputState] = useState(() => (PAD_MODES.includes(game.mode) ? load(inputKey, 'board') : 'board'));
@@ -394,6 +402,12 @@ export function Play({ game, players, records, history = [], onUpdate, onLegDone
       else if (nd?.kind === 'lead') hint = `En tête de ${nd.gap} pts`;
       else if (nd?.kind === 'safe') hint = `${nd.gap} pts de retard sur le premier`;
     }
+  } else if (game.mode === 'countup') {
+    const R = countUpRounds(game.settings);
+    const round = shown ? shown.round : Math.floor(r.turns.length / r.ps.length);
+    info = { b: `Manche ${Math.min(round + 1, R)}/${R}`, a: tps.pts };
+    const done = r.turns.filter((t) => t.p === r.ps.indexOf(tps)).length;
+    hint = done ? `Moyenne ${(tps.pts / done).toFixed(1)} par volée` : 'Additionne tout ce que tu touches';
   } else if (game.mode === 'baseball') {
     const round = shown ? shown.round : Math.floor(r.turns.length / r.ps.length);
     info = { b: `Manche ${Math.min(round + 1, BASEBALL_INNINGS)}/${BASEBALL_INNINGS}`, a: Math.min(round + 1, BASEBALL_INNINGS) };
@@ -699,6 +713,7 @@ function legStatLabel(game, r, idx) {
     case 'atc': return p.finished ? `${dartsOf(r, idx)} fléchettes` : `${p.pos} cases`;
     case 'shanghai': return `${p.pts} pts`;
     case 'baseball': return `${p.pts} pts`;
+    case 'countup': return `${p.pts} pts`;
     case 'killer': return p.out ? 'éliminé' : `${p.lives} vie${p.lives > 1 ? 's' : ''}`;
     default: return '';
   }

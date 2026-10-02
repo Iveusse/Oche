@@ -11,6 +11,7 @@ const MODES = [
   ['shanghai', 'Shanghai', '1 numéro par manche'],
   ['baseball', 'Baseball', '9 manches, 1 à 3 points'],
   ['killer', 'Killer', 'élimine les autres'],
+  ['countup', 'Count Up', 'fais le plus gros total'],
 ];
 
 const DEFAULTS = {
@@ -20,6 +21,7 @@ const DEFAULTS = {
   shanghai: { from: 1, to: 7, instantWin: true },
   baseball: {},
   killer: { lives: 3 },
+  countup: { rounds: 8 },
 };
 
 function SettingRow({ title, sub, children }) {
@@ -136,6 +138,11 @@ export function NewGame({ players, games, meId, lastPlayedMap, onBack, onStart, 
         {mode === 'baseball' && (
           <div className="small muted" style={{ lineHeight: 1.45 }}>9 manches : la manche N se joue sur le numéro N. Simple = 1 point, double = 2, triple = 3. Le plus de points après 9 manches gagne.</div>
         )}
+
+        {mode === 'countup' && (<>
+          <SettingRow title="Manches" sub="3 fléchettes par manche, on additionne tout"><Stepper value={s.rounds || 8} min={1} max={20} onChange={(v) => set({ rounds: v })} label="manches" format={(v) => `${v} manche${v > 1 ? 's' : ''}`} /></SettingRow>
+          <SettingRow title="Premier à"><Stepper value={legsToWin} onChange={setLegsToWin} max={11} label="de legs" format={(v) => `${v} leg${v > 1 ? 's' : ''}`} /></SettingRow>
+        </>)}
 
         {mode === 'killer' && (<>
           <SettingRow title="Vies de départ" sub="Chaque double sur ton numéro en retire une"><Stepper value={s.lives || 3} min={1} max={5} onChange={(v) => set({ lives: v })} label="vies" format={(v) => `${v} vie${v > 1 ? 's' : ''}`} /></SettingRow>

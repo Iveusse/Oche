@@ -86,7 +86,7 @@ export function GameDetail({ game, players, onClose }) {
   const active = legs.reduce((a, { leg }) => a + (leg.activeMs || 0), 0);
   const d = new Date(game.created_at);
   const ids = [...game.player_ids].sort((a, b) => stats[b].won - stats[a].won);
-  const x01 = game.mode === 'x01'; const sh = game.mode === 'shanghai' || game.mode === 'baseball'; const ki = game.mode === 'killer'; const cr = game.mode === 'cricket';
+  const x01 = game.mode === 'x01'; const sh = game.mode === 'shanghai' || game.mode === 'baseball' || game.mode === 'countup'; const ki = game.mode === 'killer'; const cr = game.mode === 'cricket';
 
   return (
     <Sheet onClose={onClose} label="Détail de la partie">

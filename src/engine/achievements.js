@@ -42,6 +42,8 @@ export const SERIES = [
   { key: 'atc', countsGames: true, name: "Parties d'Around the Clock", unit: 'parties', basis: 'atc', get: (c) => c.byMode.atc },
   { key: 'baseball', countsGames: true, name: 'Parties de Baseball', unit: 'parties', manual: [[1, 1], [5, 1], [15, 2], [40, 3], [100, 4]], get: (c) => c.byMode.baseball },
   { key: 'killer', countsGames: true, name: 'Parties de Killer', unit: 'parties', manual: [[1, 1], [5, 1], [15, 2], [40, 3], [100, 4]], get: (c) => c.byMode.killer },
+  { key: 'countup', countsGames: true, name: 'Parties de Count Up', unit: 'parties', manual: [[1, 1], [5, 1], [15, 2], [40, 3], [100, 4]], get: (c) => c.byMode.countup },
+  { key: 'countup-wins', name: 'Victoires au Count Up', unit: 'victoires', manual: [[1, 1], [5, 2], [15, 2], [40, 3], [100, 4]], get: (c) => c.winsByMode.countup },
   { key: 'baseball-wins', name: 'Victoires au Baseball', unit: 'victoires', manual: [[1, 1], [5, 2], [15, 2], [40, 3], [100, 4]], get: (c) => c.winsByMode.baseball },
   { key: 'killer-wins', name: 'Victoires au Killer', unit: 'victoires', manual: [[1, 1], [5, 2], [15, 2], [40, 3], [100, 4]], get: (c) => c.winsByMode.killer },
   { key: 'killer-kills', name: 'Éliminations au Killer', unit: 'éliminations', manual: [[1, 1], [5, 1], [15, 2], [40, 3], [100, 4]], get: (c) => c.kills },
@@ -143,6 +145,9 @@ const EXPLOITS = [
   { id: 'early', name: 'Lève-tôt', desc: 'Jouer une partie avant 9 h du matin', goal: (c) => [c.early ? 1 : 0, 1], tier: 1 },
   { id: 'marathon', name: 'Marathon', desc: 'Jouer 10 parties le même jour', goal: (c) => [c.maxGamesDay, 10], tier: 2 },
   { id: 'week', name: 'Semaine de feu', desc: 'Jouer 7 jours d\'affilée', goal: (c) => [c.bestDayStreak, 7], tier: 3 },
+  { id: 'countup-300', basis: null, name: 'Compteur chaud', desc: 'Faire 300 points ou plus sur un Count Up de 8 manches', tier: 2, goal: (c) => [c.bestCountUp >= 300 ? 1 : 0, 1], hint: (c) => best(c.bestCountUp, 'Meilleur Count Up') },
+  { id: 'countup-450', basis: null, name: 'Compteur en feu', desc: 'Faire 450 points ou plus sur un Count Up de 8 manches', tier: 3, goal: (c) => [c.bestCountUp >= 450 ? 1 : 0, 1], hint: (c) => best(c.bestCountUp, 'Meilleur Count Up') },
+  { id: 'countup-600', basis: null, name: 'Compteur à bloc', desc: 'Faire 600 points ou plus sur un Count Up de 8 manches', tier: 4, goal: (c) => [c.bestCountUp >= 600 ? 1 : 0, 1], hint: (c) => best(c.bestCountUp, 'Meilleur Count Up') },
   { id: 'baseball-20', basis: null, name: 'Bon match', desc: 'Marquer 20 points ou plus sur une partie de Baseball (9 manches)', tier: 2, goal: (c) => [c.bestBaseball >= 20 ? 1 : 0, 1], hint: (c) => best(c.bestBaseball, 'Meilleur Baseball') },
   { id: 'baseball-35', basis: null, name: 'Beau match', desc: 'Marquer 35 points ou plus sur une partie de Baseball', tier: 3, goal: (c) => [c.bestBaseball >= 35 ? 1 : 0, 1], hint: (c) => best(c.bestBaseball, 'Meilleur Baseball') },
   { id: 'baseball-50', basis: null, name: 'Match de légende', desc: 'Marquer 50 points ou plus sur une partie de Baseball', tier: 4, goal: (c) => [c.bestBaseball >= 50 ? 1 : 0, 1], hint: (c) => best(c.bestBaseball, 'Meilleur Baseball') },
@@ -195,7 +200,7 @@ function emptyCounters() {
   return {
     games: 0, legsWon: 0, darts: 0, triples: 0, doubles: 0, bulls: 0, bull25: 0, tons: 0, c140: 0, c180: 0,
     checkouts: 0, bigCheckouts: 0, x01Points: 0, marks: 0, shanghais: 0, trainings: 0, misses: 0, busts: 0,
-    byMode: { x01: 0, cricket: 0, shanghai: 0, atc: 0, baseball: 0, killer: 0 }, winsByMode: { x01: 0, cricket: 0, shanghai: 0, atc: 0, baseball: 0, killer: 0 },
+    byMode: { x01: 0, cricket: 0, shanghai: 0, atc: 0, baseball: 0, killer: 0, countup: 0 }, winsByMode: { x01: 0, cricket: 0, shanghai: 0, atc: 0, baseball: 0, killer: 0, countup: 0 }, bestCountUp: 0,
     kills: 0, baseballRuns: 0, bestBaseball: 0, baseballClean: false, homerun: false, killerExpress: false, killerFlawless: false, doubleKill: false, serialKiller: false, killerComeback: false,
     days: new Set(), dayCount: {}, modesSet: new Set(), numbersHit: new Set(), treblesHit: new Set(), doublesHit: new Set(),
     got26: false, turnPts: new Set(), comeback: false, midnight: false, bullBull: false, almost: {}, almostMax: 0, towel: false, trio: false, beaten: new Set(), oppTotal: 0, loseStreak: 0, bestLose: 0, threeMiss: false, night: false, early: false, streak: 0, bestStreak: 0, maxMarks: 0, maxTreblesTurn: 0,
@@ -342,6 +347,7 @@ export function computeAchievements(games, pid) {
       if (leg.done) gameLegsDone += 1;
       if (won) gameLegsWon += 1;
       if (won && firstTurnMiss && (g.mode === 'x01' || g.mode === 'cricket')) c.comeback = true;
+      if (g.mode === 'countup' && leg.done && (g.settings?.rounds || 8) >= 8) c.bestCountUp = Math.max(c.bestCountUp, r.ps[idx].pts);
       if (g.mode === 'baseball' && leg.done) {
         const mine9 = r.turns.filter((t) => t.p === idx);
         c.baseballRuns += r.ps[idx].pts; c.bestBaseball = Math.max(c.bestBaseball, r.ps[idx].pts);

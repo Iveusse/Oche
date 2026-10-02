@@ -32,7 +32,7 @@ function liveScore(g, byId) {
     const r = runLeg(g.mode, g.settings || {}, leg);
     const val = (p) => (g.mode === 'x01' ? p.rem : g.mode === 'atc' ? `${p.pos}/${leg.targets?.length || 20}` : p.pts);
     if (g.mode === 'killer') return r.ps.map((p) => `${byId[p.id]?.name || '?'} ${p.out ? '☠' : '♥'.repeat(Math.max(p.lives, 0))}`).join(' · ');
-    if (['x01', 'cricket', 'shanghai', 'atc', 'baseball'].includes(g.mode)) return r.ps.map((p) => `${byId[p.id]?.name || '?'} ${val(p)}`).join(' · ');
+    if (['x01', 'cricket', 'shanghai', 'atc', 'baseball', 'countup'].includes(g.mode)) return r.ps.map((p) => `${byId[p.id]?.name || '?'} ${val(p)}`).join(' · ');
   } catch { /* partie illisible : on n'affiche rien */ }
   return null;
 }
@@ -255,7 +255,7 @@ export function Stats({ me, players, games }) {
       <div className="panel">
         <div className="between"><span className="h3">Heatmap</span><span className="small muted">{heat.length} fléchettes</span></div>
         <div className="row" style={{ gap: 6, flexWrap: 'wrap' }}>
-          {[['all', 'Tout'], ['x01', 'X01'], ['cricket', 'Cricket'], ['atc', 'ATC'], ['shanghai', 'Shanghai'], ['baseball', 'Baseball'], ['killer', 'Killer'], ['train', 'Entraînement']].map(([k, l]) => (
+          {[['all', 'Tout'], ['x01', 'X01'], ['cricket', 'Cricket'], ['atc', 'ATC'], ['shanghai', 'Shanghai'], ['baseball', 'Baseball'], ['killer', 'Killer'], ['countup', 'Count Up'], ['train', 'Entraînement']].map(([k, l]) => (
             <button key={k} onClick={() => setHeatMode(k)} aria-pressed={heatMode === k}
               style={{ height: 32, padding: '0 12px', borderRadius: 16, fontSize: 13, fontWeight: 700, background: heatMode === k ? 'var(--accent)' : 'transparent', color: heatMode === k ? 'var(--on-accent)' : 'var(--text-2)', border: heatMode === k ? 'none' : '1px solid var(--wire)' }}>{l}</button>
           ))}
