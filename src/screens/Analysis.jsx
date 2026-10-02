@@ -402,6 +402,21 @@ function AtcView({ games, prevGames, allGames, period, pid }) {
   </>);
 }
 
+// volume de jeu du mode : parties, legs joués, fléchettes lancées et fléchettes ratées (le raté n'a pas le même poids selon le jeu)
+function VolumeCard({ games, pid, mode }) {
+  const v = useMemo(() => playerStats(games, pid).byMode[mode], [games, pid, mode]);
+  if (!v) return null;
+  const rate = v.darts ? Math.round((v.miss / v.darts) * 100) : null;
+  return (
+    <div className="grid2" style={{ gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 8 }}>
+      <Mini k="Parties" v={v.games} />
+      <Mini k="Legs joués" v={v.legs} />
+      <Mini k="Fléchettes" v={v.darts} />
+      <Mini k="Ratés" v={rate == null ? '-' : `${rate} %`} s={`${v.miss}`} />
+    </div>
+  );
+}
+
 export function Analysis({ games, pid }) {
   const [period, setPeriod] = useState('90');
   const [mode, setMode] = useState('x01');
@@ -417,6 +432,7 @@ export function Analysis({ games, pid }) {
       ))}
     </div>
     {prev && <div className="small muted" style={{ marginTop: -6 }}>Les flèches comparent avec les {PERIODS.find((p) => p[0] === period)[1]} d'avant.</div>}
+    <VolumeCard games={cur} pid={pid} mode={mode} />
     <View games={cur} prevGames={prev} allGames={games} period={period} pid={pid} />
   </>);
 }

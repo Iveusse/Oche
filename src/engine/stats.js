@@ -43,7 +43,7 @@ export function emptyStats() {
     legsPlayed: 0, legsWon: 0, gamesPlayed: 0,
     cricketMarks: 0, cricketTurns: 0,
     doubles: {}, heat: [], totalDarts: 0, missDarts: 0, wholeDarts: 0, wholeMiss: 0,
-    series: [],
+    series: [], byMode: {},
   };
 }
 
@@ -54,11 +54,14 @@ export function playerStats(allGames, pid) {
     if (!g.player_ids.includes(pid)) continue;
     const training = isTraining(g.mode);
     if (!training) s.gamesPlayed += 1;
+    const bm = (s.byMode[g.mode] ||= { games: 0, legs: 0, darts: 0, miss: 0 });
+    bm.games += 1;
     let gDarts = 0; let gPts = 0;
     for (const { leg, r } of replayed(g)) {
       const idx = leg.order.indexOf(pid);
       if (idx < 0) continue;
       if (!training && leg.done) {
+        bm.legs += 1;
         s.legsPlayed += 1;
         if (leg.ranking?.[0] === pid) s.legsWon += 1;
       }
@@ -66,8 +69,8 @@ export function playerStats(allGames, pid) {
       for (const t of r.turns) {
         if (t.p !== idx) continue;
         for (const d of t.darts) {
-          s.totalDarts += 1;
-          if (!d.mult) s.missDarts += 1;
+          s.totalDarts += 1; bm.darts += 1;
+          if (!d.mult) { s.missDarts += 1; bm.miss += 1; }
           // modes où l'on vise toute la cible : X01, Count Up, entraînement libre
           if (WHOLE_BOARD.has(g.mode)) { s.wholeDarts += 1; if (!d.mult) s.wholeMiss += 1; }
           if (typeof d.x === 'number') s.heat.push({ x: d.x, y: d.y, mode: g.mode });

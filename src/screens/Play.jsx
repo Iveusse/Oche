@@ -331,7 +331,7 @@ export function Play({ game, players, records, history = [], onUpdate, onLegDone
       const tpts = t.darts.reduce((a, d) => a + (d.pts ?? dartScore(d) ?? 0), 0);
       const who = byId[r2.ps[t.p].id]?.name || '';
       let base = null;
-      if (game.mode === 'x01') {
+      if (game.mode === 'x01' || game.mode === 'countup') {
         // référence : la moyenne de la partie en cours (tous les joueurs, tous les legs), sans la volée qui vient de finir
         const prev = [];
         for (const l of game.data?.legs || []) {

@@ -245,8 +245,11 @@ export function Stats({ me, players, games }) {
         <div className="kpi"><div className="k">Legs gagnés</div><div className="v">{pct(s.winRate)}</div><div className="s">{s.legsWon} sur {s.legsPlayed}</div></div>
         <div className="kpi"><div className="k">Cricket</div><div className="v">{s.mpr == null ? '-' : s.mpr.toFixed(2)}</div><div className="s">marques par tour (MPR)</div></div>
         <div className="kpi"><div className="k">Hors cible</div><div className="v">{pct(s.missRateWhole)}</div><div className="s">X01, Count Up, libre · {s.wholeDarts} fl.</div></div>
+        <div className="kpi" style={{ gridColumn: 'span 2' }}><div className="k">Fléchettes lancées</div><div className="v">{s.totalDarts.toLocaleString('fr-FR')}</div><div className="s">{s.gamesPlayed} partie{s.gamesPlayed > 1 ? 's' : ''} · {s.legsPlayed} leg{s.legsPlayed > 1 ? 's' : ''} joués · tous modes et entraînements</div></div>
         <div className="kpi" style={{ gridColumn: 'span 2' }}><div className="k">Ratés, tous modes</div><div className="v">{pct(s.missRate)}</div><div className="s">{s.missDarts} sur {s.totalDarts} fléchettes (Shanghai, Cricket, entraînements inclus)</div></div>
       </div>
+
+      <ModeVolumes s={s} />
 
       <div className="panel">
         <div className="between"><span className="h3">Évolution de la moyenne</span><span className="small muted">par partie X01</span></div>
@@ -318,6 +321,23 @@ function H2HDetail({ h2h, aName, bName, aColor = 'var(--accent)', bColor = 'var(
       </div>
     )}
   </>);
+}
+
+// volume par jeu : parties, legs joués, fléchettes lancées, taux de ratés (le raté n'a pas le même poids selon le jeu)
+function ModeVolumes({ s }) {
+  const rows = Object.entries(s.byMode).filter(([, v]) => v.darts > 0 || v.games > 0).sort((a, b) => b[1].darts - a[1].darts);
+  if (!rows.length) return null;
+  return (
+    <div className="panel">
+      <div className="between"><span className="h3">Par jeu</span><span className="small muted">parties · legs · fléchettes · ratés</span></div>
+      {rows.map(([m, v]) => (
+        <div key={m} className="between small" style={{ gap: 8 }}>
+          <b style={{ minWidth: 0, flex: '1 1 auto' }}>{MODE_LABEL[m] || m}</b>
+          <span className="muted" style={{ whiteSpace: 'nowrap' }}>{v.games} · {isTraining(m) ? '-' : v.legs} · {v.darts} · {v.darts ? `${Math.round((v.miss / v.darts) * 100)} %` : '-'}</span>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 // « Bête noire » = l'adversaire contre qui on a perdu le plus de legs ; « victime préférée » = celui à qui on en a fait perdre le plus

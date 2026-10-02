@@ -198,9 +198,9 @@ const PRAISE = [
 // base : { avg, mpr } du joueur sur ses parties passées (null si pas assez d'historique)
 export function praiseTurn(mode, t, name, pts, base) {
   if (!name || t.darts.length < 3 || t.bust || t.finished) return null;
-  if (mode === 'x01') {
+  if (mode === 'x01' || mode === 'countup') {
     const avg = base?.avg;
-    const ok = avg ? pts >= Math.max(avg * 1.5, avg + 20, 60) : pts >= 100;
+    const ok = avg ? pts >= Math.max(avg * 1.5, avg + 15, 40) : pts >= (mode === 'countup' ? 80 : 100);
     return ok ? draw('k', PRAISE, name) : null;
   }
   if (mode === 'cricket') {
