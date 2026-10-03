@@ -606,3 +606,45 @@ describe('notes et niveau', async () => {
     expect(a['train-killer'].last.grade).toBe('B');
   });
 });
+
+describe('bilan du leg', async () => {
+  const { legReport } = await import('./legreport.js');
+  const { makeRng, makeSim } = await import('./sim.js');
+  const sim = makeSim(makeRng(11));
+  const mkGame = (id, sigma, t, mode = 'x01', settings = { start: 301, in: 'single', out: 'double' }) => {
+    const leg = sim.play(mode, settings, ['a', 'b'], () => sigma);
+    return { id, mode, settings, player_ids: ['a', 'b'], status: 'finished', created_at: new Date(t).toISOString(), data: { legs: [{ ...leg, done: true, finishedAt: new Date(t).toISOString() }], legsToWin: 1 } };
+  };
+  const hist = Array.from({ length: 12 }, (_, i) => mkGame('h' + i, 0.15, 1e12 + i * 1e6));
+  it('bonne partie : sigma plus serré que l\'historique', () => {
+    const g = mkGame('now', 0.07, 2e12);
+    const r = legReport(g, hist, 'a');
+    expect(r.enough).toBe(true);
+    expect(r.rows[0].label).toBe('Moyenne 3 fléchettes');
+    expect(r.rows[0].tone).toBe(1);
+    expect(r.verdict).toBe('good');
+  });
+  it('mauvaise partie', () => {
+    const r = legReport(mkGame('now2', 0.3, 2e12), hist, 'a');
+    expect(r.verdict).toBe('bad');
+  });
+  it('pas assez d\'historique : pas de verdict', () => {
+    const r = legReport(mkGame('now3', 0.15, 2e12), hist.slice(0, 1), 'a');
+    expect(r.enough).toBe(false);
+    expect(r.verdict).toBeNull();
+    expect(r.rows.length).toBeGreaterThan(0);
+  });
+  it('ne compte pas la partie en cours dans la référence', () => {
+    const g = mkGame('now4', 0.07, 2e12);
+    const a = legReport(g, hist, 'a'); const b = legReport(g, [...hist, g], 'a');
+    expect(b.refLegs).toBe(a.refLegs);
+  });
+  it('tous les modes produisent un bilan', () => {
+    for (const [mode, s] of [['cricket', {}], ['countup', {}], ['shanghai', { from: 1, to: 7 }]]) {
+      const h = Array.from({ length: 4 }, (_, i) => mkGame('m' + mode + i, 0.15, 1e12 + i * 1e6, mode, s));
+      const r = legReport(mkGame('n' + mode, 0.1, 2e12, mode, s), h, 'a');
+      expect(r.rows.length).toBeGreaterThan(1);
+      expect(r.verdict).not.toBeNull();
+    }
+  });
+});

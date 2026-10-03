@@ -7,6 +7,7 @@ import { Icon, Seg, Sheet, Switch, TopBar, tap } from '../components/ui.jsx';
 import { PlayerOrder, shuffle } from '../components/PlayerOrder.jsx';
 import { trainingResult, playerStats } from '../engine/stats.js';
 import { gradeTraining } from '../engine/grades.js';
+import { legReport } from '../engine/legreport.js';
 import { GradeBadge, CriteriaToggle } from '../components/Grade.jsx';
 import { bestLegDarts, computeAchievements, newlyUnlocked, TIER } from '../engine/achievements.js';
 import { Medal } from './Achievements.jsx';
@@ -764,6 +765,43 @@ function Celebrations({ game, byId, history }) {
   );
 }
 
+
+const VERDICT = {
+  good: ['Meilleure que d\'habitude', 'var(--good)'],
+  ok: ['Dans ta moyenne', 'var(--text-2)'],
+  bad: ['En dessous de ton niveau', 'var(--bad)'],
+};
+
+// Bilan du leg : tes chiffres du leg face à ton niveau habituel (historique d'avant)
+function LegReport({ game, byId, history, winnerId }) {
+  const ids = game.player_ids;
+  const [who, setWho] = useState(winnerId && ids.includes(winnerId) ? winnerId : ids[0]);
+  const reports = useMemo(() => Object.fromEntries(ids.map((id) => [id, legReport(game, history, id)])), [game, history, ids]);
+  const rep = reports[who];
+  if (!rep) return null;
+  const name = byId[who]?.name;
+  return (
+    <div className="panel">
+      <div className="between"><span className="h3">Ta partie</span><span className="small muted">vs ton niveau d'avant</span></div>
+      {ids.length > 1 && <Seg options={ids.map((id) => [id, byId[id]?.name || '?'])} value={who} onChange={setWho} />}
+      {rep.verdict
+        ? <div style={{ fontWeight: 800, fontSize: 17, color: VERDICT[rep.verdict][1] }}>{ids.length > 1 ? `${name} : ` : ''}{VERDICT[rep.verdict][0]}</div>
+        : <div className="small muted">{rep.enough ? '' : `Pas encore assez d'historique pour comparer (il faut au moins 2 legs avant celui-ci, tu en as ${rep.refLegs}).`}</div>}
+      <div className="col" style={{ gap: 0 }}>
+        <div className="lr-row lr-head"><span /><span>Ce leg</span><span>D'habitude</span></div>
+        {rep.rows.map((r) => (
+          <div key={r.label} className="lr-row">
+            <span className="lr-l">{r.label}</span>
+            <b className={r.tone > 0 ? 'tr-up' : r.tone < 0 ? 'tr-down' : ''}>{r.tone ? <i className="tr-arrow">{r.tone > 0 ? '▲' : '▼'}</i> : null}{r.nowShown}</b>
+            <span className="muted">{r.refShown || '-'}</span>
+          </div>
+        ))}
+      </div>
+      {rep.verdict && <div className="small muted" style={{ lineHeight: 1.4 }}>Comparé à tes {rep.refLegs} legs précédents. Vert : mieux que ta moyenne, rouge : moins bien. Les checkouts pèsent peu dans le verdict : un seul leg, c'est trop aléatoire.</div>}
+    </div>
+  );
+}
+
 function LegEnd({ game, byId, history, onUpdate, onEnd }) {
   const legs = game.data.legs;
   const leg = legs[legs.length - 1];
@@ -811,6 +849,8 @@ function LegEnd({ game, byId, history, onUpdate, onEnd }) {
           );
         })}
       </div>
+
+      <LegReport game={game} byId={byId} history={history} winnerId={winnerId} />
 
       <div className="panel" style={{ flexDirection: 'row', justifyContent: 'space-around' }}>
         {game.player_ids.map((id) => (

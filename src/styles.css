@@ -511,3 +511,8 @@ html.playing body { position: fixed; inset: 0; width: 100%; }
 .lvl-bar > i { display: block; height: 100%; border-radius: 4px; background: var(--accent); }
 .lvl-off { opacity: 0.55; }
 .sess-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 10px; align-items: center; padding: 6px 0; border-top: 1px solid var(--line); }
+
+/* bilan du leg */
+.lr-row { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) minmax(0, 1fr); gap: 8px; align-items: center; padding: 8px 0; border-top: 1px solid var(--line); font-size: 14px; font-variant-numeric: tabular-nums; }
+.lr-head { border-top: 0; padding: 0 0 4px; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+.lr-l { color: var(--text-2); min-width: 0; }
