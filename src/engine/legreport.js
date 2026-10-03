@@ -24,12 +24,13 @@ function rowsFor(game, pid, a, b, won) {
         add('Volées à 60+', hi(a), hi(b), pc, 1);
         add('Volées à 0 point', a.buckets[0] / a.turns, b.turns ? b.buckets[0] / b.turns : null, pc, -1);
       }
+      const perLeg = b.legs ? b.darts / b.legs : null;
+      // gagné : on compare au nombre de fléchettes habituel pour gagner ; perdu : on montre la longueur habituelle d'un leg, sans juger
       if (won) add('Fléchettes pour gagner', a.darts, b.dartsPerLeg, f0, -1, 1.5);
-      else add('Fléchettes lancées', a.darts, null, f0, 0);
+      else add('Fléchettes lancées', a.darts, perLeg, f0, 0);
       if (a.coAtt) {
-        const per = b.coHit ? b.coAtt / b.coHit : null;
-        if (a.coHit) add('Tentatives de checkout', a.coAtt / a.coHit, per, f1, -1, 0.4, { nowText: `${a.coAtt} pour ${a.coHit} réussi${a.coHit > 1 ? 's' : ''}`, refText: per != null ? `1 sur ${f1(per)}` : null });
-        else add('Tentatives de checkout', a.coAtt, null, f0, 0, 0, { nowText: `${a.coAtt}, aucune réussie` });
+        add('Finish tentés', a.coAtt, b.legs ? b.coAtt / b.legs : null, f1, 0, 0, { refText: b.legs ? `${f1(b.coAtt / b.legs)} par leg` : null });
+        add('Réussite sur finish', a.coHit / a.coAtt, b.coRate, pc, 1, 0.4, { nowText: `${a.coHit} sur ${a.coAtt}`, refText: num(b.coRate) ? `${pc(b.coRate)}${b.coHit ? ` (1 sur ${f1(b.coAtt / b.coHit)})` : ''}` : null });
       }
       break;
     }
@@ -38,23 +39,23 @@ function rowsFor(game, pid, a, b, won) {
       add('Triples', a.pct.t, b.pct.t, pc, 1);
       add('Hors numéros', a.pct.miss, b.pct.miss, pc, -1);
       add('Points', a.ptsAvg, b.ptsAvg, f0, 1, 0.7);
-      add('Fléchettes lancées', a.darts, null, f0, 0);
+      add('Fléchettes lancées', a.darts, b.legs ? b.darts / b.legs : null, f0, 0);
       break;
     case 'shanghai':
       add('Points', a.ptsAvg, b.ptsAvg, f0, 1, 2);
       add('Précision sur le numéro', a.pct.hit, b.pct.hit, pc, 1);
       add('Triples', a.pct.t, b.pct.t, pc, 1);
-      add('Fléchettes lancées', a.darts, null, f0, 0);
+      add('Fléchettes lancées', a.darts, b.legs ? b.darts / b.legs : null, f0, 0);
       break;
     case 'atc':
       if (a.finished) add('Fléchettes pour finir', a.finAvg, b.finAvg, f0, -1, 2);
       add('Précision', a.acc, b.acc, pc, 1);
-      add('Fléchettes lancées', a.darts, null, f0, 0);
+      add('Fléchettes lancées', a.darts, b.legs ? b.darts / b.legs : null, f0, 0);
       break;
     case 'baseball':
       add('Points', a.ptsAvg, b.ptsAvg, f0, 1, 2);
       add('Précision', a.pct.hit, b.pct.hit, pc, 1);
-      add('Coups de circuit', a.homeruns, null, f0, 0);
+      add('Coups de circuit', a.homeruns, b.legs ? b.homeruns / b.legs : null, f1, 0);
       break;
     case 'killer':
       add('Éliminations', a.kills, b.killsPerLeg, f1, 1);

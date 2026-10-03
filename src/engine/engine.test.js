@@ -639,6 +639,19 @@ describe('bilan du leg', async () => {
     const a = legReport(g, hist, 'a'); const b = legReport(g, [...hist, g], 'a');
     expect(b.refLegs).toBe(a.refLegs);
   });
+  it('compte les legs précédents de la partie en cours, et donne une référence même en cas de défaite', () => {
+    const g1 = mkGame('multi', 0.15, 2e12); const g2 = mkGame('multi2', 0.15, 2e12 + 1);
+    const g = { ...g1, data: { ...g1.data, legs: [...g1.data.legs, ...g2.data.legs] } };
+    const base = legReport({ ...g, data: { ...g.data, legs: [g.data.legs[1]] } }, hist, 'a').refLegs;
+    const r = legReport(g, hist, 'a');
+    expect(r.refLegs).toBe(base + 1);
+    // un joueur qui perd le dernier leg a quand même la longueur habituelle d'un leg
+    const loser = g.data.legs[1].ranking[0] === 'a' ? 'b' : 'a';
+    const rl = legReport(g, hist, loser);
+    const row = rl.rows.find((x) => x.label === 'Fléchettes lancées');
+    expect(row.refShown).not.toBeNull();
+    expect(row.refShown).not.toBe('-');
+  });
   it('tous les modes produisent un bilan', () => {
     for (const [mode, s] of [['cricket', {}], ['countup', {}], ['shanghai', { from: 1, to: 7 }]]) {
       const h = Array.from({ length: 4 }, (_, i) => mkGame('m' + mode + i, 0.15, 1e12 + i * 1e6, mode, s));
