@@ -214,7 +214,7 @@ a { color: var(--accent); }
 .compact .stepper span { min-width: 22px; }
 button, a, [role="button"] { touch-action: manipulation; }
 
-.checkout-bar { display: flex; align-items: center; gap: 10px; background: var(--accent-bg); border: 1px solid var(--accent); border-radius: 12px; padding: 6px 10px; min-height: 44px; }
+.checkout-bar { display: flex; align-items: center; gap: 10px; background: var(--accent-bg); border: 1px solid var(--accent); border-radius: 12px; padding: 6px 10px; height: 44px; overflow: hidden; }
 .checkout-bar.off { background: var(--panel); border-color: var(--wire); }
 .checkout-bar .lbl { font-size: 11px; letter-spacing: 1px; text-transform: uppercase; color: var(--accent); font-weight: 800; }
 .checkout-bar.off .lbl { color: var(--muted); }
@@ -411,7 +411,7 @@ button, a, [role="button"] { touch-action: manipulation; }
 .sh-dots i.miss { background: var(--bad); border-color: var(--bad); }
 
 /* dernière volée sur les cartes de score */
-.last-turn { display: flex; gap: 3px; margin-top: 4px; flex-wrap: wrap; }
+.last-turn { display: flex; gap: 3px; margin-top: 4px; flex-wrap: wrap; min-height: 21px; }
 .last-turn b { font-size: 11px; font-weight: 800; padding: 1px 5px; border-radius: 5px; background: var(--bg); color: var(--text-2); line-height: 1.4; }
 .last-turn b.r { color: var(--bad); }
 

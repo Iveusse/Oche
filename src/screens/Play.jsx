@@ -455,6 +455,8 @@ export function Play({ game, players, records, history = [], onUpdate, onLegDone
     else if (tDarts.length > 0 && tps.rem <= 170) checkout = { none: `Pas de finish en ${left} fléchette${left > 1 ? 's' : ''}` };
   }
 
+  // texte de la barre de finish quand il n'y a rien à proposer : la place reste réservée pour que l'écran ne saute pas
+  const coIdle = !coMode ? '' : game.mode === 'x01' && !tps.opened ? 'ouvre d\'abord le jeu' : tps.rem > 170 ? 'à partir de 170 restants' : '';
   const markers = tDarts.filter((d) => typeof d.x === 'number');
 
   // saisie vocale : la fonction est remise à jour à chaque rendu (état courant)
@@ -489,7 +491,7 @@ export function Play({ game, players, records, history = [], onUpdate, onLegDone
                   <div className="last-turn" aria-label="Tour précédent">
                     {lt.darts.map((d, k) => <b key={k} className={shortDart(game.mode, d) === 'R' ? 'r' : ''}>{shortDart(game.mode, d)}</b>)}
                   </div>
-                ) : null; })()}
+                ) : <div className="last-turn" aria-hidden="true"><b style={{ visibility: 'hidden' }}>-</b></div>; })()}
               </div>
             );
           })}
@@ -498,7 +500,12 @@ export function Play({ game, players, records, history = [], onUpdate, onLegDone
       {game.mode === 'cricket' && <div className="panel" style={{ padding: 10 }}><CricketGrid r={r} players={byId} thrower={thrower} /></div>}
       {training && <div className="between"><span className="h3">{byId[r.ps[0].id]?.name}</span><span className="small muted">{MODE_LABEL[game.mode]}</span></div>}
 
-      {checkout && <CheckoutBar {...checkout} />}
+      {coMode && (checkout ? <CheckoutBar {...checkout} /> : (
+        <div className="checkout-bar off">
+          <span className="lbl">Finish</span>
+          <span className="small" style={{ color: 'var(--muted)' }}>{coIdle}</span>
+        </div>
+      ))}
 
       {decided && (
         <div className="decided" role="status">
@@ -589,7 +596,7 @@ function CheckoutBar({ route, done, none }) {
   return (
     <div className="checkout-bar" aria-live="polite">
       <span className="lbl">Finish</span>
-      <div className="row" style={{ gap: 6, flexWrap: 'wrap' }}>
+      <div className="row" style={{ gap: 6, flexWrap: 'nowrap' }}>
         {done.map((d, i) => <span key={`d${i}`} className="chip done">{dartLabel(d)}</span>)}
         {route.map((d, i) => <span key={`r${i}`} className={`chip ${i === 0 ? 'next' : ''}`}>{dartLabel(d)}</span>)}
       </div>
