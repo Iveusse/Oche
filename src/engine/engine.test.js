@@ -546,3 +546,63 @@ describe('hors cible', () => {
     expect(s.missDarts).toBe(4);
   });
 });
+
+describe('notes et niveau', async () => {
+  const { gradeOfValue, scoreOf, gradeTraining, DRILL_GRADE, criteria } = await import('./grades.js');
+  const { levelOf } = await import('./level.js');
+  const { countupAdvanced, trainingAdvanced } = await import('./advanced.js');
+  const tg = (mode, darts, extra = {}) => ({ id: mode, mode, settings: {}, player_ids: ['a'], status: 'finished', created_at: '2026-09-01T10:00:00Z', data: { legs: [{ order: ['a'], darts, validated: 0, done: true, ...extra }] } });
+
+  it('lettres des exercices (fléchettes : moins = mieux)', () => {
+    const c = DRILL_GRADE['train-doubles'];
+    expect(gradeOfValue(c, 70)).toBe('S');
+    expect(gradeOfValue(c, 130)).toBe('B');
+    expect(gradeOfValue(c, 600)).toBe('E');
+    expect(scoreOf(c, 80)).toBeCloseTo(90, 5);
+    expect(scoreOf(c, 40)).toBe(100);
+    expect(scoreOf(c, 900)).toBe(0);
+  });
+  it('lettres des finish', () => {
+    const c = DRILL_GRADE['train-checkout'];
+    expect([0, 1, 2, 3, 4, 5].map((v) => gradeOfValue(c, v))).toEqual(['E', 'D', 'C', 'B', 'A', 'S']);
+  });
+  it('score monotone', () => {
+    const c = DRILL_GRADE['train-focus20'];
+    let prev = -1;
+    for (let v = 0; v <= 4000; v += 50) { const s = scoreOf(c, v); expect(s).toBeGreaterThanOrEqual(prev); prev = s; }
+  });
+  it('critères : une ligne par lettre, E en dernier', () => {
+    const rows = criteria(DRILL_GRADE['train-killer']);
+    expect(rows.map((r) => r.grade)).toEqual(['S', 'A', 'B', 'C', 'D', 'E']);
+    expect(rows[0].text).toContain('8');
+  });
+  it('note d\'une séance de Killer avec ce qu\'il manque', () => {
+    // 30 fléchettes, 3 doubles sur le 20 : C, il manque 1 pour le B
+    const darts = Array.from({ length: 30 }, (_, i) => (i < 3 ? D(20, 2) : miss));
+    const gr = gradeTraining(tg('train-killer', darts, { num: 20 }));
+    expect(gr.grade).toBe('C');
+    expect(gr.next.grade).toBe('B');
+    expect(gr.next.text).toContain('1 doubles');
+  });
+  it('niveau vide sans données', () => {
+    expect(levelOf([], 'a').score).toBeNull();
+  });
+  it('Count Up : points par volée et régularité', () => {
+    const t = (n) => Array.from({ length: 3 }, () => D(n, 1));
+    const darts = [...t(20), ...t(20), ...t(10), ...t(10), ...t(20), ...t(20), ...t(10), ...t(10)];
+    const g = { id: 'c', mode: 'countup', settings: { rounds: 8 }, player_ids: ['a'], status: 'finished', created_at: '2026-09-01T10:00:00Z', data: { legs: [{ order: ['a'], darts, validated: 0, done: true, ranking: ['a'] }] } };
+    const a = countupAdvanced([g], 'a');
+    expect(a.legs).toBe(1);
+    expect(a.turnAvg).toBe(45);
+    expect(a.best).toBe(360);
+    expect(a.high).toBe(60);
+    expect(a.consistency).toBeCloseTo(1 - 15 / 45, 5);
+  });
+  it('analyse d\'entraînement : record et note par séance', () => {
+    const darts = Array.from({ length: 30 }, (_, i) => (i < 5 ? D(20, 2) : miss));
+    const a = trainingAdvanced([tg('train-killer', darts, { num: 20 })], 'a');
+    expect(a['train-killer'].n).toBe(1);
+    expect(a['train-killer'].best.value).toBe(5);
+    expect(a['train-killer'].last.grade).toBe('B');
+  });
+});

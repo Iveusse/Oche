@@ -9,6 +9,8 @@ import { Heatmap } from '../components/Dartboard.jsx';
 import { LineChart, MultiLineChart } from '../components/LineChart.jsx';
 import { playerStats, filterByPeriod, headToHead, trainingResult, afterReset } from '../engine/stats.js';
 import { MODE_LABEL, isTraining } from '../engine/modes.js';
+import { gradeTraining } from '../engine/grades.js';
+import { GradeBadge } from '../components/Grade.jsx';
 import { gameWinner, legsWon } from '../engine/runner.js';
 import { fmt1, pct, relTime, shortDate } from '../lib/store.js';
 import { modeSubtitle, modeTitle } from './Play.jsx';
@@ -612,6 +614,17 @@ export function Training({ me, games, onStart, onAtc, onCustom, onProfile }) {
   const [chart, setChart] = useState('train-doubles');
   const rec = useMemo(() => (me ? trainingRecords(games, me.id) : {}), [games, me]);
   const coach = useMemo(() => (me ? coachAdvice(games, me.id) : null), [games, me]);
+  // dernière note de chaque exercice
+  const lastGrade = useMemo(() => {
+    const m = {};
+    if (!me) return m;
+    for (const g of [...afterReset(games, me.id)].sort((a, b) => new Date(a.created_at) - new Date(b.created_at))) {
+      if (!isTraining(g.mode) || !g.player_ids.includes(me.id) || g.mode === 'train-free') continue;
+      const gr = gradeTraining(g);
+      if (gr) m[g.mode] = gr.grade;
+    }
+    return m;
+  }, [games, me]);
   const series = useMemo(() => {
     if (!me) return [];
     return afterReset(games, me.id).filter((g) => g.mode === chart && g.player_ids.includes(me.id))
@@ -650,6 +663,7 @@ export function Training({ me, games, onStart, onAtc, onCustom, onProfile }) {
               <div style={{ fontSize: 15, fontWeight: 700 }}>{t}</div>
               <div className="small muted" style={{ marginTop: 2 }}>{d}</div>
             </div>
+            {lastGrade[k] && <GradeBadge grade={lastGrade[k]} size={34} title="Ta dernière note" />}
             <div style={{ textAlign: 'right' }}>
               <div className="small muted">Record</div>
               <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--accent)' }}>{rec[k]?.label || '-'}</div>

@@ -1,9 +1,13 @@
 import React, { useMemo, useState } from 'react';
 import { Seg } from '../components/ui.jsx';
 import { Delta, HBars, HeatStrip, Ring, Sparkline, StackBar, VBars } from '../components/Charts.jsx';
-import { ALT_BUCKETS, TURN_BUCKETS, atcAdvanced, baseballAdvanced, cricketAdvanced, killerAdvanced, shanghaiAdvanced, x01Advanced } from '../engine/advanced.js';
+import { ALT_BUCKETS, TURN_BUCKETS, atcAdvanced, baseballAdvanced, countupAdvanced, cricketAdvanced, killerAdvanced, shanghaiAdvanced, trainingAdvanced, x01Advanced } from '../engine/advanced.js';
 import { playerStats } from '../engine/stats.js';
-import { CRICKET_NUMS, startOf } from '../engine/modes.js';
+import { CRICKET_NUMS, MODE_LABEL, startOf } from '../engine/modes.js';
+import { LineChart } from '../components/LineChart.jsx';
+import { GradeBadge, CriteriaToggle } from '../components/Grade.jsx';
+import { DRILL_GRADE, GRADES, GRADE_LABEL, GRADE_MIN, criteria } from '../engine/grades.js';
+import { LEVEL_MODES, METRICS, levelOf } from '../engine/level.js';
 
 const DAY = 86400000;
 const PERIODS = [['7', '7 j'], ['30', '30 j'], ['90', '3 mois'], ['365', '1 an'], ['all', 'Tout']];
@@ -402,6 +406,326 @@ function AtcView({ games, prevGames, allGames, period, pid }) {
   </>);
 }
 
+
+const CUP_SECTIONS = [
+  ['Général', [['Parties', (a) => a.legs], ['Victoires', (a) => a.won], up('Points / partie', (a) => a.ptsAvg, f0), up('Meilleure partie', (a) => a.best, rec), dn('Pire partie', (a) => a.worst, rec), ['Fléchettes', (a) => n0(a.darts)], ['Temps de jeu', (a) => dur(a.duration.total)]]],
+  ['Volée', [up('Points / volée', (a) => a.turnAvg, f1), up('Points / fléchette', (a) => a.dartAvg, f1), up('Meilleure volée', (a) => a.high, rec), up('Régularité', (a) => a.consistency, pc), up('1re moitié de partie', (a) => a.first, f1), up('2e moitié de partie', (a) => a.last, f1)]],
+  ['Gros tours', [['180', (a) => a.c180], ['100 à 179', (a) => a.c100], ['60 à 99', (a) => a.c60]]],
+  ['Précision', [up('Touches', (a) => a.pct.hit, pc), up('Triples', (a) => a.pct.t, pc), up('Doubles', (a) => a.pct.d, pc), ['Simples', (a) => pc(a.pct.s)], dn('Hors cible', (a) => a.pct.miss, pc)]],
+  ['Volées par tranche', TURN_BUCKETS.map(([l], i) => [l, (a) => cnt(a.buckets[i], a.turns), i < 2 ? -1 : i >= 3 ? 1 : 0, (a) => share(a, a.buckets[i])])],
+  ['Moyenne par volée de la partie', Array.from({ length: 8 }, (_, i) => up(`Volée ${i + 1}`, (a) => a.roundAvg[i], f1))],
+];
+
+function CountUpView({ games, prevGames, allGames, period, pid }) {
+  const all = useMemo(() => countupAdvanced(allGames, pid), [allGames, pid]);
+  const a = useMemo(() => countupAdvanced(games, pid), [games, pid]);
+  const b = useMemo(() => (prevGames ? countupAdvanced(prevGames, pid) : null), [prevGames, pid]);
+  if (!a.legs) return <Empty what="partie de Count Up" />;
+  const rounds = a.roundAvg.map((v, i) => ({ label: `V${i + 1}`, value: v })).filter((x) => x.value != null);
+  const drift = a.first != null && a.last != null && a.first > 0 ? a.last / a.first - 1 : null;
+  return (<>
+    <Hero label="Points par volée" value={f1(a.turnAvg)} delta={b ? diff(a.turnAvg, b.turnAvg) : undefined}>
+      <Mini k="Points / partie" v={f0(a.ptsAvg)} />
+      <Mini k="Record" v={a.best ?? '-'} s="points" />
+      <Mini k="Régularité" v={pc(a.consistency)} />
+    </Hero>
+    <Card title="Profil de volées" sub={`${a.turns} volées`}>
+      <HBars rows={TURN_BUCKETS.map(([label], i) => ({ label, value: a.turns ? a.buckets[i] / a.turns : 0, sub: `${a.buckets[i]} · ${a.turns ? Math.round((a.buckets[i] / a.turns) * 100) : 0} %` }))} />
+    </Card>
+    <Card title="Ta courbe dans la partie" sub={`pointillés = ta moyenne (${f1(a.turnAvg)})`}>
+      <VBars data={rounds} refValue={a.turnAvg} refLabel={`moy. ${f1(a.turnAvg)}`} />
+      <div className="small muted">
+        {drift == null ? 'Touche une colonne pour voir sa valeur.' : drift < -0.08
+          ? `Tu baisses de ${Math.round(-drift * 100)} % sur la 2e moitié de la partie : c'est la fatigue ou la pression.`
+          : drift > 0.08 ? `Tu montes de ${Math.round(drift * 100)} % sur la 2e moitié : tu t'échauffes en cours de partie.` : 'Ton niveau reste stable du début à la fin.'}
+      </div>
+    </Card>
+    <Card title="Où vont tes fléchettes" sub={`${a.darts} fléchettes`}>
+      <StackBar parts={[
+        { label: 'Triples', value: a.t, color: 'var(--accent)' },
+        { label: 'Doubles', value: a.d, color: 'var(--sky)' },
+        { label: 'Simples', value: a.sgl, color: 'var(--text-2)' },
+        { label: 'Hors cible', value: a.miss, color: 'var(--wire)' },
+      ]} />
+    </Card>
+    <Card title="Records">
+      <div className="records">
+        <Mini k="Meilleure partie" v={a.best ?? '-'} s="points" />
+        <Mini k="Meilleure volée" v={a.high || '-'} />
+        <Mini k="Volées à 100+" v={a.c100 + a.c180} s={`dont ${a.c180} à 180`} />
+        <Mini k="Temps de jeu" v={dur(a.duration.total)} />
+      </div>
+    </Card>
+    <FullTable sections={CUP_SECTIONS} cols={colsFor(a, b, all, period)} />
+  </>);
+}
+
+// ---------- Niveau global ----------
+const letterRows = () => [...GRADES].map((g) => ({ grade: g, label: GRADE_LABEL[g], text: g === 'E' ? 'moins de 30 points' : `${GRADE_MIN[g]} points ou plus` }));
+const thrText = (m, g) => `${m.fmt(m.thr[g])}`;
+
+function LevelView({ games, prevGames, pid }) {
+  const L = useMemo(() => levelOf(games, pid), [games, pid]);
+  const P = useMemo(() => (prevGames ? levelOf(prevGames, pid) : null), [prevGames, pid]);
+  const ok = L.modes.filter((m) => m.ok).sort((x, y) => y.score - x.score);
+  const off = L.modes.filter((m) => !m.ok);
+  const delta = P && P.score != null && L.score != null ? L.score - P.score : null;
+  const best = ok.length >= 2 ? ok[0] : null; const worst = ok.length >= 2 ? ok[ok.length - 1] : null;
+  const gap = best && worst ? best.score - worst.score : 0;
+  if (L.score == null) {
+    return (<>
+      <Empty what="niveau calculable" />
+      <div className="panel"><div className="small muted" style={{ lineHeight: 1.45 }}>Il faut un minimum par jeu : X01 {LEVEL_MODES[0].need}, Cricket {LEVEL_MODES[1].need}, Count Up et les autres {LEVEL_MODES[2].need}. Essaie « Tout » comme période.</div></div>
+    </>);
+  }
+  return (<>
+    <div className="hero">
+      <div className="level-hero">
+        <GradeBadge grade={L.grade} size={84} />
+        <div className="grow" style={{ minWidth: 0 }}>
+          <div className="label">Niveau global</div>
+          <div className="level-score">{Math.round(L.score)}<span className="hero-u"> / 100</span></div>
+          <div style={{ fontWeight: 800, marginTop: 2 }}>{L.label}{delta != null && Math.abs(delta) >= 0.5 && <span className={delta > 0 ? 'tr-up' : 'tr-down'} style={{ marginLeft: 8, fontSize: 13 }}>{delta > 0 ? '▲' : '▼'} {Math.abs(delta).toFixed(1)} pt{Math.abs(delta) >= 2 ? 's' : ''}</span>}</div>
+        </div>
+      </div>
+      <div className="small" style={{ color: 'var(--text-2)', lineHeight: 1.45 }}>
+        Moyenne de {L.used} jeu{L.used > 1 ? 'x' : ''} sur 8, le X01 comptant triple.
+        {best && gap >= 10 ? ` Ton point fort : ${best.label}. À travailler : ${worst.label}.` : ok.length >= 2 ? ' Tu es au même niveau partout.' : ''}
+      </div>
+    </div>
+
+    <Card title="Niveau par jeu" sub="score sur 100">
+      <div className="col" style={{ gap: 12 }}>
+        {ok.map((m) => (
+          <div key={m.id} className="lvl-row">
+            <GradeBadge grade={m.grade} size={34} />
+            <div style={{ minWidth: 0 }}>
+              <b style={{ fontSize: 14 }}>{m.label}</b>
+              <div className="lvl-bar" style={{ margin: '4px 0' }}><i style={{ width: `${Math.round(m.score)}%` }} /></div>
+              <div className="small muted">{m.metrics.map((x) => `${METRICS[x.key].label} ${x.shown}`).join(' · ') || `${m.n} ${m.unit}`}</div>
+            </div>
+            <b style={{ fontVariantNumeric: 'tabular-nums', minWidth: 28, textAlign: 'right' }}>{Math.round(m.score)}</b>
+          </div>
+        ))}
+        {off.map((m) => (
+          <div key={m.id} className="lvl-row lvl-off">
+            <GradeBadge grade={null} size={34} />
+            <div style={{ minWidth: 0 }}><b style={{ fontSize: 14 }}>{m.label}</b><div className="small muted">Pas assez de données : {m.need}</div></div>
+            <span />
+          </div>
+        ))}
+      </div>
+    </Card>
+
+    <div className="panel">
+      <CriteriaToggle rows={letterRows()} current={L.grade} label="Comment c'est noté ?"
+        what="Chaque jeu est converti en score de 0 à 100 à partir de tes stats. Les seuils viennent de joueurs simulés de niveaux connus : un S correspond à un joueur d'environ 66 de moyenne en X01, un A à 51, un B à 40, un C à 31, un D à 24."
+        note="Le niveau global est la moyenne des jeux joués, pondérée : X01 ×3, Cricket ×2, Count Up et Entraînements ×1,5, les autres ×1." />
+      <MetricCriteria />
+    </div>
+  </>);
+}
+
+function MetricCriteria() {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="col" style={{ gap: 8 }}>
+      <button className="small" onClick={() => setOpen(!open)} aria-expanded={open} style={{ color: 'var(--accent)', fontWeight: 700, textAlign: 'left', minHeight: 36 }}>{open ? 'Masquer les seuils par jeu' : 'Voir les seuils de chaque jeu'}</button>
+      {open && (<>
+        {Object.entries(METRICS).map(([k, m]) => (
+          <div key={k} className="col" style={{ gap: 4 }}>
+            <div className="small"><b>{m.label}</b>{k === 'x01avg' && <span className="muted"> (X01, compte 75 %)</span>}{k === 'x01fin' && <span className="muted"> (X01, compte 25 %)</span>}</div>
+            <div className="row" style={{ gap: 6, flexWrap: 'wrap' }}>
+              {['S', 'A', 'B', 'C', 'D'].map((g) => <span key={g} className="row small" style={{ gap: 4 }}><GradeBadge grade={g} size={20} /><span style={{ color: 'var(--text-2)' }}>{thrText(m, g)}</span></span>)}
+            </div>
+          </div>
+        ))}
+        <div className="small muted" style={{ lineHeight: 1.4 }}>Entraînements : moyenne des notes de tes 3 dernières séances de chaque exercice (critères visibles dans l'onglet Entraînement et à la fin de chaque séance).</div>
+      </>)}
+    </div>
+  );
+}
+
+// ---------- Entraînements ----------
+const DRILL_TABS = [['train-doubles', 'Doubles'], ['train-focus20', 'Focus 20'], ['train-checkout', 'Checkouts'], ['train-baseball', 'Baseball'], ['train-killer', 'Killer'], ['train-atc', 'ATC'], ['train-free', 'Libre']];
+const GRADE_COLOR = { S: '#f5c542', A: '#6ee7b7', B: '#5fc8ff', C: '#c9d1de', D: '#ffb264', E: '#ff8a7a' };
+const sdate = (d) => new Date(d).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+
+function TrainView({ games, prevGames, allGames, pid }) {
+  const [drill, setDrill] = useState('all');
+  const a = useMemo(() => trainingAdvanced(games, pid), [games, pid]);
+  const total = Object.values(a).reduce((x, e) => x + e.n, 0);
+  if (!total) return <Empty what="séance d'entraînement" />;
+  const trendOf = (e) => (e.recent != null && e.before != null ? e.recent - e.before : null);
+  return (<>
+    <div className="chips-scroll">
+      <button className={`chip-pill ${drill === 'all' ? 'on' : ''}`} onClick={() => setDrill('all')} aria-pressed={drill === 'all'}>Vue d'ensemble</button>
+      {DRILL_TABS.filter(([k]) => a[k]).map(([k, l]) => <button key={k} className={`chip-pill ${drill === k ? 'on' : ''}`} onClick={() => setDrill(k)} aria-pressed={drill === k}>{l}</button>)}
+    </div>
+    {drill === 'all' ? <TrainOverview a={a} total={total} onPick={setDrill} trendOf={trendOf} /> : a[drill] ? <DrillView e={a[drill]} /> : <Empty what="séance de cet exercice" />}
+  </>);
+}
+
+function TrainOverview({ a, total, onPick, trendOf }) {
+  const darts = Object.values(a).reduce((x, e) => x + e.darts, 0);
+  const miss = Object.values(a).reduce((x, e) => x + e.miss, 0);
+  const graded = Object.values(a).filter((e) => e.avgScore != null);
+  return (<>
+    <div className="hero">
+      <div className="label">Entraînement</div>
+      <div className="hero-v">{total}<span className="hero-u"> séance{total > 1 ? 's' : ''}</span></div>
+      <div className="hero-sub">
+        <Mini k="Exercices" v={Object.keys(a).length} />
+        <Mini k="Fléchettes" v={n0(darts)} />
+        <Mini k="Ratés" v={darts ? pc(miss / darts) : '-'} s={`${miss}`} />
+      </div>
+    </div>
+    <Card title="Tes notes par exercice" sub="touche pour le détail">
+      <div className="col" style={{ gap: 10 }}>
+        {DRILL_TABS.filter(([k]) => a[k]).map(([k, l]) => {
+          const e = a[k]; const t = trendOf(e);
+          return (
+            <button key={k} className="between" style={{ gap: 12, textAlign: 'left', minHeight: 48 }} onClick={() => onPick(k)}>
+              <GradeBadge grade={e.last?.grade} size={40} />
+              <div className="grow" style={{ minWidth: 0 }}>
+                <div style={{ fontWeight: 700 }}>{l}</div>
+                <div className="small muted">{e.n} séance{e.n > 1 ? 's' : ''}{e.best ? ` · record ${e.best.shown}` : ''}</div>
+              </div>
+              {t != null && Math.abs(t) >= 2 && <span className={t > 0 ? 'tr-up' : 'tr-down'} style={{ fontSize: 13, fontWeight: 700 }}>{t > 0 ? '▲' : '▼'}</span>}
+            </button>
+          );
+        })}
+      </div>
+      {graded.length > 0 && <div className="small muted">Les flèches comparent tes 3 dernières séances aux 3 d'avant.</div>}
+    </Card>
+  </>);
+}
+
+function drillCfg(e) {
+  if (e.mode === 'train-atc') return { ...DRILL_GRADE['train-atc'], thr: { S: 0.55, A: 0.43, B: 0.36, C: 0.28, D: 0.19 } };
+  return DRILL_GRADE[e.mode];
+}
+
+function DrillView({ e }) {
+  const cfg = DRILL_GRADE[e.mode];
+  const label = MODE_LABEL[e.mode];
+  const pts = e.graded.map((x) => ({ label: sdate(x.date), value: x.value }));
+  const last = e.last;
+  const dist = GRADES.map((g) => ({ label: g, value: e.gradeCount[g] || 0, color: GRADE_COLOR[g] }));
+  const rows = cfg ? criteria(drillCfg(e)) : null;
+  return (<>
+    <div className="hero">
+      <div className="level-hero">
+        <GradeBadge grade={last?.grade} size={72} />
+        <div className="grow" style={{ minWidth: 0 }}>
+          <div className="label">Dernière séance</div>
+          <div className="hero-v" style={{ fontSize: 34 }}>{last ? last.shown : `${e.n} séance${e.n > 1 ? 's' : ''}`}</div>
+          {last && <div className="small muted">{GRADE_LABEL[last.grade]} · {sdate(last.date)}</div>}
+        </div>
+      </div>
+      <div className="hero-sub">
+        <Mini k="Record" v={e.best?.shown || '-'} />
+        <Mini k="Séances" v={e.n} />
+        <Mini k="Fléchettes" v={n0(e.darts)} />
+      </div>
+    </div>
+
+    {rows && (
+      <div className="panel">
+        <CriteriaToggle rows={rows} current={last?.grade} what={cfg.what} note={e.mode === 'train-atc' ? 'Seuils pour toutes zones. Pour double ou triple seuls, les seuils sont plus bas (affichés à la fin de la séance).' : null} />
+      </div>
+    )}
+
+    {pts.length > 1 && (
+      <Card title="Progression" sub={e.mode === 'train-doubles' ? 'moins de fléchettes = mieux' : undefined}>
+        <LineChart points={pts} height={120} ariaLabel="Progression" />
+      </Card>
+    )}
+
+    {e.graded.length > 0 && (
+      <Card title="Tes notes" sub={`${e.graded.length} séance${e.graded.length > 1 ? 's' : ''}`}>
+        <StackBar parts={dist} />
+      </Card>
+    )}
+
+    {e.darts > 0 && e.mode !== 'train-checkout' && (
+      <Card title="Où vont tes fléchettes" sub={`${e.darts} fléchettes`}>
+        <StackBar parts={[
+          { label: 'Triples', value: e.t, color: 'var(--accent)' },
+          { label: 'Doubles', value: e.d, color: 'var(--sky)' },
+          { label: 'Simples', value: e.sgl, color: 'var(--text-2)' },
+          { label: 'Ratées', value: e.miss, color: 'var(--wire)' },
+        ]} />
+      </Card>
+    )}
+
+    {e.mode === 'train-doubles' && Object.keys(e.num).length > 0 && (
+      <Card title="Réussite par double" sub="% de fléchettes qui touchent">
+        <HeatStrip cells={[...Array.from({ length: 20 }, (_, i) => i + 1), 25].map((n) => ({
+          label: n === 25 ? 'B' : String(n), value: e.numAcc[n] ?? null,
+          detail: e.num[n] ? `${n === 25 ? 'Bull' : `D${n}`} : ${e.num[n].hits} touches sur ${e.num[n].darts} fléchettes` : null,
+        }))} />
+        <div className="small muted">Les cases pâles sont les doubles qui te coûtent le plus de fléchettes.</div>
+      </Card>
+    )}
+
+    {e.mode === 'train-focus20' && (
+      <Card title="Tes 99 fléchettes, par tiers" sub="points par tiers">
+        <VBars data={e.blocks.map((b, i) => ({ label: `${i * 33 + 1}-${Math.min(99, (i + 1) * 33)}`, value: b.pts / Math.max(1, e.n) }))} fmt={(v) => v.toFixed(0)} />
+        <div className="grid2">
+          <Mini k="Fléch. sur le 20" v={pc(e.darts ? Object.values(e.num).reduce((x, c) => x + c.hits, 0) / e.darts : null)} />
+          <Mini k="Points / fléchette" v={e.darts ? (e.pts / e.darts).toFixed(1) : '-'} />
+        </div>
+        <div className="small muted">Si le dernier tiers baisse, c'est la fatigue ou la concentration.</div>
+      </Card>
+    )}
+
+    {e.mode === 'train-checkout' && (
+      <Card title="Checkouts par zone" sub="finish réussis">
+        <HBars rows={e.ranges.map((r) => ({ label: r.label, value: r.rate || 0, sub: r.att ? `${r.succ}/${r.att} · ${Math.round((r.rate || 0) * 100)} %` : '-' }))} />
+        <div className="grid2">
+          <Mini k="Fléch. pour finir" v={e.dartsPerSucc == null ? '-' : e.dartsPerSucc.toFixed(1)} s="quand tu réussis" />
+          <Mini k="Busts" v={e.busts} s="tentatives ratées par dépassement" />
+        </div>
+      </Card>
+    )}
+
+    {e.mode === 'train-baseball' && Object.keys(e.inning).length > 0 && (
+      <Card title="Points par manche" sub="moyenne par séance">
+        <VBars data={Array.from({ length: 9 }, (_, i) => i + 1).map((n) => ({ label: String(n), value: e.inning[n] ? e.inning[n].pts / Math.max(1, e.n) : 0 }))} fmt={(v) => v.toFixed(1)} />
+      </Card>
+    )}
+
+    {e.mode === 'train-killer' && (
+      <Card title="Tes 30 fléchettes, par dizaine" sub="doubles touchés par séance">
+        <VBars data={e.blocks.map((b, i) => ({ label: `${i * 10 + 1}-${(i + 1) * 10}`, value: b.hits / Math.max(1, e.n) }))} fmt={(v) => v.toFixed(1)} />
+        <div className="small muted">Une courbe qui monte : tu t'échauffes. Qui baisse : tu te crispes.</div>
+      </Card>
+    )}
+
+    {e.mode === 'train-atc' && Object.keys(e.num).length > 0 && (
+      <Card title="Réussite par cible" sub="% de fléchettes qui valident">
+        <HeatStrip cells={[...Array.from({ length: 20 }, (_, i) => i + 1), 25].map((n) => ({
+          label: n === 25 ? 'B' : String(n), value: e.numAcc[n] ?? null,
+          detail: e.num[n] ? `${n === 25 ? 'Bull' : n} : ${e.num[n].hits} sur ${e.num[n].darts} fléchettes` : null,
+        }))} />
+      </Card>
+    )}
+
+    <Card title="Historique" sub="dernières séances">
+      <div className="col" style={{ gap: 0 }}>
+        {[...e.sessions].reverse().slice(0, 10).map((s, i) => (
+          <div key={s.date + i} className="sess-row">
+            <span className="small muted">{sdate(s.date)}</span>
+            <b>{s.shown || '-'}</b>
+            <GradeBadge grade={s.grade} size={26} />
+          </div>
+        ))}
+      </div>
+    </Card>
+  </>);
+}
+
 // volume de jeu du mode : parties, legs joués, fléchettes lancées et fléchettes ratées (le raté n'a pas le même poids selon le jeu)
 function VolumeCard({ games, pid, mode }) {
   const v = useMemo(() => playerStats(games, pid).byMode[mode], [games, pid, mode]);
@@ -417,22 +741,22 @@ function VolumeCard({ games, pid, mode }) {
   );
 }
 
+const MODE_TABS = [['level', 'Niveau'], ['x01', 'X01'], ['cricket', 'Cricket'], ['countup', 'Count Up'], ['shanghai', 'Shanghai'], ['atc', 'ATC'], ['baseball', 'Baseball'], ['killer', 'Killer'], ['train', 'Entraînement']];
+
 export function Analysis({ games, pid }) {
   const [period, setPeriod] = useState('90');
-  const [mode, setMode] = useState('x01');
+  const [mode, setMode] = useState('level');
   const { cur, prev } = useMemo(() => window(games, period), [games, period]);
-  const View = { x01: X01View, cricket: CricketView, shanghai: ShanghaiView, atc: AtcView, baseball: BaseballView, killer: KillerView }[mode];
+  const View = { level: LevelView, x01: X01View, cricket: CricketView, countup: CountUpView, shanghai: ShanghaiView, atc: AtcView, baseball: BaseballView, killer: KillerView, train: TrainView }[mode];
   return (<>
     <div className="chips-scroll">
       {PERIODS.map(([k, l]) => <button key={k} className={`chip-pill ${period === k ? 'on' : ''}`} onClick={() => setPeriod(k)} aria-pressed={period === k}>{l}</button>)}
     </div>
-    <div className="mode-tabs" style={{ gridTemplateColumns: 'repeat(6, minmax(0, 1fr))' }}>
-      {[['x01', 'X01'], ['cricket', 'Cricket'], ['shanghai', 'Shanghai'], ['atc', 'ATC'], ['baseball', 'Baseball'], ['killer', 'Killer']].map(([k, l]) => (
-        <button key={k} className={mode === k ? 'on' : ''} style={{ fontSize: 12 }} onClick={() => setMode(k)} aria-pressed={mode === k}>{l}</button>
-      ))}
+    <div className="chips-scroll">
+      {MODE_TABS.map(([k, l]) => <button key={k} className={`chip-pill ${mode === k ? 'on' : ''}`} onClick={() => setMode(k)} aria-pressed={mode === k}>{l}</button>)}
     </div>
     {prev && <div className="small muted" style={{ marginTop: -6 }}>Les flèches comparent avec les {PERIODS.find((p) => p[0] === period)[1]} d'avant.</div>}
-    <VolumeCard games={cur} pid={pid} mode={mode} />
+    {mode !== 'level' && mode !== 'train' && <VolumeCard games={cur} pid={pid} mode={mode} />}
     <View games={cur} prevGames={prev} allGames={games} period={period} pid={pid} />
   </>);
 }

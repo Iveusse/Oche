@@ -6,6 +6,8 @@ import { Dartboard } from '../components/Dartboard.jsx';
 import { Icon, Seg, Sheet, Switch, TopBar, tap } from '../components/ui.jsx';
 import { PlayerOrder, shuffle } from '../components/PlayerOrder.jsx';
 import { trainingResult, playerStats } from '../engine/stats.js';
+import { gradeTraining } from '../engine/grades.js';
+import { GradeBadge, CriteriaToggle } from '../components/Grade.jsx';
 import { bestLegDarts, computeAchievements, newlyUnlocked, TIER } from '../engine/achievements.js';
 import { Medal } from './Achievements.jsx';
 import { load, save } from '../lib/store.js';
@@ -844,6 +846,7 @@ function LegEnd({ game, byId, history, onUpdate, onEnd }) {
 
 function TrainingEnd({ game, records, onEnd, onReplay }) {
   const res = trainingResult(game);
+  const grade = useMemo(() => gradeTraining(game), [game]);
   const rec = records?.[game.mode];
   const isRecord = res && (!rec || (res.better === 'low' ? res.value < rec.value : res.value > rec.value));
   return (
@@ -853,6 +856,22 @@ function TrainingEnd({ game, records, onEnd, onReplay }) {
       {res && game.mode !== 'train-free' && (
         <div style={{ color: isRecord ? 'var(--accent)' : 'var(--text-2)', fontWeight: 700 }}>
           {isRecord ? 'Nouveau record !' : `Record : ${rec.label}`}
+        </div>
+      )}
+      {grade && (
+        <div className="card col" style={{ padding: 16, gap: 12, marginTop: 8 }}>
+          <div className="row" style={{ gap: 16 }}>
+            <GradeBadge grade={grade.grade} size={76} />
+            <div className="grow" style={{ minWidth: 0 }}>
+              <div className="label">Ta note</div>
+              <div style={{ fontSize: 22, fontWeight: 800 }}>{grade.label}</div>
+              <div className="small muted">{Math.round(grade.score)} / 100</div>
+            </div>
+          </div>
+          {grade.next
+            ? <div className="small" style={{ color: 'var(--text-2)', lineHeight: 1.4 }}>{grade.next.text}.</div>
+            : <div className="small" style={{ color: 'var(--accent)', fontWeight: 700 }}>Note maximale, bravo !</div>}
+          <CriteriaToggle rows={grade.rows} current={grade.grade} what={grade.cfg.what} note={game.mode === 'train-atc' && grade.cfg.tip ? `Seuils pour : ${grade.cfg.tip}.` : null} />
         </div>
       )}
       <div className="col" style={{ gap: 10, marginTop: 24 }}>
