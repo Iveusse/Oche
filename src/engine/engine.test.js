@@ -661,3 +661,20 @@ describe('bilan du leg', async () => {
     }
   });
 });
+
+import { x01Probs, balanceStarts, winProbs } from './winprob.js';
+describe('winprob', () => {
+  it('égalité = proche de 50 %, le plus fort favori', () => {
+    const eq = x01Probs([{ score: 50, p: 0.15 }, { score: 50, p: 0.15 }], [501, 501], 'double', 3, 3000);
+    expect(eq[0] + eq[1]).toBeCloseTo(1, 5);
+    expect(Math.abs(eq[0] - 0.5)).toBeLessThan(0.12);
+    const st = x01Probs([{ score: 70, p: 0.3 }, { score: 40, p: 0.08 }], [501, 501], 'double', 1, 3000);
+    expect(st[0]).toBeGreaterThan(0.8);
+  });
+  it('refuse sans données', () => {
+    const r = winProbs('x01', { start: 501, out: 'double' }, ['a', 'b'], [], 1);
+    expect(r.ok).toBe(false);
+    expect(r.missing.length).toBe(2);
+    expect(balanceStarts(['a', 'b'], { start: 501 }, [], 1)).toBe(null);
+  });
+});

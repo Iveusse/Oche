@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Icon, Seg, Switch, Stepper } from '../components/ui.jsx';
 import { PlayerOrder, shuffle } from '../components/PlayerOrder.jsx';
 import { PlayerPicker } from './Setup.jsx';
 import { load, save } from '../lib/store.js';
+import { winProbs, balanceStarts } from '../engine/winprob.js';
 
 const MODES = [
   ['x01', 'X01', '301, 501, 701…'],
@@ -52,6 +53,18 @@ export function NewGame({ players, games, meId, lastPlayedMap, onBack, onStart, 
 
   const handicap = mode === 'x01' && !!s.handicap;
   const startFor = (id) => Number(s.starts?.[id] ?? s.start);
+  const effSettings = useMemo(() => {
+    if (mode !== 'x01' || !s.handicap) return s;
+    return { ...s, starts: Object.fromEntries(ids.map((id) => [id, startFor(id)])) };
+  }, [mode, s, ids]); // eslint-disable-line
+  const wp = useMemo(() => {
+    try { return winProbs(mode, effSettings, ids, games || [], legsToWin); } catch { return { ok: false, probs: {}, missing: [] }; }
+  }, [mode, effSettings, ids, games, legsToWin]);
+  const nameOf = (id) => players.find((p) => p.id === id)?.name || '?';
+  const balance = () => {
+    const st = balanceStarts(ids, s, games || [], legsToWin);
+    if (st) set({ handicap: true, starts: st });
+  };
   const start = () => {
     save('lastSetup', { mode, settings: all, ids });
     const { handicap: h, starts, ...rest } = s;
@@ -175,6 +188,26 @@ export function NewGame({ players, games, meId, lastPlayedMap, onBack, onStart, 
           <button className="btn btn-sky grow" disabled={ids.length < 2} onClick={() => setIds(shuffle(ids))}><Icon.Shuffle />Ordre aléatoire</button>
         </div>
       </div>
+
+      {ids.length >= 2 ? (
+        <div className="panel" style={{ gap: 8 }}>
+          <div className="label">Qui va gagner ?</div>
+          {wp.ok ? (<>
+            {[...ids].sort((a, b) => wp.probs[b] - wp.probs[a]).map((id) => (
+              <div key={id} className="col" style={{ gap: 3 }}>
+                <div className="between"><span style={{ fontWeight: 600 }}>{nameOf(id)}</span><span style={{ fontWeight: 800 }}>{Math.round(wp.probs[id] * 100)} %</span></div>
+                <div style={{ height: 8, borderRadius: 4, background: 'var(--bg)', overflow: 'hidden' }}><div style={{ width: `${Math.max(2, wp.probs[id] * 100)}%`, height: '100%', background: 'var(--accent)' }} /></div>
+              </div>
+            ))}
+            <span className="small muted">Estimation d'après vos parties passées{wp.approx ? ' (peu de données, c\'est approximatif)' : ''}.</span>
+            {mode === 'x01' && (
+              <button className="btn btn-sky" onClick={balance}>Équilibrer avec un handicap</button>
+            )}
+          </>) : (
+            <span className="small muted">{wp.missing?.length ? `Pas assez de données pour ${wp.missing.map(nameOf).join(', ')} (il faut ${wp.need || 'quelques parties'}).` : 'Pas d\'estimation pour ce réglage.'}</span>
+          )}
+        </div>
+      ) : null}
 
       <div className="start-bar"><button className="btn btn-primary" style={{ width: '100%' }} disabled={ids.length === 0 || (mode === 'killer' && ids.length < 2)} onClick={start}>
         {ids.length === 0 ? 'Ajoute au moins un joueur' : mode === 'killer' && ids.length < 2 ? 'Le Killer se joue à 2 minimum' : 'Lancer la partie'}
