@@ -189,7 +189,8 @@ function rankOf(g, id) {
 
 // ---------------- Stats ----------------
 
-export function Stats({ me, players, games }) {
+export function Stats({ me, players, games, hidden = [] }) {
+  const shown = players.filter((p) => !hidden.includes(p.id) || p.id === me?.id);
   const [pid, setPid] = useState(me?.id || players[0]?.id);
   const [period, setPeriod] = useState('30j');
   const [heatMode, setHeatMode] = useState('all');
@@ -216,7 +217,7 @@ export function Stats({ me, players, games }) {
           </button>
           {pickOpen && (
             <div role="listbox" style={{ position: 'absolute', right: 0, top: 46, zIndex: 5, background: 'var(--card-2)', borderRadius: 12, padding: 6, minWidth: 160, maxHeight: 320, overflow: 'auto', boxShadow: '0 10px 30px rgba(0,0,0,.35)' }}>
-              {players.map((p) => (
+              {shown.map((p) => (
                 <button key={p.id} role="option" aria-selected={p.id === pid} onClick={() => { setPid(p.id); setPickOpen(false); }} style={{ display: 'block', width: '100%', textAlign: 'left', padding: '10px 12px', borderRadius: 8, fontWeight: p.id === pid ? 800 : 500, color: p.id === pid ? 'var(--accent)' : 'var(--text)' }}>{p.name}</button>
               ))}
             </div>
@@ -230,14 +231,14 @@ export function Stats({ me, players, games }) {
         <span className="small" style={{ color: 'var(--text-2)', fontWeight: 600, whiteSpace: 'nowrap' }}>Comparer avec</span>
         <select className="input grow" style={{ height: 40, fontSize: 15 }} value={pid2} onChange={(e) => setPid2(e.target.value)} aria-label="Comparer avec">
           <option value="">Personne</option>
-          {players.filter((p) => p.id !== pid).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+          {shown.filter((p) => p.id !== pid).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
         </select>
       </label>
 
       <Seg options={[['7j', '7 j'], ['30j', '30 j'], ['1an', '1 an'], ['all', 'Tout']]} value={period} onChange={setPeriod} />
 
       {pid2 && pid2 !== pid ? <StatsCompare a={player} b={players.find((p) => p.id === pid2)} games={scoped} /> : (<>
-      <Rivalries me={player} players={players} games={scoped} />
+      <Rivalries me={player} players={shown} games={scoped} />
       <div className="grid2">
         <div className="kpi"><div className="k">Moyenne (3 fléch.)</div><div className="v">{fmt1(s.avg)}</div><div className="s">X01 · {s.x01Darts} fléchettes</div></div>
         <div className="kpi"><div className="k">Moy. 9 premières</div><div className="v">{fmt1(s.first9)}</div><div className="s">début de leg</div></div>
@@ -439,7 +440,7 @@ function StatsCompare({ a, b, games }) {
 
 // ---------------- Classement ----------------
 
-export function Ranking({ players, games, me }) {
+export function Ranking({ players, games, me, hidden = [] }) {
   const [sortBy, setSortBy] = useState('win');
   const [period, setPeriod] = useState('all');
   const [detail, setDetail] = useState(null);
@@ -453,7 +454,7 @@ export function Ranking({ players, games, me }) {
     if (period === '30') return allReal.filter((g) => Date.now() - new Date(g.created_at).getTime() < 30 * 86400000);
     return allReal;
   }, [period, games, session]); // eslint-disable-line
-  const rows = useMemo(() => players.map((p) => ({ p, s: playerStats(real, p.id) })).filter((x) => x.s.legsPlayed > 0), [players, real]);
+  const rows = useMemo(() => players.filter((p) => !hidden.includes(p.id) || p.id === me?.id).map((p) => ({ p, s: playerStats(real, p.id) })).filter((x) => x.s.legsPlayed > 0), [players, real, hidden, me]);
   // assez de données pour que le chiffre veuille dire quelque chose ? sinon en bas du classement
   const enough = { avg: (s) => s.x01Darts >= 30, win: () => true, co: (s) => s.coAttempts >= 10, mpr: (s) => s.cricketTurns >= 8 }[sortBy];
   const key = { avg: (s) => s.avg ?? -1, win: (s) => s.legsWon * 1000 + (s.winRate ?? 0), co: (s) => s.checkout ?? -1, mpr: (s) => s.mpr ?? -1 }[sortBy];

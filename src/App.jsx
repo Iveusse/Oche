@@ -156,6 +156,8 @@ function TeamApp({ team, onTeams, onInvalid, onRenamed }) {
 
   setResets(players);
   const [statsKey, setStatsKey] = useState(0);
+  const [hidden, setHidden] = useState(() => load('hiddenPlayers', []));
+  const toggleHidden = (id) => setHidden((h) => { const n = h.includes(id) ? h.filter((x) => x !== id) : [...h, id]; save('hiddenPlayers', n); return n; });
   const onResetPlayer = async (code, pid) => {
     const at = await resetPlayer(code, pid);
     setPlayers((ps) => { const n = ps.map((p) => (p.id === pid ? { ...p, reset_at: at } : p)); save('cachePlayers', n); return n; });
@@ -273,6 +275,7 @@ function TeamApp({ team, onTeams, onInvalid, onRenamed }) {
   if (view === 'new') {
     return (
       <NewGame
+        hidden={hidden} onToggleHidden={toggleHidden}
         players={players} games={games} meId={meId} lastPlayedMap={lastPlayedMap}
         onBack={() => setView('tabs')} onStart={begin} onCreatePlayer={createPlayer}
       />
@@ -315,8 +318,8 @@ function TeamApp({ team, onTeams, onInvalid, onRenamed }) {
           </div>
         </div>
       )}
-      {tab === 'stats' && <Stats key={`st${statsKey}`} me={me} players={statPlayers} games={statGames} />}
-      {tab === 'ranking' && <Ranking key={`rk${statsKey}`} me={me} players={statPlayers} games={statGames} />}
+      {tab === 'stats' && <Stats key={`st${statsKey}`} hidden={hidden} me={me} players={statPlayers} games={statGames} />}
+      {tab === 'ranking' && <Ranking key={`rk${statsKey}`} hidden={hidden} me={me} players={statPlayers} games={statGames} />}
       <TabBar tab={tab} onTab={(t) => { setTab(t); window.scrollTo(0, 0); if (t !== 'home') refresh(); }} />
       {toast && <div className="toast" role="status">{toast}</div>}
     </>

@@ -80,13 +80,17 @@ export function NewPlayerSheet({ onClose, onCreate }) {
   );
 }
 
-export function PlayerPicker({ players, games, selected, onDone, onClose, onCreate, lastPlayedMap }) {
+export function PlayerPicker({ players, games, selected, onDone, onClose, onCreate, lastPlayedMap, hidden = [], onToggleHidden, meId }) {
+  const [showHidden, setShowHidden] = useState(false);
   const [sel, setSel] = useState(selected);
   const [q, setQ] = useState('');
   const [adding, setAdding] = useState(false);
+  const isHid = (p) => hidden.includes(p.id) && p.id !== meId && !selected.includes(p.id);
+  const matches = (p) => p.name.toLowerCase().includes(q.toLowerCase());
   const list = useMemo(() => players
-    .filter((p) => p.name.toLowerCase().includes(q.toLowerCase()))
-    .sort((a, b) => (lastPlayedMap[b.id] || 0) - (lastPlayedMap[a.id] || 0) || a.name.localeCompare(b.name)), [players, q, lastPlayedMap]);
+    .filter((p) => matches(p) && !isHid(p))
+    .sort((a, b) => (lastPlayedMap[b.id] || 0) - (lastPlayedMap[a.id] || 0) || a.name.localeCompare(b.name)), [players, q, lastPlayedMap, hidden]); // eslint-disable-line react-hooks/exhaustive-deps
+  const hiddenList = players.filter((p) => matches(p) && isHid(p)).sort((a, b) => a.name.localeCompare(b.name));
   const toggle = (id) => setSel(sel.includes(id) ? sel.filter((x) => x !== id) : [...sel, id]);
   const added = sel.filter((x) => !selected.includes(x)).length;
   return (
@@ -104,13 +108,30 @@ export function PlayerPicker({ players, games, selected, onDone, onClose, onCrea
         {list.map((p) => {
           const on = sel.includes(p.id);
           return (
-            <button key={p.id} className={`pick-row ${on ? 'on' : ''}`} onClick={() => toggle(p.id)} aria-pressed={on}>
-              <span className="grow" style={{ fontSize: 15, fontWeight: on ? 700 : 600 }}>{p.name}</span>
-              <span className="small muted">{lastPlayedMap[p.id] ? relTime(lastPlayedMap[p.id]) : 'jamais joué'}</span>
-              <span className={`check ${on ? 'on' : ''}`}>{on && <Icon.Check style={{ color: 'var(--on-accent)' }} />}</span>
-            </button>
+            <div key={p.id} className="row" style={{ gap: 6 }}>
+              <button className={`pick-row grow ${on ? 'on' : ''}`} onClick={() => toggle(p.id)} aria-pressed={on}>
+                <span className="grow" style={{ fontSize: 15, fontWeight: on ? 700 : 600 }}>{p.name}</span>
+                <span className="small muted">{lastPlayedMap[p.id] ? relTime(lastPlayedMap[p.id]) : 'jamais joué'}</span>
+                <span className={`check ${on ? 'on' : ''}`}>{on && <Icon.Check style={{ color: 'var(--on-accent)' }} />}</span>
+              </button>
+              {onToggleHidden && p.id !== meId && !on && <button className="icon-btn" aria-label={`Masquer ${p.name}`} title="Masquer ce joueur" onClick={() => onToggleHidden(p.id)}><Icon.X /></button>}
+            </div>
           );
         })}
+        {onToggleHidden && players.some((p) => hidden.includes(p.id) && p.id !== meId) && (
+          <button className="small muted" style={{ textAlign: 'left', minHeight: 36 }} onClick={() => setShowHidden(!showHidden)}>
+            {showHidden ? '▾' : '▸'} Joueurs masqués ({players.filter((p) => hidden.includes(p.id) && p.id !== meId).length})
+          </button>
+        )}
+        {showHidden && hiddenList.map((p) => (
+          <div key={p.id} className="row" style={{ gap: 6 }}>
+            <div className="pick-row grow" style={{ opacity: 0.8 }}>
+              <span className="grow" style={{ fontSize: 15, fontWeight: 600 }}>{p.name}</span>
+              <span className="small muted">{lastPlayedMap[p.id] ? relTime(lastPlayedMap[p.id]) : 'jamais joué'}</span>
+            </div>
+            <button className="btn btn-sky" style={{ minHeight: 44 }} onClick={() => onToggleHidden(p.id)}>Réafficher</button>
+          </div>
+        ))}
       </div>
       <button className="btn btn-dashed" onClick={() => setAdding(true)}><Icon.Plus />Créer un nouveau joueur</button>
       {adding && <NewPlayerSheet onClose={() => setAdding(false)} onCreate={async (name) => { const p = await onCreate(name); if (p) setSel((s) => [...s, p.id]); }} />}

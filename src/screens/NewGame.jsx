@@ -37,13 +37,13 @@ function SettingRow({ title, sub, children }) {
   );
 }
 
-export function NewGame({ players, games, meId, lastPlayedMap, onBack, onStart, onCreatePlayer }) {
+export function NewGame({ hidden = [], onToggleHidden, players, games, meId, lastPlayedMap, onBack, onStart, onCreatePlayer }) {
   const last = load('lastSetup', null);
   const [mode, setMode] = useState(last?.mode || 'x01');
   const [all, setAll] = useState({ ...DEFAULTS, ...(last?.settings || {}) });
   const [legsToWin, setLegsToWin] = useState(1);
   const [ids, setIds] = useState(() => {
-    const base = (last?.ids || []).filter((id) => players.some((p) => p.id === id));
+    const base = (last?.ids || []).filter((id) => players.some((p) => p.id === id) && (id === meId || !hidden.includes(id)));
     if (meId && !base.includes(meId)) base.unshift(meId);
     return base;
   });
@@ -215,7 +215,7 @@ export function NewGame({ players, games, meId, lastPlayedMap, onBack, onStart, 
 
       {picker && (
         <PlayerPicker
-          players={players} games={games} selected={ids} lastPlayedMap={lastPlayedMap}
+          players={players} games={games} selected={ids} lastPlayedMap={lastPlayedMap} hidden={hidden} onToggleHidden={onToggleHidden} meId={meId}
           onClose={() => setPicker(false)}
           onDone={(sel) => { setIds([...ids.filter((x) => sel.includes(x)), ...sel.filter((x) => !ids.includes(x))]); setPicker(false); }}
           onCreate={onCreatePlayer}
