@@ -1,3 +1,5 @@
+import { LevelCurve, GoalLine } from '../components/Plan.jsx';
+import { nextGoal } from '../engine/plan.js';
 import React, { useMemo, useState } from 'react';
 import { Seg } from '../components/ui.jsx';
 import { Delta, HBars, HeatStrip, Ring, Sparkline, StackBar, VBars } from '../components/Charts.jsx';
@@ -464,7 +466,7 @@ function CountUpView({ games, prevGames, allGames, period, pid }) {
 const letterRows = () => [...GRADES].map((g) => ({ grade: g, label: GRADE_LABEL[g], text: g === 'E' ? 'moins de 30 points' : `${GRADE_MIN[g]} points ou plus` }));
 const thrText = (m, g) => `${m.fmt(m.thr[g])}`;
 
-function LevelView({ games, prevGames, pid }) {
+function LevelView({ games, prevGames, allGames, pid }) {
   const L = useMemo(() => levelOf(games, pid), [games, pid]);
   const P = useMemo(() => (prevGames ? levelOf(prevGames, pid) : null), [prevGames, pid]);
   const ok = L.modes.filter((m) => m.ok).sort((x, y) => y.score - x.score);
@@ -493,6 +495,11 @@ function LevelView({ games, prevGames, pid }) {
         {best && gap >= 10 ? ` Ton point fort : ${best.label}. À travailler : ${worst.label}.` : ok.length >= 2 ? ' Tu es au même niveau partout.' : ''}
       </div>
     </div>
+
+    <Card title="Évolution du niveau" sub="semaine après semaine">
+      <LevelCurve games={allGames || games} pid={pid} />
+      <div style={{ marginTop: 8 }}><GoalLine goal={nextGoal(L)} /></div>
+    </Card>
 
     <Card title="Niveau par jeu" sub="score sur 100">
       <div className="col" style={{ gap: 12 }}>

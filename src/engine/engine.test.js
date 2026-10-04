@@ -678,3 +678,18 @@ describe('winprob', () => {
     expect(balanceStarts(['a', 'b'], { start: 501 }, [], 1)).toBe(null);
   });
 });
+
+import { weeklyPlan, nextGoal, levelHistory, weekStart } from './plan.js';
+describe('plan', () => {
+  it('semaine commence le lundi', () => {
+    const d = new Date(weekStart(new Date('2026-10-04T14:00:00').getTime()));
+    expect(d.getDay()).toBe(1); expect(d.getDate()).toBe(28);
+  });
+  it('sans données : 3 exercices à découvrir, pas d\'objectif', () => {
+    const p = weeklyPlan([], 'x');
+    expect(p.items.length).toBe(3); expect(p.items.every((i) => i.grade == null)).toBe(true);
+    expect(p.goal).toBe(null); expect(p.total).toBe(5);
+    expect(levelHistory([], 'x')).toEqual([]);
+    expect(nextGoal(null)).toBe(null);
+  });
+});

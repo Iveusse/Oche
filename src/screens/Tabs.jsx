@@ -1,3 +1,4 @@
+import { PlanCard } from '../components/Plan.jsx';
 import { runLeg } from '../engine/runner.js';
 import { GameDetail } from './GameDetail.jsx';
 import { coachAdvice } from '../engine/coach.js';
@@ -648,6 +649,7 @@ export function Training({ me, games, onStart, onAtc, onCustom, onProfile }) {
         <div className="h1">Entraînement</div>
         <div className="small muted">Tes sessions solo, comptées dans tes stats</div>
       </div>
+      <PlanCard games={games} me={me} onStart={onStart} />
       {coach && <CoachCard coach={coach} onStart={onStart} onAtc={onAtc} onCustom={onCustom} />}
       <div className="card col" style={{ padding: 16, gap: 12, border: '1px solid var(--card-2)' }}>
         <div>
