@@ -69,7 +69,7 @@ export function RecapSheet({ games, players, onClose, weekly = false, meId }) {
             })}
           </div>
         </div>
-        {recap && <div className="small muted">{recap.games} partie{recap.games > 1 ? 's' : ''} où tous ces joueurs ont joué</div>}
+        {recap && <div className="small muted">{recap.games} partie{recap.games > 1 ? 's' : ''} {pids && pids.size === 1 ? 'jouée' + (recap.games > 1 ? 's' : '') + ' par ce joueur (victoires contre tous ses adversaires)' : 'où tous ces joueurs ont joué'}</div>}
       </>)}
       {!recap ? <div className="muted">{weekly ? (view === 'perso' ? 'Aucune partie terminée par ce joueur sur cette semaine.' : 'Aucune partie terminée sur cette semaine.') : days.length ? 'Aucune partie où tous ces joueurs ont joué ce jour-là.' : 'Pas encore de partie terminée.'}</div> : (<>
         {img ? <img src={img.url} alt={title} className="recap-img" /> : <div className="muted small">Préparation de l'image…</div>}

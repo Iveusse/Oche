@@ -60,6 +60,9 @@ export function computeRecap(allGames, players, session = lastSession(allGames),
   const P = {};
   const get = (id) => (P[id] ||= { id, name: byId[id]?.name || '?', color: byId[id]?.color || '#888', legs: 0, won: 0, darts: 0, pts: 0, high: 0, c180: 0, co: 0, bestLeg: null, bestLegStart: null, shanghai: 0, marks: 0, cTurns: 0, baseball: 0, countup: 0, kills: 0 });
   let legsN = 0; let activeMs = 0; const modes = {};
+  // un seul joueur sélectionné : toutes ses parties, victoires comptées contre tous les adversaires de la partie
+  const solo = !!pids && pids.size === 1;
+  const sel = (x) => solo || !pids || pids.has(x);
   for (const g of session.games) {
     modes[g.mode] = (modes[g.mode] || 0) + 1;
     for (const { leg, r } of replayed(g)) {
@@ -68,8 +71,8 @@ export function computeRecap(allGames, players, session = lastSession(allGames),
         if (pids && !pids.has(id)) return;
         const p = get(id);
         p.legs += 1;
-        const rk = (leg.ranking || []).filter((x) => !pids || pids.has(x));
-        if (leg.order.filter((x) => !pids || pids.has(x)).length > 1 && rk[0] === id) p.won += 1;
+        const rk = (leg.ranking || []).filter(sel);
+        if (leg.order.filter(sel).length > 1 && rk[0] === id) p.won += 1;
         let legDarts = 0;
         for (const t of r.turns) {
           if (t.p !== idx) continue;
