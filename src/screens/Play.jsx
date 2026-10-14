@@ -428,7 +428,8 @@ export function Play({ game, players, records, history = [], onUpdate, onLegDone
     info = { b: 'Points', a: tps.pts };
   } else if (game.mode === 'train-focus20') {
     info = { b: 'Fléchettes', a: `${tps.darts}/99` };
-    hint = `${tps.pts} points`;
+    const f = (m) => leg.darts.filter((x) => x.seg === 20 && x.mult === m).length;
+    hint = `${tps.pts} pts · ${f(3)} × T20 · ${f(2)} × D20 · ${f(1)} × 20`;
   } else if (game.mode === 'train-checkout') {
     const target = leg.targets[Math.min(tps.idx, leg.targets.length - 1)];
     info = { b: `Finish ${Math.min(tps.idx + 1, 20)}/20`, a: shown && r.awaiting ? shown.darts[0].target : tps.rem };
