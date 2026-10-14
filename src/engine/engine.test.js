@@ -712,3 +712,25 @@ describe('checkouts progressifs', () => {
     expect(r.ps[0].succ).toBe(2);
   });
 });
+
+import { shanghaiAdvanced } from './advanced.js';
+import { legReport } from './legreport.js';
+describe('shanghai formats', () => {
+  const mkSh = (id, from, to, hitEvery) => {
+    const nums = []; for (let n = from; n <= to; n++) nums.push(n);
+    const darts = []; nums.forEach((n, i) => { for (let k = 0; k < 3; k++) darts.push(k === 0 && i % hitEvery === 0 ? { seg: n, mult: 2 } : { seg: 0, mult: 0 }); for (let k = 0; k < 3; k++) darts.push({ seg: 0, mult: 0 }); });
+    return { id, mode: 'shanghai', settings: { from, to, instantWin: true }, player_ids: ['a', 'b'], status: 'finished', created_at: new Date(2026, 0, Number(id.slice(1))).toISOString(),
+      data: { legs: [{ order: ['a', 'b'], darts, validated: 1e9, done: true, ranking: ['a', 'b'] }], legsToWin: 1 } };
+  };
+  it('touches par manche indépendantes du format, rapport sur même format', () => {
+    const a7 = shanghaiAdvanced([mkSh('g1', 1, 7, 1)], 'a'); const a20 = shanghaiAdvanced([mkSh('g2', 1, 20, 1)], 'a');
+    expect(a7.markAvg).toBeCloseTo(a20.markAvg, 5);
+    expect(Object.keys(shanghaiAdvanced([mkSh('g1', 1, 7, 1), mkSh('g2', 1, 20, 1)], 'a').fmt).sort()).toEqual(['1-20', '1-7']);
+    const hist = [mkSh('g3', 1, 7, 1), mkSh('g4', 1, 7, 1), mkSh('g5', 1, 20, 1)];
+    const rep = legReport(mkSh('g6', 1, 7, 1), hist, 'a');
+    expect(rep.rows.some((r) => r.label === 'Points')).toBe(true);
+    expect(rep.rows.some((r) => r.label === 'Touches par manche')).toBe(true);
+    const rep2 = legReport(mkSh('g7', 1, 10, 1), hist, 'a');
+    expect(rep2.rows.some((r) => r.label === 'Points')).toBe(false);
+  });
+});

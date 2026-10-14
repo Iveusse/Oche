@@ -1,6 +1,6 @@
 // Stats avancées par mode, calculées à partir des legs rejoués.
 import { replayed, afterReset } from './stats.js';
-import { CRICKET_NUMS, shanghaiNumbers, startOf, BASEBALL_INNINGS } from './modes.js';
+import { CRICKET_NUMS, shanghaiNumbers, shanghaiFmt, startOf, BASEBALL_INNINGS } from './modes.js';
 import { oneDartFinish } from '../lib/board.js';
 import { isTraining } from './modes.js';
 import { gradeTraining, GRADES } from './grades.js';
@@ -177,7 +177,7 @@ export function cricketAdvanced(games, pid) {
 
 export function shanghaiAdvanced(games, pid) {
   const s = {
-    legs: 0, won: 0, shanghais: 0, pts: 0, best7: null, best20: null, darts: 0, t: 0, d: 0, sgl: 0, miss: 0,
+    legs: 0, won: 0, shanghais: 0, pts: 0, best7: null, best20: null, best10: null, darts: 0, t: 0, d: 0, sgl: 0, miss: 0, marks: 0, rounds: 0, fmt: {},
     num: Object.fromEntries(Array.from({ length: 20 }, (_, i) => [i + 1, { darts: 0, hits: 0, pts: 0, turns: 0, sh: 0 }])),
   };
   forEachLeg(games, pid, 'shanghai', ({ g, leg, r, idx, turns }) => {
@@ -186,22 +186,29 @@ export function shanghaiAdvanced(games, pid) {
     const nums = shanghaiNumbers(g.settings || {});
     if (nums[0] === 1 && nums.length === 7) s.best7 = Math.max(s.best7 ?? 0, p);
     if (nums[0] === 1 && nums.length === 20) s.best20 = Math.max(s.best20 ?? 0, p);
+    if (nums[0] === 1 && nums.length === 10) s.best10 = Math.max(s.best10 ?? 0, p);
+    const fk = shanghaiFmt(g.settings || {}); const fc = (s.fmt[fk] ||= { legs: 0, pts: 0, best: 0 });
+    fc.legs += 1; fc.pts += p; fc.best = Math.max(fc.best, p);
     for (const t of turns) {
       const target = nums[t.round];
       const cell = s.num[target];
       if (cell) cell.turns += 1;
+      s.rounds += 1;
       for (const d of t.darts) {
         s.darts += 1;
         if (d.shanghai) { s.shanghais += 1; if (cell) cell.sh += 1; }
         if (cell) { cell.darts += 1; cell.pts += d.pts || 0; }
         if (!d.hit) { s.miss += 1; continue; }
         if (cell) cell.hits += 1;
+        s.marks += d.mult || 0;
         if (d.mult === 3) s.t += 1; else if (d.mult === 2) s.d += 1; else s.sgl += 1;
       }
     }
   });
   return {
     ...s, winRate: avg(s.won, s.legs), ptsAvg: avg(s.pts, s.legs),
+    // indicateurs qui ne dépendent pas du nombre de numéros joués : touches (simple 1, double 2, triple 3) par manche
+    markAvg: avg(s.marks, s.rounds),
     pct: { hit: avg(s.darts - s.miss, s.darts), t: avg(s.t, s.darts), d: avg(s.d, s.darts), s: avg(s.sgl, s.darts), miss: avg(s.miss, s.darts) },
     numAcc: Object.fromEntries(Object.entries(s.num).map(([k, c]) => [k, avg(c.hits, c.darts)])),
     numPts: Object.fromEntries(Object.entries(s.num).map(([k, c]) => [k, avg(c.pts, c.turns)])),

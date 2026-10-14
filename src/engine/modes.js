@@ -88,6 +88,9 @@ export const atc = {
   rankKey: (ps) => ps.pos,
 };
 
+export const shanghaiFmt = (settings = {}) => `${settings.from || 1}-${settings.to || 7}`;
+export const shanghaiFmtLabel = (k) => `${k.replace('-', ' à ')}`;
+
 export function shanghaiNumbers(settings) {
   const from = settings.from || 1;
   const to = settings.to || 7;

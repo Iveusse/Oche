@@ -1,7 +1,7 @@
 // Bilan d'un leg : les stats du leg comparées au niveau habituel du joueur.
 // On réutilise les mêmes fonctions que l'analyse, sur le leg seul puis sur l'historique d'avant.
 import { x01Advanced, cricketAdvanced, shanghaiAdvanced, atcAdvanced, baseballAdvanced, killerAdvanced, countupAdvanced } from './advanced.js';
-import { startOf } from './modes.js';
+import { startOf, shanghaiFmt } from './modes.js';
 
 const f1 = (v) => v.toFixed(1);
 const f0 = (v) => String(Math.round(v));
@@ -42,10 +42,12 @@ function rowsFor(game, pid, a, b, won) {
       add('Fléchettes lancées', a.darts, b.legs ? b.darts / b.legs : null, f0, 0);
       break;
     case 'shanghai':
-      add('Points', a.ptsAvg, b.ptsAvg, f0, 1, 2);
+      // les points dépendent des numéros joués (1 à 7 ≠ 1 à 20) : comparés seulement aux parties du même format ;
+      // les touches par manche, elles, se comparent entre formats
+      if (b.sameFmt) add('Points', a.ptsAvg, b.ptsAvg, f0, 1, 1.5);
+      add('Touches par manche', a.markAvg, b.markAvg, f2, 1, 2, { refText: num(b.markAvg) ? `${f2(b.markAvg)}` : null });
       add('Précision sur le numéro', a.pct.hit, b.pct.hit, pc, 1);
       add('Triples', a.pct.t, b.pct.t, pc, 1);
-      add('Fléchettes lancées', a.darts, b.legs ? b.darts / b.legs : null, f0, 0);
       break;
     case 'atc':
       if (a.finished) add('Fléchettes pour finir', a.finAvg, b.finAvg, f0, -1, 2);
@@ -92,6 +94,11 @@ export function legReport(game, history, pid) {
     start = startOf(game, pid);
     a = fn(syn, pid, 'all'); b = fn(prior, pid, start);
     if (b.legs < MIN_REF) b = fn(prior, pid, 'all');
+  } else if (game.mode === 'shanghai') {
+    const fk = shanghaiFmt(game.settings || {});
+    const same = prior.filter((g) => g.mode !== 'shanghai' || shanghaiFmt(g.settings || {}) === fk);
+    a = fn(syn, pid); b = fn(same, pid); b.sameFmt = true;
+    if (b.legs < MIN_REF) { b = fn(prior, pid); b.sameFmt = false; }
   } else { a = fn(syn, pid); b = fn(prior, pid); }
   if (!a.legs) return null;
   const enough = b.legs >= MIN_REF;

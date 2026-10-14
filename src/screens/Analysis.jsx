@@ -5,7 +5,7 @@ import { Seg } from '../components/ui.jsx';
 import { Delta, HBars, HeatStrip, Ring, Sparkline, StackBar, VBars } from '../components/Charts.jsx';
 import { ALT_BUCKETS, TURN_BUCKETS, atcAdvanced, baseballAdvanced, countupAdvanced, cricketAdvanced, killerAdvanced, shanghaiAdvanced, trainingAdvanced, x01Advanced } from '../engine/advanced.js';
 import { playerStats } from '../engine/stats.js';
-import { CRICKET_NUMS, MODE_LABEL, startOf } from '../engine/modes.js';
+import { CRICKET_NUMS, MODE_LABEL, startOf, shanghaiFmt, shanghaiFmtLabel } from '../engine/modes.js';
 import { LineChart } from '../components/LineChart.jsx';
 import { GradeBadge, CriteriaToggle } from '../components/Grade.jsx';
 import { DRILL_GRADE, GRADES, GRADE_LABEL, GRADE_MIN, criteria } from '../engine/grades.js';
@@ -23,6 +23,7 @@ function window(games, period) {
 
 const f1 = (v) => (v == null ? '-' : v.toFixed(1));
 const f0 = (v) => (v == null ? '-' : Math.round(v).toString());
+const f2 = (v) => (v == null ? '-' : v.toFixed(2));
 const pc = (v) => (v == null ? '-' : `${Math.round(v * 100)} %`);
 const dur = (ms) => { if (!ms) return '-'; const h = Math.floor(ms / 3600000); const m = Math.round((ms % 3600000) / 60000); return h ? `${h} h ${String(m).padStart(2, '0')}` : `${m} min`; };
 const diff = (a, b) => (a == null || b == null ? null : a - b);
@@ -169,7 +170,7 @@ const CRICKET_SECTIONS = [
 const SH_NUMS = Array.from({ length: 20 }, (_, i) => i + 1);
 const SHANGHAI_SECTIONS = [
   ['Général', [['Parties', (a) => a.legs], ['Victoires', (a) => a.won], up('% de victoire', (a) => a.winRate, pc), ['Shanghais', (a) => a.shanghais], ['Temps de jeu', (a) => dur(a.duration.total)]]],
-  ['Points', [up('Moyenne / partie', (a) => a.ptsAvg, f0), up('Meilleur 1 à 7', (a) => a.best7, rec), up('Meilleur 1 à 20', (a) => a.best20, rec)]],
+  ['Points', [up('Moyenne / partie', (a) => a.ptsAvg, f0), up('Touches par manche', (a) => a.markAvg, f2), up('Meilleur 1 à 7', (a) => a.best7, rec), up('Meilleur 1 à 10', (a) => a.best10, rec), up('Meilleur 1 à 20', (a) => a.best20, rec)]],
   ['Fléchettes', [['Tentatives', (a) => n0(a.darts)], ['Triples', (a) => a.t], ['Doubles', (a) => a.d], ['Simples', (a) => a.sgl], ['Ratées', (a) => a.miss]]],
   ['Précision', [up('Touches', (a) => a.pct.hit, pc), up('Triples', (a) => a.pct.t, pc), up('Doubles', (a) => a.pct.d, pc), ['Simples', (a) => pc(a.pct.s)], dn('Ratées', (a) => a.pct.miss, pc)]],
   ['Précision par numéro', SH_NUMS.map((n) => up(String(n), (a) => a.numAcc[n], pc))],
@@ -347,19 +348,30 @@ function CricketView({ games, prevGames, allGames, period, pid }) {
   </>);
 }
 
-function ShanghaiView({ games, prevGames, allGames, period, pid }) {
+function ShanghaiView({ games: gAll, prevGames: pAll, allGames: aAll, period, pid }) {
+  // les points dépendent des numéros joués (1 à 7 ≠ 1 à 20) : on peut isoler un format pour comparer ce qui est comparable
+  const [fmt, setFmt] = useState('all');
+  const fmts = useMemo(() => Object.keys(shanghaiAdvanced(aAll, pid).fmt).sort((x, y) => Number(x.split('-')[1]) - Number(y.split('-')[1])), [aAll, pid]);
+  const keep = (list) => (!list ? list : fmt === 'all' ? list : list.filter((g) => g.mode !== 'shanghai' || shanghaiFmt(g.settings || {}) === fmt));
+  const games = useMemo(() => keep(gAll), [gAll, fmt]); // eslint-disable-line react-hooks/exhaustive-deps
+  const prevGames = useMemo(() => keep(pAll), [pAll, fmt]); // eslint-disable-line react-hooks/exhaustive-deps
+  const allGames = useMemo(() => keep(aAll), [aAll, fmt]); // eslint-disable-line react-hooks/exhaustive-deps
   const all = useMemo(() => shanghaiAdvanced(allGames, pid), [allGames, pid]);
   const a = useMemo(() => shanghaiAdvanced(games, pid), [games, pid]);
   const b = useMemo(() => (prevGames ? shanghaiAdvanced(prevGames, pid) : null), [prevGames, pid]);
-  if (!a.legs) return <Empty what="partie de Shanghai" />;
+  const mixed = fmt === 'all' && fmts.length > 1;
+  const chips = fmts.length > 1 ? <Seg options={[['all', 'Tous'], ...fmts.map((k) => [k, shanghaiFmtLabel(k)])]} value={fmt} onChange={setFmt} /> : null;
+  if (!a.legs) return <>{chips}<Empty what="partie de Shanghai" /></>;
   const played = Object.entries(a.num).filter(([, c]) => c.darts > 0).map(([k]) => Number(k));
   const maxN = Math.max(7, ...played);
   return (<>
+    {chips}
     <Hero label="Précision sur la cible" value={a.pct.hit == null ? '-' : Math.round(a.pct.hit * 100)} unit=" %" delta={b && b.pct.hit != null && a.pct.hit != null ? (a.pct.hit - b.pct.hit) * 100 : undefined} deltaSuffix=" pts">
-      <Mini k="Points / partie" v={f0(a.ptsAvg)} />
+      <Mini k={mixed ? 'Touches / manche' : 'Points / partie'} v={mixed ? f2(a.markAvg) : f0(a.ptsAvg)} s={mixed ? 'formats mélangés' : undefined} />
       <Mini k="Victoires" v={pc(a.winRate)} s={`${a.won} / ${a.legs}`} />
       <Mini k="Shanghais" v={a.shanghais} />
     </Hero>
+    {mixed && <div className="small muted">Les points dépendent des numéros joués : choisis un format ci-dessus pour comparer des parties comparables.</div>}
     <Card title="Précision par numéro" sub="% de fléchettes dans le numéro">
       <HeatStrip cells={Array.from({ length: maxN }, (_, i) => i + 1).map((n) => ({
         label: String(n), value: a.numAcc[n],
@@ -377,6 +389,7 @@ function ShanghaiView({ games, prevGames, allGames, period, pid }) {
     <Card title="Records">
       <div className="records">
         <Mini k="Meilleur 1 à 7" v={a.best7 ?? '-'} s="points" />
+        <Mini k="Meilleur 1 à 10" v={a.best10 ?? '-'} s="points" />
         <Mini k="Meilleur 1 à 20" v={a.best20 ?? '-'} s="points" />
         <Mini k="Fléchettes" v={a.darts} />
         <Mini k="Temps de jeu" v={dur(a.duration.total)} />
