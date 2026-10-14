@@ -1,3 +1,4 @@
+import { CO_LEVELS, rateOf, nextLevel } from '../engine/checkout.js';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { runLeg, legsWon } from '../engine/runner.js';
 import { MODE_LABEL, CRICKET_NUMS, isTraining, shanghaiNumbers, atcTargets, startOf, hasHandicap, BASEBALL_INNINGS, countUpRounds, killerNumbers, killerTargets } from '../engine/modes.js';
@@ -906,6 +907,18 @@ function TrainingEnd({ game, records, onEnd, onReplay }) {
           {isRecord ? 'Nouveau record !' : `Record : ${rec.label}`}
         </div>
       )}
+      {game.mode === 'train-checkout' && game.settings?.level && (() => {
+        const L = game.settings.level; const rate = rateOf(game); const nx = nextLevel(L, rate);
+        return (
+          <div className="card col" style={{ padding: 16, gap: 8, marginTop: 8 }}>
+            <div className="label">Niveau {L} / 5 · {CO_LEVELS[L - 1].label}</div>
+            <div style={{ fontSize: 15, fontWeight: 700 }}>
+              {nx > L ? `Bien joué, tu passes au niveau ${nx} (${CO_LEVELS[nx - 1].label}).` : nx < L ? `Un cran trop dur : prochaine séance au niveau ${nx} (${CO_LEVELS[nx - 1].label}).` : 'Tu restes à ce niveau jusqu\'à ce que ça passe.'}
+            </div>
+            <div className="small muted" style={{ lineHeight: 1.4 }}>Le niveau monte à 12 réussis sur 20 ou plus, et descend à 5 ou moins. Les finish que tu rates en match reviennent plus souvent.</div>
+          </div>
+        );
+      })()}
       {grade && (
         <div className="card col" style={{ padding: 16, gap: 12, marginTop: 8 }}>
           <div className="row" style={{ gap: 16 }}>

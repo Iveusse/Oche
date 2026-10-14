@@ -3,11 +3,12 @@ import { levelOf } from './level.js';
 import { DRILL_GRADE, GRADES, GRADE_MIN, GRADE_LABEL, gradeOfScore, gradeTraining, criteria } from './grades.js';
 import { afterReset } from './stats.js';
 import { isTraining } from './modes.js';
+import { checkoutProfile, CO_LEVELS } from './checkout.js';
 
 const WEEK = 7 * 86400000;
 const DRILL_IDS = ['train-doubles', 'train-focus20', 'train-checkout', 'train-baseball', 'train-killer'];
 export const DRILL_NAME = {
-  'train-doubles': 'Tour des doubles', 'train-focus20': 'Focus 20', 'train-checkout': 'Checkouts 41-100',
+  'train-doubles': 'Tour des doubles', 'train-focus20': 'Focus 20', 'train-checkout': 'Checkouts progressifs',
   'train-baseball': 'Baseball solo', 'train-killer': 'Doubles de Killer',
 };
 const GAME_NAME = { x01: 'X01', cricket: 'Cricket', countup: 'Count Up', shanghai: 'Shanghai', atc: 'Around the Clock', baseball: 'Baseball', killer: 'Killer' };
@@ -69,13 +70,18 @@ export function weeklyPlan(games, pid, now = Date.now()) {
   const rows = DRILL_IDS.map((id) => {
     const arr = (per[id] || []).sort((a, b) => a.at - b.at);
     const last3 = arr.slice(-3);
-    const score = last3.length ? last3.reduce((a, x) => a + x.gr.score, 0) / last3.length : null;
+    let score = last3.length ? last3.reduce((a, x) => a + x.gr.score, 0) / last3.length : null;
+    if (id === 'train-checkout') { const cp = checkoutProfile(gs, pid, now); score = cp.level * 20 - 10; return { id, score, grade: null, n: cp.sessions, lastAt: 0, lastGrade: null, co: cp }; }
     const last = arr[arr.length - 1];
     return { id, score, grade: score == null ? null : gradeOfScore(score), n: arr.length, lastAt: last?.at || 0, lastGrade: last?.gr.grade || null };
   });
   // priorité : jamais fait d'abord, puis les notes les plus basses, puis les plus anciens
   const order = [...rows].sort((a, b) => (a.score ?? -1) - (b.score ?? -1) || a.lastAt - b.lastAt);
   const items = order.slice(0, 3).map((r, i) => {
+    if (r.id === 'train-checkout') {
+      const lv = r.co.level;
+      return { id: r.id, name: DRILL_NAME[r.id], grade: null, why: `Niveau ${lv} / 5 : ${CO_LEVELS[lv - 1].label}${i === 0 ? ', ton point faible' : ''}`, goal: lv < 5 ? '12 réussis sur 20 pour passer au niveau suivant' : 'Niveau max : garde 12 sur 20', times: i < 2 ? 2 : 1, done: done[r.id] || 0, level: lv };
+    }
     const cfg = DRILL_GRADE[r.id];
     const gi = r.grade ? GRADES.indexOf(r.grade) : GRADES.length - 1;
     const to = gi > 0 ? GRADES[gi - 1] : null;

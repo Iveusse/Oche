@@ -86,6 +86,7 @@ export const gradedDrills = Object.keys(DRILL_GRADE);
 export function drillValue(game) {
   const res = trainingResult(game);
   if (!res) return null;
+  if (game.mode === 'train-checkout' && game.settings?.level) return null; // progressif : pas de lettre, on suit un niveau
   if (game.mode !== 'train-atc') return { cfg: DRILL_GRADE[game.mode], value: res.value, res };
   const leg = game.data?.legs?.[0];
   const n = leg?.targets?.length;

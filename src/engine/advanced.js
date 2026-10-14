@@ -335,7 +335,7 @@ export function countupAdvanced(games, pid) {
 
 // ---------- Entraînements ----------
 // Une entrée par exercice : séances (valeur, note), volumes et détails propres à l'exercice.
-const CHECK_RANGES = [['41-60', 41, 60], ['61-80', 61, 80], ['81-100', 81, 100]];
+const CHECK_RANGES = [['2-40', 2, 40], ['41-60', 41, 60], ['61-80', 61, 80], ['81-100', 81, 100], ['101-130', 101, 130]];
 export function trainingAdvanced(games, pid) {
   const by = {};
   const list = afterReset(games, pid).filter((g) => isTraining(g.mode) && g.player_ids.includes(pid))

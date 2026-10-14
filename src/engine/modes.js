@@ -321,7 +321,7 @@ export const MODE_LABEL = {
   x01: 'X01', cricket: 'Cricket', atc: 'Around the Clock', shanghai: 'Shanghai', baseball: 'Baseball', killer: 'Killer', countup: 'Count Up',
   'train-baseball': 'Baseball solo', 'train-killer': 'Doubles de Killer',
   'train-free': 'Session libre', 'train-doubles': 'Tour des doubles',
-  'train-focus20': 'Focus 20', 'train-checkout': 'Checkouts 41-100', 'train-atc': 'Around the Clock ciblé',
+  'train-focus20': 'Focus 20', 'train-checkout': 'Checkouts', 'train-atc': 'Around the Clock ciblé',
 };
 
 export const isTraining = (mode) => mode.startsWith('train-');

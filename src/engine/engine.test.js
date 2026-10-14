@@ -693,3 +693,22 @@ describe('plan', () => {
     expect(nextGoal(null)).toBe(null);
   });
 });
+
+import { levelPool, progressiveTargets, nextLevel, checkoutProfile, CO_LEVELS } from './checkout.js';
+describe('checkouts progressifs', () => {
+  it('chaque niveau a un pool faisable en 3 fléchettes', () => {
+    for (let n = 1; n <= 5; n++) { const p = levelPool(n); expect(p.length).toBeGreaterThan(10); expect(Math.min(...p)).toBeGreaterThanOrEqual(CO_LEVELS[n - 1].lo); }
+    expect(levelPool(1)).toContain(40); expect(levelPool(1)).toContain(50); expect(levelPool(1)).not.toContain(41);
+  });
+  it('20 cibles, les finish ratés reviennent, niveau monte/descend', () => {
+    const t = progressiveTargets(2, [37, 52, 61], () => 0.3);
+    expect(t.length).toBe(20); expect(t).toContain(37); expect(t).toContain(52);
+    expect(nextLevel(2, 0.6)).toBe(3); expect(nextLevel(2, 0.25)).toBe(1); expect(nextLevel(2, 0.4)).toBe(2); expect(nextLevel(5, 1)).toBe(5); expect(nextLevel(1, 0)).toBe(1);
+    expect(checkoutProfile([], 'x').level).toBe(1);
+  });
+  it('le mode accepte les petites cibles', () => {
+    const leg = { order: ['a'], darts: [{ seg: 1, mult: 2 }, { seg: 25, mult: 2 }], validated: 0, targets: [2, 50] };
+    const r = runLeg('train-checkout', { level: 1 }, leg);
+    expect(r.ps[0].succ).toBe(2);
+  });
+});

@@ -10,13 +10,14 @@ import { TeamSheet, Welcome } from './screens/Teams.jsx';
 import { NewGame } from './screens/NewGame.jsx';
 import { Play } from './screens/Play.jsx';
 import { Home, Ranking, Stats, Training, trainingRecords } from './screens/Tabs.jsx';
+import { progressiveTargets, checkoutProfile } from './engine/checkout.js';
 import { generateDemo } from './lib/demo.js';
 
 function newLeg(mode, settings, order) {
   const leg = { order, darts: [], validated: 0, continueForPlaces: null };
   if (mode === 'atc' || mode === 'train-atc') leg.targets = atcTargets(settings);
   if (mode === 'train-doubles') leg.targets = atcTargets({ order: 'asc', bull: true });
-  if (mode === 'train-checkout') leg.targets = checkoutTargets();
+  if (mode === 'train-checkout') leg.targets = settings?.level ? progressiveTargets(settings.level, settings.focus || []) : checkoutTargets();
   if (mode === 'killer') leg.killerNums = killerNumbers(order);
   if (mode === 'train-killer') leg.num = Number(settings?.num) || 1 + Math.floor(Math.random() * 20);
   return leg;
@@ -220,6 +221,12 @@ function TeamApp({ team, onTeams, onInvalid, onRenamed }) {
 
   const startTraining = (mode) => {
     if (!me) { setView('profile'); return; }
+    if (mode === 'train-checkout') { // progressif par défaut : le niveau suit tes finish et tes séances
+      const p = checkoutProfile(games, me.id);
+      begin({ mode, settings: { level: p.level, focus: p.failed.slice(0, 6) }, playerIds: [me.id] });
+      return;
+    }
+    if (mode === 'train-checkout-fixed') { begin({ mode: 'train-checkout', settings: {}, playerIds: [me.id] }); return; }
     begin({ mode, settings: {}, playerIds: [me.id] });
   };
 
@@ -258,6 +265,7 @@ function TeamApp({ team, onTeams, onInvalid, onRenamed }) {
     persist(final || { ...g, status: 'finished', data: { ...g.data, legs: [] } });
     dropLive(g.id);
     if (opts.silent) return;
+    if (opts.replay && g.mode === 'train-checkout' && g.settings?.level) { startTraining('train-checkout'); return; }
     if (opts.replay) { begin({ mode: g.mode, settings: g.settings, playerIds: g.player_ids, legsToWin: g.data.legsToWin }); return; }
     setView('tabs');
     setTab(isTraining(g.mode) ? 'training' : 'home');

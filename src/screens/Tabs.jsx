@@ -1,3 +1,4 @@
+import { checkoutProfile } from '../engine/checkout.js';
 import { PlanCard } from '../components/Plan.jsx';
 import { runLeg } from '../engine/runner.js';
 import { GameDetail } from './GameDetail.jsx';
@@ -552,7 +553,8 @@ export function Ranking({ players, games, me, hidden = [] }) {
 const DRILLS = [
   ['train-doubles', 'Tour des doubles', 'D1 à D20 puis bull, le moins de fléchettes possible'],
   ['train-focus20', 'Focus 20', '99 fléchettes sur le 20, points marqués'],
-  ['train-checkout', 'Checkouts 41-100', '20 finishs au hasard, 3 fléchettes chacun, sortie double'],
+  ['train-checkout', 'Checkouts progressifs', '20 finishs adaptés à ton niveau, de 1 à 5, sortie double'],
+  ['train-checkout-fixed', 'Checkouts 41-100', '20 finishs au hasard de 41 à 100, noté d\'une lettre'],
   ['train-baseball', 'Baseball solo', '9 manches, 1 à 3 points par fléchette sur le numéro de la manche'],
   ['train-killer', 'Doubles de Killer', '30 fléchettes sur le double d\'un numéro tiré au hasard : combien de touches ?'],
 ];
@@ -562,7 +564,7 @@ export function trainingRecords(games, pid) {
   for (const g of afterReset(games, pid)) {
     if (!isTraining(g.mode) || !g.player_ids.includes(pid)) continue;
     const r = trainingResult(g);
-    if (!r || g.mode === 'train-free') continue;
+    if (!r || g.mode === 'train-free' || (g.mode === 'train-checkout' && g.settings?.level)) continue;
     const cur = rec[g.mode];
     if (!cur || (r.better === 'low' ? r.value < cur.value : r.value > cur.value)) rec[g.mode] = r;
   }
@@ -616,6 +618,7 @@ export function Training({ me, games, onStart, onAtc, onCustom, onProfile }) {
   const [chart, setChart] = useState('train-doubles');
   const rec = useMemo(() => (me ? trainingRecords(games, me.id) : {}), [games, me]);
   const coach = useMemo(() => (me ? coachAdvice(games, me.id) : null), [games, me]);
+  const coLevel = useMemo(() => (me ? checkoutProfile(games, me.id).level : 1), [games, me]);
   // dernière note de chaque exercice
   const lastGrade = useMemo(() => {
     const m = {};
@@ -629,7 +632,7 @@ export function Training({ me, games, onStart, onAtc, onCustom, onProfile }) {
   }, [games, me]);
   const series = useMemo(() => {
     if (!me) return [];
-    return afterReset(games, me.id).filter((g) => g.mode === chart && g.player_ids.includes(me.id))
+    return afterReset(games, me.id).filter((g) => g.mode === chart && g.player_ids.includes(me.id) && !(g.mode === 'train-checkout' && g.settings?.level))
       .map((g) => ({ g, r: trainingResult(g) })).filter((x) => x.r)
       .map(({ g, r }) => ({ label: new Date(g.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }), value: r.value }));
   }, [games, me, chart]);
@@ -666,11 +669,18 @@ export function Training({ me, games, onStart, onAtc, onCustom, onProfile }) {
               <div style={{ fontSize: 15, fontWeight: 700 }}>{t}</div>
               <div className="small muted" style={{ marginTop: 2 }}>{d}</div>
             </div>
-            {lastGrade[k] && <GradeBadge grade={lastGrade[k]} size={34} title="Ta dernière note" />}
-            <div style={{ textAlign: 'right' }}>
-              <div className="small muted">Record</div>
-              <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--accent)' }}>{rec[k]?.label || '-'}</div>
-            </div>
+            {k === 'train-checkout' ? (
+              <div style={{ textAlign: 'right' }}>
+                <div className="small muted">Niveau</div>
+                <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--accent)' }}>{coLevel}/5</div>
+              </div>
+            ) : (<>
+              {lastGrade[k === 'train-checkout-fixed' ? 'train-checkout' : k] && <GradeBadge grade={lastGrade[k === 'train-checkout-fixed' ? 'train-checkout' : k]} size={34} title="Ta dernière note" />}
+              <div style={{ textAlign: 'right' }}>
+                <div className="small muted">Record</div>
+                <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--accent)' }}>{rec[k === 'train-checkout-fixed' ? 'train-checkout' : k]?.label || '-'}</div>
+              </div>
+            </>)}
           </button>
         ))}
         <button className="list-item" onClick={onAtc}>
