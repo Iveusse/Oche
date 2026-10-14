@@ -1,7 +1,7 @@
 // Stats avancées par mode, calculées à partir des legs rejoués.
 import { replayed, afterReset } from './stats.js';
 import { CRICKET_NUMS, shanghaiNumbers, shanghaiFmt, startOf, BASEBALL_INNINGS } from './modes.js';
-import { oneDartFinish } from '../lib/board.js';
+import { oneDartFinish, suggestCheckout } from '../lib/board.js';
 import { isTraining } from './modes.js';
 import { gradeTraining, GRADES } from './grades.js';
 
@@ -70,7 +70,7 @@ export function x01Advanced(games, pid, start = 'all') {
   const s = {
     legs: 0, won: 0, darts: 0, pts: 0, byOut: { single: [0, 0], double: [0, 0], master: [0, 0] },
     first: { 9: [0, 0], 12: [0, 0], 15: [0, 0] }, until: { 100: [0, 0], 170: [0, 0] },
-    wonDarts: 0, co: [], coAtt: 0, coHit: 0, dblAtt: 0, dblHit: 0, coBy: { single: [0, 0], double: [0, 0], master: [0, 0] },
+    wonDarts: 0, co: [], coAtt: 0, coHit: 0, coVis: 0, coVisHit: 0, dblAtt: 0, dblHit: 0, coBy: { single: [0, 0], double: [0, 0], master: [0, 0] },
     bestLeg: null, bestLegAvg: null, high: 0, buckets: TURN_BUCKETS.map(() => 0), alt: ALT_BUCKETS.map(() => 0), turns: 0,
     round: Array.from({ length: 10 }, () => [0, 0]), remAfter: { 3: [0, 0], 6: [0, 0], 9: [0, 0], 12: [0, 0], 15: [0, 0] },
   };
@@ -100,6 +100,8 @@ export function x01Advanced(games, pid, start = 'all') {
       }
       s.high = Math.max(s.high, pts);
       if (t.finished) s.co.push(remStart);
+      // passage à portée de finish : un tour qui démarre à un reste finissable (double/master : 170 max ; simple : 100 max)
+      if (out === 'single' ? remStart <= 100 : !!suggestCheckout(remStart, out === 'master' ? 'master' : 'double', 3)) { s.coVis += 1; if (t.finished) s.coVisHit += 1; }
       t.darts.forEach((d, k) => {
         if (!d.opened || !oneDartFinish(d.remBefore, out)) return;
         const hit = t.finished && k === t.darts.length - 1;

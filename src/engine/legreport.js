@@ -28,9 +28,13 @@ function rowsFor(game, pid, a, b, won) {
       // gagné : on compare au nombre de fléchettes habituel pour gagner ; perdu : on montre la longueur habituelle d'un leg, sans juger
       if (won) add('Fléchettes pour gagner', a.darts, b.dartsPerLeg, f0, -1, 1.5);
       else add('Fléchettes lancées', a.darts, perLeg, f0, 0);
+      if (a.coVis) {
+        const per = b.legs ? b.coVis / b.legs : null;
+        add('Passages à portée de finish', a.coVis, per, f1, 0, 0, { nowText: `${a.coVis}${a.coVisHit ? ` (${a.coVisHit} fini)` : ''}`, refText: per != null ? `${f1(per)} par leg` : null });
+      }
       if (a.coAtt) {
-        add('Finish tentés', a.coAtt, b.legs ? b.coAtt / b.legs : null, f1, 0, 0, { refText: b.legs ? `${f1(b.coAtt / b.legs)} par leg` : null });
-        add('Réussite sur finish', a.coHit / a.coAtt, b.coRate, pc, 1, 0.4, { nowText: `${a.coHit} sur ${a.coAtt}`, refText: num(b.coRate) ? `${pc(b.coRate)}${b.coHit ? ` (1 sur ${f1(b.coAtt / b.coHit)})` : ''}` : null });
+        add('Fléchettes sur un finish direct', a.coAtt, b.legs ? b.coAtt / b.legs : null, f1, 0, 0, { refText: b.legs ? `${f1(b.coAtt / b.legs)} par leg` : null });
+        add('Réussite sur finish direct', a.coHit / a.coAtt, b.coRate, pc, 1, 0.4, { nowText: `${a.coHit} sur ${a.coAtt}`, refText: num(b.coRate) ? `${pc(b.coRate)}${b.coHit ? ` (1 sur ${f1(b.coAtt / b.coHit)})` : ''}` : null });
       }
       break;
     }
