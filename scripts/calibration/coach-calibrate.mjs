@@ -1,8 +1,8 @@
 // Table de référence du coach : pour chaque niveau de dispersion, ce qu'on attend d'un joueur.
-// Usage : node scripts/coach-calibrate.mjs  -> écrit src/engine/coachref.js
+// Usage : node scripts/calibration/coach-calibrate.mjs  -> écrit src/engine/coachref.js
 import { writeFileSync } from 'fs';
-import { makeRng, makeSim } from '../src/engine/sim.js';
-import { x01Advanced } from '../src/engine/advanced.js';
+import { makeRng, makeSim } from '../../src/engine/sim.js';
+import { x01Advanced } from '../../src/engine/advanced.js';
 
 const rnd = makeRng(777);
 const sim = makeSim(rnd);
@@ -30,4 +30,4 @@ for (let sigma = 0.10; sigma <= 0.42; sigma += 0.02) {
   rows.push(row);
   console.log(row);
 }
-writeFileSync(new URL('../src/engine/coachref.js', import.meta.url), `// Généré par scripts/coach-calibrate.mjs, ne pas modifier à la main.\n// Par niveau de dispersion : moyenne, moyenne de scoring (> 100 restants), réussite des tentatives de finish (sortie simple / double), part de tours à 0.\nexport default ${JSON.stringify(rows, null, 1)};\n`);
+writeFileSync(new URL('../../src/engine/coachref.js', import.meta.url), `// Généré par scripts/calibration/coach-calibrate.mjs, ne pas modifier à la main.\n// Par niveau de dispersion : moyenne, moyenne de scoring (> 100 restants), réussite des tentatives de finish (sortie simple / double), part de tours à 0.\nexport default ${JSON.stringify(rows, null, 1)};\n`);

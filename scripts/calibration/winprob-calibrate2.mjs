@@ -1,7 +1,7 @@
 // Phase de scoring (reste > 100) et phase de finish séparées : moyenne/écart-type du finish selon la réussite aux finish.
-import { runLeg } from '../src/engine/runner.js';
-import { makeRng, makeSim } from '../src/engine/sim.js';
-import { x01Advanced } from '../src/engine/advanced.js';
+import { runLeg } from '../../src/engine/runner.js';
+import { makeRng, makeSim } from '../../src/engine/sim.js';
+import { x01Advanced } from '../../src/engine/advanced.js';
 const rnd = makeRng(99); const sim = makeSim(rnd);
 const N = Number(process.argv[2] || 150);
 const mean = (a) => a.reduce((x, y) => x + y, 0) / a.length;

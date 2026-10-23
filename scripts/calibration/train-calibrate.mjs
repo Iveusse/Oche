@@ -1,11 +1,11 @@
 // Calibre les notes d'entraînement et le niveau global avec des joueurs simulés.
 // Usage : node scripts/train-calibrate.mjs
-import { runLeg } from '../src/engine/runner.js';
-import { makeRng, makeSim } from '../src/engine/sim.js';
-import { atcTargets, checkoutTargets } from '../src/engine/modes.js';
-import { suggestCheckout } from '../src/lib/board.js';
-import { x01Advanced, cricketAdvanced, shanghaiAdvanced, atcAdvanced, baseballAdvanced } from '../src/engine/advanced.js';
-import { trainingResult } from '../src/engine/stats.js';
+import { runLeg } from '../../src/engine/runner.js';
+import { makeRng, makeSim } from '../../src/engine/sim.js';
+import { atcTargets, checkoutTargets } from '../../src/engine/modes.js';
+import { suggestCheckout } from '../../src/lib/board.js';
+import { x01Advanced, cricketAdvanced, shanghaiAdvanced, atcAdvanced, baseballAdvanced } from '../../src/engine/advanced.js';
+import { trainingResult } from '../../src/engine/stats.js';
 
 const rnd = makeRng(4242);
 const sim = makeSim(rnd);

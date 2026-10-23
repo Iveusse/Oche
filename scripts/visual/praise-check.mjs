@@ -1,7 +1,7 @@
-// Vérifie : handicap, annonces vocales, saisie à la voix, récap de soirée, coach.
+// Parcours Playwright. Félicitations et annonces pendant la partie.
 // Voix, micro et partage sont simulés (le navigateur de test n'en a pas).
 import { chromium } from '/home/claude/.npm-global/lib/node_modules/playwright/index.mjs';
-import { makeRng, makeSim } from '../src/engine/sim.js';
+import { makeRng, makeSim } from '../../src/engine/sim.js';
 import { mkdirSync } from 'fs';
 
 const OUT = process.argv[2] || 'shots';
@@ -72,7 +72,7 @@ await page.waitForTimeout(300);
 
 const start = async (mode, others) => {
   await page.getByText('Nouvelle partie').first().click();
-  await page.locator('.choice', { hasText: mode }).click();
+  await page.selectOption('select[aria-label="Mode de jeu"]', { label: mode });
   if (others.length) {
     await page.getByRole('button', { name: 'Ajouter', exact: true }).click();
     for (const n of others) await page.getByRole('button', { name: new RegExp('^' + n) }).click();
@@ -83,55 +83,23 @@ const start = async (mode, others) => {
 };
 await page.getByRole('button', { name: 'Options' }).count();
 
-// ---------- Baseball ----------
-await start('Baseball', ['Nico']);
-await page.getByText('Boutons').click();
-await shot('n1-baseball');
-for (let n = 1; n <= 9; n++) {
-  for (const p of [0, 1]) {
-    await page.getByRole('button', { name: `Triple ${n}` }).click();
-    await page.getByRole('button', { name: 'Raté', exact: true }).click();
-    await page.getByRole('button', { name: `Simple ${n}` }).click();
-    await page.waitForTimeout(60);
-  }
-}
-await page.waitForTimeout(500);
-await page.getByRole('button', { name: 'Valider la fin' }).click();
-await page.waitForTimeout(500);
-await shot('n2-baseball-fin', true);
-const txt = await page.locator('.screen').innerText();
-check('baseball : 9 manches jouées, 4 pts par manche = 36', /36/.test(txt), txt.replace(/\n/g, ' ').slice(0, 200));
-console.log(games.filter((g) => g.mode === 'baseball').length, 'partie(s) baseball sauvegardée(s)');
 
-// ---------- Killer ----------
-await page.goto(BASE);
-await page.getByText('Nouvelle partie').first().waitFor();
-await start('Killer', ['Tom']);
+await start('X01', ['Nico']);
 await page.getByText('Boutons').click();
-const cardTexts = await page.locator('.score-card').allInnerTexts();
-const nums = cardTexts.map((t) => Number((t.match(/D(\d+) pour tuer/) || [])[1]));
-check('killer : 3 numéros distincts', new Set(nums).size === 3 && nums.every(Boolean), JSON.stringify(cardTexts.map((t) => t.replace(/\n/g, ' '))));
-await shot('n3-killer');
-const dbl = async (seg) => { await page.getByRole('button', { name: 'Double', exact: true }).click(); await page.getByRole('button', { name: `D${seg}`, exact: true }).click(); };
-const miss = () => page.getByRole('button', { name: 'Raté', exact: true }).click();
-// chacun devient killer
-for (let i = 0; i < 3; i++) { await dbl(nums[i]); await miss(); await miss(); await page.waitForTimeout(80); }
-let cards = await page.locator('.score-card').allInnerTexts();
-check('killer : les 3 sont killers', cards.every((t) => /killer/.test(t)), JSON.stringify(cards.map((t) => t.replace(/\n/g, ' '))));
-// P0 tue P1 (3 doubles sur son numéro)
-await dbl(nums[1]); await dbl(nums[1]); await dbl(nums[1]);
-await page.waitForTimeout(100);
-cards = await page.locator('.score-card').allInnerTexts();
-check('killer : P1 éliminé', /éliminé/.test(cards[1]), cards[1].replace(/\n/g, ' '));
-await shot('n4-killer-elim');
-// P1 est sauté : c'est à P2, qui tue P0
-await dbl(nums[0]); await dbl(nums[0]); await dbl(nums[0]);
-await page.waitForTimeout(600);
-if (await page.getByRole('button', { name: 'Valider la fin' }).count()) await page.getByRole('button', { name: 'Valider la fin' }).click();
-await page.waitForTimeout(500);
-await shot('n5-killer-fin', true);
-const end = await page.locator('.screen').innerText();
-check('killer : fin de leg, Tom gagne', /Tom/.test(end), end.replace(/\n/g, ' ').slice(0, 160));
-console.log(games.filter((g) => g.mode === 'killer').length, 'partie(s) killer sauvegardée(s)');
-console.log('ERRORS:', errors.length ? errors.join('\n') : 'none');
+// activer la voix via le menu de la partie
+const menuBtn = page.getByRole('button', { name: /Menu|Options|Réglages/ });
+console.log('menu buttons', await menuBtn.count());
+await menuBtn.first().click();
+await page.getByRole('switch', { name: 'Annonces vocales' }).click().catch(async () => { await page.getByText('Annonces vocales').click(); });
+await page.waitForTimeout(300);
+await page.getByRole('button', { name: 'Fermer' }).click();
+await shot('v0');
+const turn = async (a) => { for (const [m, s] of a) { if (m > 1) await page.getByRole('button', { name: m === 3 ? 'Triple' : 'Double', exact: true }).first().click(); await page.getByRole('button', { name: m === 3 ? `T${s}` : m === 2 ? `D${s}` : `${s}`, exact: true }).first().click(); } await page.waitForTimeout(200); };
+const low = [[1, 5], [1, 1], [1, 20]];
+for (let i = 0; i < 4; i++) { await turn(low); await turn(low); }
+console.log('SPOKEN after low turns', JSON.stringify(await page.evaluate(() => window.__spoken.slice(-4))));
+await turn([[3, 20], [3, 20], [1, 20]]);
+await page.waitForTimeout(3000);
+console.log('SPOKEN after big turn', JSON.stringify(await page.evaluate(() => window.__spoken.slice(-4))));
+console.log('ERRORS:', errors.length ? errors : 'none');
 await browser.close();

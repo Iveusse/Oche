@@ -1,3 +1,4 @@
+// Parcours Playwright. Analyse Shanghai : filtre par format (1 à 7, 1 à 20).
 import { chromium } from '/home/claude/.npm-global/lib/node_modules/playwright/index.mjs';
 const OUT = process.argv[2];
 const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });

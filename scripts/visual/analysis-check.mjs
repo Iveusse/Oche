@@ -1,3 +1,4 @@
+// Parcours Playwright. Onglet Analyse en mode démo : une capture par jeu.
 import { chromium } from '/home/claude/.npm-global/lib/node_modules/playwright/index.mjs';
 const OUT = process.argv[2];
 const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });

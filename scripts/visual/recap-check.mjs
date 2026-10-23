@@ -1,7 +1,7 @@
-// Vérifie : handicap, annonces vocales, saisie à la voix, récap de soirée, coach.
+// Parcours Playwright. Récap de la soirée : sélection du jour et des joueurs, image à partager.
 // Voix, micro et partage sont simulés (le navigateur de test n'en a pas).
 import { chromium } from '/home/claude/.npm-global/lib/node_modules/playwright/index.mjs';
-import { makeRng, makeSim } from '../src/engine/sim.js';
+import { makeRng, makeSim } from '../../src/engine/sim.js';
 import { mkdirSync } from 'fs';
 
 const OUT = process.argv[2] || 'shots';
@@ -71,14 +71,13 @@ await page.waitForTimeout(300);
 
 
 
-await page.getByText('Nouvelle partie').first().click();
-await page.selectOption('select[aria-label="Mode de jeu"]', 'x01');
-await page.waitForTimeout(300);
-await page.screenshot({ path: `${OUT}/ng-x01.png` });
-const vis = async () => page.getByRole('button', { name: /Lancer la partie|Ajoute au moins|2 minimum/ }).evaluate((b) => { const r = b.getBoundingClientRect(); return r.bottom <= innerHeight + 1 && r.top >= 0; });
-console.log('x01 bouton visible sans scroll:', await vis());
-await page.selectOption('select[aria-label="Mode de jeu"]', 'killer');
-console.log('killer bouton visible:', await vis());
-await page.selectOption('select[aria-label="Mode de jeu"]', 'baseball');
-await page.screenshot({ path: `${OUT}/ng-baseball.png` });
+await page.getByText('Récap de la soirée').first().click();
+await page.waitForTimeout(1200);
+await page.screenshot({ path: `${OUT}/recap1.png` });
+const chips = page.locator('.chip-pill');
+console.log('chips', await chips.allInnerTexts());
+await chips.filter({ hasText: 'Stéph' }).click();
+await page.waitForTimeout(800);
+await page.screenshot({ path: `${OUT}/recap2.png` });
+console.log('options jour', await page.locator('select[aria-label="Jour de la soirée"] option').allInnerTexts());
 await browser.close();

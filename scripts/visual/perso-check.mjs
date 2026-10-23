@@ -1,7 +1,7 @@
-// Vérifie : handicap, annonces vocales, saisie à la voix, récap de soirée, coach.
+// Parcours Playwright. Bilan perso et palmarès de la semaine.
 // Voix, micro et partage sont simulés (le navigateur de test n'en a pas).
 import { chromium } from '/home/claude/.npm-global/lib/node_modules/playwright/index.mjs';
-import { makeRng, makeSim } from '../src/engine/sim.js';
+import { makeRng, makeSim } from '../../src/engine/sim.js';
 import { mkdirSync } from 'fs';
 
 const OUT = process.argv[2] || 'shots';
@@ -23,6 +23,9 @@ const add = (mode, settings, ids, sig) => {
 };
 for (let i = 0; i < 14; i++) add('x01', { start: 301, in: 'single', out: 'double' }, [P.Yves, P.Nico], [0.17, 0.22]);
 for (let i = 0; i < 4; i++) add('shanghai', { from: 1, to: 20, instantWin: true }, [P.Yves, P.Stéph], [0.2, 0.25]);
+
+t = Date.now() - 7 * 86400000 - 3 * 3600000;
+for (let i = 0; i < 6; i++) add('x01', { start: 301, in: 'single', out: 'double' }, [P.Yves, P.Nico], [0.2, 0.2]);
 
 async function mock(route) {
   const fn = route.request().url().split('/rpc/')[1]?.split('?')[0];
@@ -70,36 +73,19 @@ await page.getByText('Nouvelle partie').first().waitFor();
 await page.waitForTimeout(300);
 
 
-const start = async (mode, others) => {
-  await page.getByText('Nouvelle partie').first().click();
-  await page.selectOption('select[aria-label="Mode de jeu"]', { label: mode });
-  if (others.length) {
-    await page.getByRole('button', { name: 'Ajouter', exact: true }).click();
-    for (const n of others) await page.getByRole('button', { name: new RegExp('^' + n) }).click();
-    await page.getByRole('button', { name: /^OK/ }).click();
-  }
-  await page.getByRole('button', { name: 'Lancer la partie' }).click();
-  await page.waitForTimeout(300);
-};
-await page.getByRole('button', { name: 'Options' }).count();
 
-
-await start('Count Up', []);
-await page.getByText('Boutons').click();
-await shot('cu1');
-await page.getByRole('button', { name: 'Triple', exact: true }).click();
-await page.getByRole('button', { name: 'T20', exact: true }).click();
-await page.getByRole('button', { name: 'Raté', exact: true }).click();
-await page.getByRole('button', { name: 'Raté', exact: true }).click();
-await page.waitForTimeout(300);
-await shot('cu2');
-console.log((await page.locator('body').innerText()).replace(/\n/g, ' ').slice(0, 300));
-console.log('SPOKEN', JSON.stringify(await page.evaluate(() => window.__spoken)));
-for (let i = 0; i < 7; i++) { for (let k = 0; k < 3; k++) { await page.getByRole('button', { name: 'Raté', exact: true }).click(); } }
+await page.getByText('Classement', { exact: true }).last().click();
 await page.waitForTimeout(500);
-if (await page.getByRole('button', { name: 'Valider la fin' }).count()) await page.getByRole('button', { name: 'Valider la fin' }).click();
-await page.waitForTimeout(500);
-await shot('cu3', true);
-console.log((await page.locator('body').innerText()).replace(/\n/g, ' ').slice(0, 300));
+await page.getByText('Palmarès semaine').click();
+await page.waitForTimeout(800);
+await page.getByText('Perso', { exact: true }).click();
+await page.waitForTimeout(1500);
+await page.screenshot({ path: `${OUT}/perso1.png`, fullPage: true });
+const img = page.locator('img.recap-img');
+await img.screenshot({ path: `${OUT}/perso-img.png` });
+await page.getByRole('button', { name: 'OK' }).click();
+await page.getByText('Stats', { exact: true }).last().click();
+await page.waitForTimeout(600);
+await page.screenshot({ path: `${OUT}/stats.png` });
 console.log('ERRORS:', errors.length ? errors : 'none');
 await browser.close();

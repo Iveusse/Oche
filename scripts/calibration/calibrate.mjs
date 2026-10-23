@@ -1,11 +1,11 @@
 // Calcule la rareté de chaque succès par simulation et écrit src/engine/rarity.js
 // Joueur de référence : dispersion SIGMA (≈ 33 de moyenne en 301), contre un adversaire du même niveau.
-// Usage : node scripts/calibrate.mjs
+// Usage : node scripts/calibration/calibrate.mjs
 import { writeFileSync } from 'fs';
-import { makeRng, makeSim } from '../src/engine/sim.js';
-import { computeAchievements, EXPLOIT_LIST, SERIES } from '../src/engine/achievements.js';
-import { playerStats } from '../src/engine/stats.js';
-import { hitTest, zoneCenter } from '../src/lib/board.js';
+import { makeRng, makeSim } from '../../src/engine/sim.js';
+import { computeAchievements, EXPLOIT_LIST, SERIES } from '../../src/engine/achievements.js';
+import { playerStats } from '../../src/engine/stats.js';
+import { hitTest, zoneCenter } from '../../src/lib/board.js';
 
 const SIGMA = 0.20;
 const rnd = makeRng(20260927);
@@ -131,6 +131,6 @@ const out = {
   series: Object.fromEntries(Object.entries(series).map(([k, v]) => [k, +v.toPrecision(4)])),
   exploits,
 };
-writeFileSync(new URL('../src/engine/rarity.js', import.meta.url), `// Généré par scripts/calibrate.mjs, ne pas modifier à la main.\n// series : quantité moyenne par leg (ou par partie pour les compteurs de parties)\n// exploits : nombre moyen de legs avant que ça arrive\nexport default ${JSON.stringify(out, null, 2)};\n`);
+writeFileSync(new URL('../../src/engine/rarity.js', import.meta.url), `// Généré par scripts/calibration/calibrate.mjs, ne pas modifier à la main.\n// series : quantité moyenne par leg (ou par partie pour les compteurs de parties)\n// exploits : nombre moyen de legs avant que ça arrive\nexport default ${JSON.stringify(out, null, 2)};\n`);
 console.log(JSON.stringify(out, null, 1));
 console.log('fini en', Math.round((Date.now() - t0) / 1000), 's');

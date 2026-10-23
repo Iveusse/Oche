@@ -1,7 +1,7 @@
-// Vérifie : handicap, annonces vocales, saisie à la voix, récap de soirée, coach.
+// Parcours Playwright. Parcours large : handicap, annonces vocales, saisie à la voix, récap de la soirée, coach.
 // Voix, micro et partage sont simulés (le navigateur de test n'en a pas).
 import { chromium } from '/home/claude/.npm-global/lib/node_modules/playwright/index.mjs';
-import { makeRng, makeSim } from '../src/engine/sim.js';
+import { makeRng, makeSim } from '../../src/engine/sim.js';
 import { mkdirSync } from 'fs';
 
 const OUT = process.argv[2] || 'shots';

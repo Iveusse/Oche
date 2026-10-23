@@ -1,7 +1,7 @@
-// Vérifie : handicap, annonces vocales, saisie à la voix, récap de soirée, coach.
+// Parcours Playwright. Count Up : lancer une partie, saisir des tours, fin de partie.
 // Voix, micro et partage sont simulés (le navigateur de test n'en a pas).
 import { chromium } from '/home/claude/.npm-global/lib/node_modules/playwright/index.mjs';
-import { makeRng, makeSim } from '../src/engine/sim.js';
+import { makeRng, makeSim } from '../../src/engine/sim.js';
 import { mkdirSync } from 'fs';
 
 const OUT = process.argv[2] || 'shots';
@@ -84,22 +84,22 @@ const start = async (mode, others) => {
 await page.getByRole('button', { name: 'Options' }).count();
 
 
-await start('X01', ['Nico']);
+await start('Count Up', []);
 await page.getByText('Boutons').click();
-// activer la voix via le menu de la partie
-const menuBtn = page.getByRole('button', { name: /Menu|Options|Réglages/ });
-console.log('menu buttons', await menuBtn.count());
-await menuBtn.first().click();
-await page.getByRole('switch', { name: 'Annonces vocales' }).click().catch(async () => { await page.getByText('Annonces vocales').click(); });
+await shot('cu1');
+await page.getByRole('button', { name: 'Triple', exact: true }).click();
+await page.getByRole('button', { name: 'T20', exact: true }).click();
+await page.getByRole('button', { name: 'Raté', exact: true }).click();
+await page.getByRole('button', { name: 'Raté', exact: true }).click();
 await page.waitForTimeout(300);
-await page.getByRole('button', { name: 'Fermer' }).click();
-await shot('v0');
-const turn = async (a) => { for (const [m, s] of a) { if (m > 1) await page.getByRole('button', { name: m === 3 ? 'Triple' : 'Double', exact: true }).first().click(); await page.getByRole('button', { name: m === 3 ? `T${s}` : m === 2 ? `D${s}` : `${s}`, exact: true }).first().click(); } await page.waitForTimeout(200); };
-const low = [[1, 5], [1, 1], [1, 20]];
-for (let i = 0; i < 4; i++) { await turn(low); await turn(low); }
-console.log('SPOKEN after low turns', JSON.stringify(await page.evaluate(() => window.__spoken.slice(-4))));
-await turn([[3, 20], [3, 20], [1, 20]]);
-await page.waitForTimeout(3000);
-console.log('SPOKEN after big turn', JSON.stringify(await page.evaluate(() => window.__spoken.slice(-4))));
+await shot('cu2');
+console.log((await page.locator('body').innerText()).replace(/\n/g, ' ').slice(0, 300));
+console.log('SPOKEN', JSON.stringify(await page.evaluate(() => window.__spoken)));
+for (let i = 0; i < 7; i++) { for (let k = 0; k < 3; k++) { await page.getByRole('button', { name: 'Raté', exact: true }).click(); } }
+await page.waitForTimeout(500);
+if (await page.getByRole('button', { name: 'Valider la fin' }).count()) await page.getByRole('button', { name: 'Valider la fin' }).click();
+await page.waitForTimeout(500);
+await shot('cu3', true);
+console.log((await page.locator('body').innerText()).replace(/\n/g, ' ').slice(0, 300));
 console.log('ERRORS:', errors.length ? errors : 'none');
 await browser.close();

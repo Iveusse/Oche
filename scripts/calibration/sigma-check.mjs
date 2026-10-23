@@ -1,5 +1,6 @@
-import { makeRng, makeSim } from '../src/engine/sim.js';
-import { playerStats } from '../src/engine/stats.js';
+// Moyenne X01 obtenue pour chaque niveau de dispersion (sigma) du joueur simulé.
+import { makeRng, makeSim } from '../../src/engine/sim.js';
+import { playerStats } from '../../src/engine/stats.js';
 const rnd = makeRng(7); const sim = makeSim(rnd);
 for (const sg of [0.14, 0.18, 0.22, 0.26, 0.30, 0.34]) {
   const games = [];

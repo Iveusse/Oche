@@ -1,7 +1,7 @@
 // Vérification visuelle : sert dist/, simule Supabase, joue une partie, prend des captures.
 import { chromium } from '/home/claude/.npm-global/lib/node_modules/playwright/index.mjs';
-import { runLeg } from '../src/engine/runner.js';
-import { zoneCenter } from '../src/lib/board.js';
+import { runLeg } from '../../src/engine/runner.js';
+import { zoneCenter } from '../../src/lib/board.js';
 import { mkdirSync } from 'fs';
 
 const OUT = process.argv[2] || 'shots';
@@ -24,7 +24,7 @@ function throwAt(seg, mult, skill) {
   const x = c.x + gauss() * skill; const y = c.y + gauss() * skill;
   return { x: +x.toFixed(4), y: +y.toFixed(4) };
 }
-import { hitTest } from '../src/lib/board.js';
+import { hitTest } from '../../src/lib/board.js';
 function simX01(ids, skills, daysAgo) {
   const settings = { start: 501, in: 'single', out: 'double' };
   const leg = { order: ids, darts: [], validated: 0, continueForPlaces: false };

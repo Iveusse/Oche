@@ -1,3 +1,4 @@
+// Parcours Playwright. Focus 20 : 99 triples = 5940 points affichés.
 import { chromium } from '/home/claude/.npm-global/lib/node_modules/playwright/index.mjs';
 const OUT = process.argv[2];
 const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });

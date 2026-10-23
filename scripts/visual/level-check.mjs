@@ -1,8 +1,8 @@
 // Vérifie : onglets Niveau / Count Up / Entraînement de l'analyse, note de fin d'entraînement et critères.
 import { chromium } from '/home/claude/.npm-global/lib/node_modules/playwright/index.mjs';
-import { makeRng, makeSim } from '../src/engine/sim.js';
-import { atcTargets } from '../src/engine/modes.js';
-import { runLeg } from '../src/engine/runner.js';
+import { makeRng, makeSim } from '../../src/engine/sim.js';
+import { atcTargets } from '../../src/engine/modes.js';
+import { runLeg } from '../../src/engine/runner.js';
 import { mkdirSync } from 'fs';
 
 const OUT = process.argv[2] || 'shots';

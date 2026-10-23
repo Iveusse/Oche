@@ -1,6 +1,6 @@
 // Vérifie : bilan « Ta partie » sur l'écran de fin de leg (Count Up joué en ratés face à un historique correct).
 import { chromium } from '/home/claude/.npm-global/lib/node_modules/playwright/index.mjs';
-import { makeRng, makeSim } from '../src/engine/sim.js';
+import { makeRng, makeSim } from '../../src/engine/sim.js';
 import { mkdirSync } from 'fs';
 const OUT = process.argv[2] || 'shots';
 mkdirSync(OUT, { recursive: true });

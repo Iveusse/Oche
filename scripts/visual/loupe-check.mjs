@@ -1,5 +1,6 @@
+// Parcours Playwright. Loupe de visée sur la cible.
 import { chromium } from '/home/claude/.npm-global/lib/node_modules/playwright/index.mjs';
-import { zoneCenter } from '../src/lib/board.js';
+import { zoneCenter } from '../../src/lib/board.js';
 const OUT = process.argv[2];
 const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
 const ctx = await browser.newContext({ viewport: { width: 393, height: 852 }, deviceScaleFactor: 2 });

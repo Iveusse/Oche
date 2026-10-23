@@ -1,7 +1,7 @@
-// Vérifie : handicap, annonces vocales, saisie à la voix, récap de soirée, coach.
+// Parcours Playwright. Parcours de jeu complet, remonte les erreurs JavaScript.
 // Voix, micro et partage sont simulés (le navigateur de test n'en a pas).
 import { chromium } from '/home/claude/.npm-global/lib/node_modules/playwright/index.mjs';
-import { makeRng, makeSim } from '../src/engine/sim.js';
+import { makeRng, makeSim } from '../../src/engine/sim.js';
 import { mkdirSync } from 'fs';
 
 const OUT = process.argv[2] || 'shots';
@@ -23,6 +23,9 @@ const add = (mode, settings, ids, sig) => {
 };
 for (let i = 0; i < 14; i++) add('x01', { start: 301, in: 'single', out: 'double' }, [P.Yves, P.Nico], [0.17, 0.22]);
 for (let i = 0; i < 4; i++) add('shanghai', { from: 1, to: 20, instantWin: true }, [P.Yves, P.Stéph], [0.2, 0.25]);
+
+t = Date.now() - 7 * 86400000 - 3 * 3600000;
+for (let i = 0; i < 6; i++) add('x01', { start: 301, in: 'single', out: 'double' }, [P.Yves, P.Nico], [0.2, 0.2]);
 
 async function mock(route) {
   const fn = route.request().url().split('/rpc/')[1]?.split('?')[0];
@@ -71,20 +74,11 @@ await page.waitForTimeout(300);
 
 
 
-await page.getByRole('button', { name: /Stats/ }).click();
-await page.waitForTimeout(300);
-await page.getByText('Succès', { exact: true }).first().click();
-await page.waitForTimeout(400);
-await page.getByRole('button', { name: /^Débloqués/ }).click().catch(() => {});
-await page.waitForTimeout(300);
-await shot('a1-succes', true);
-const links = await page.getByRole('button', { name: /Voir la partie/ }).count();
-check('liens vers la partie', links > 0, String(links));
-await page.getByRole('button', { name: /Voir la partie/ }).first().click();
-await page.waitForTimeout(400);
-await shot('a2-partie');
-check('détail de partie ouvert', await page.locator('.gd-c').count() >= 0);
-const hidden = await page.getByText('Caché').count();
-check('cachés visibles', hidden >= 0, String(hidden));
-console.log('ERRORS:', errors.length ? errors.join('\n') : 'none');
+await page.getByText('Stats', { exact: true }).last().click();
+await page.waitForTimeout(600);
+await page.screenshot({ path: `${OUT}/stats-full.png`, fullPage: true });
+await page.getByText('Analyse', { exact: true }).click();
+await page.waitForTimeout(600);
+await page.screenshot({ path: `${OUT}/analysis.png` });
+console.log('ERRORS:', errors.length ? errors : 'none');
 await browser.close();

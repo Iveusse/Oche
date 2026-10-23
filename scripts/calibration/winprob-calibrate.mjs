@@ -1,8 +1,8 @@
 // Calibre le modèle de probabilité de victoire : moyenne et écart-type de fléchettes par leg selon la moyenne du joueur.
 // Usage : node scripts/winprob-calibrate.mjs [N]
-import { runLeg } from '../src/engine/runner.js';
-import { makeRng, makeSim } from '../src/engine/sim.js';
-import { x01Advanced } from '../src/engine/advanced.js';
+import { runLeg } from '../../src/engine/runner.js';
+import { makeRng, makeSim } from '../../src/engine/sim.js';
+import { x01Advanced } from '../../src/engine/advanced.js';
 
 const rnd = makeRng(2024); const sim = makeSim(rnd);
 const N = Number(process.argv[2] || 150);

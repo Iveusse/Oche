@@ -8,7 +8,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "calibrate": "node scripts/calibrate.mjs"
+    "test:watch": "vitest",
+    "calibrate": "node scripts/calibration/calibrate.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.0",

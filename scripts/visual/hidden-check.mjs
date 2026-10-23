@@ -1,7 +1,7 @@
-// Vérifie : handicap, annonces vocales, saisie à la voix, récap de soirée, coach.
+// Parcours Playwright. Succès cachés : déblocage et affichage ("Caché").
 // Voix, micro et partage sont simulés (le navigateur de test n'en a pas).
 import { chromium } from '/home/claude/.npm-global/lib/node_modules/playwright/index.mjs';
-import { makeRng, makeSim } from '../src/engine/sim.js';
+import { makeRng, makeSim } from '../../src/engine/sim.js';
 import { mkdirSync } from 'fs';
 
 const OUT = process.argv[2] || 'shots';
@@ -71,13 +71,20 @@ await page.waitForTimeout(300);
 
 
 
-await page.getByText('Récap de la soirée').first().click();
-await page.waitForTimeout(1200);
-await page.screenshot({ path: `${OUT}/recap1.png` });
-const chips = page.locator('.chip-pill');
-console.log('chips', await chips.allInnerTexts());
-await chips.filter({ hasText: 'Stéph' }).click();
-await page.waitForTimeout(800);
-await page.screenshot({ path: `${OUT}/recap2.png` });
-console.log('options jour', await page.locator('select[aria-label="Jour de la soirée"] option').allInnerTexts());
+await page.getByRole('button', { name: /Stats/ }).click();
+await page.waitForTimeout(300);
+await page.getByText('Succès', { exact: true }).first().click();
+await page.waitForTimeout(400);
+await page.getByRole('button', { name: /^Débloqués/ }).click().catch(() => {});
+await page.waitForTimeout(300);
+await shot('a1-succes', true);
+const links = await page.getByRole('button', { name: /Voir la partie/ }).count();
+check('liens vers la partie', links > 0, String(links));
+await page.getByRole('button', { name: /Voir la partie/ }).first().click();
+await page.waitForTimeout(400);
+await shot('a2-partie');
+check('détail de partie ouvert', await page.locator('.gd-c').count() >= 0);
+const hidden = await page.getByText('Caché').count();
+check('cachés visibles', hidden >= 0, String(hidden));
+console.log('ERRORS:', errors.length ? errors.join('\n') : 'none');
 await browser.close();

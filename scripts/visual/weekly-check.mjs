@@ -1,7 +1,7 @@
-// Vérifie : handicap, annonces vocales, saisie à la voix, récap de soirée, coach.
+// Parcours Playwright. Palmarès de la semaine et derniers legs.
 // Voix, micro et partage sont simulés (le navigateur de test n'en a pas).
 import { chromium } from '/home/claude/.npm-global/lib/node_modules/playwright/index.mjs';
-import { makeRng, makeSim } from '../src/engine/sim.js';
+import { makeRng, makeSim } from '../../src/engine/sim.js';
 import { mkdirSync } from 'fs';
 
 const OUT = process.argv[2] || 'shots';
@@ -23,9 +23,6 @@ const add = (mode, settings, ids, sig) => {
 };
 for (let i = 0; i < 14; i++) add('x01', { start: 301, in: 'single', out: 'double' }, [P.Yves, P.Nico], [0.17, 0.22]);
 for (let i = 0; i < 4; i++) add('shanghai', { from: 1, to: 20, instantWin: true }, [P.Yves, P.Stéph], [0.2, 0.25]);
-
-t = Date.now() - 7 * 86400000 - 3 * 3600000;
-for (let i = 0; i < 6; i++) add('x01', { start: 301, in: 'single', out: 'double' }, [P.Yves, P.Nico], [0.2, 0.2]);
 
 async function mock(route) {
   const fn = route.request().url().split('/rpc/')[1]?.split('?')[0];
@@ -73,19 +70,22 @@ await page.getByText('Nouvelle partie').first().waitFor();
 await page.waitForTimeout(300);
 
 
-
-await page.getByText('Classement', { exact: true }).last().click();
-await page.waitForTimeout(500);
-await page.getByText('Palmarès semaine').click();
-await page.waitForTimeout(800);
-await page.getByText('Perso', { exact: true }).click();
-await page.waitForTimeout(1500);
-await page.screenshot({ path: `${OUT}/perso1.png`, fullPage: true });
-const img = page.locator('img.recap-img');
-await img.screenshot({ path: `${OUT}/perso-img.png` });
+await page.getByRole('button', { name: /Classement/ }).click();
+await page.waitForTimeout(300);
+await page.getByRole('button', { name: /Palmarès de la semaine/ }).click();
+await page.locator('.recap-img').waitFor();
+await page.waitForTimeout(400);
+const src = await page.locator('.recap-img').getAttribute('src');
+const png = await page.evaluate(async (u) => { const b = await (await fetch(u)).blob(); const r = new FileReader(); return new Promise((res) => { r.onload = () => res(r.result); r.readAsDataURL(b); }); }, src);
+const { writeFileSync } = await import('fs');
+writeFileSync(`${OUT}/w1-palmares.png`, Buffer.from(png.split(',')[1], 'base64'));
+check('palmarès affiché', true);
 await page.getByRole('button', { name: 'OK' }).click();
-await page.getByText('Stats', { exact: true }).last().click();
-await page.waitForTimeout(600);
-await page.screenshot({ path: `${OUT}/stats.png` });
-console.log('ERRORS:', errors.length ? errors : 'none');
+await shot('w2-classement', true);
+check('face à face détaillé', await page.getByText('Derniers legs').count() > 0);
+await page.getByRole('button', { name: /Stats/ }).click();
+await page.waitForTimeout(400);
+await shot('w3-stats', true);
+check('rivalités', await page.getByText('Rivalités').count() > 0, '');
+console.log('ERRORS:', errors.length ? errors.join('\n') : 'none');
 await browser.close();

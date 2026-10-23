@@ -1,8 +1,8 @@
 // Vérifie visuellement le programme de la semaine et la courbe de niveau avec des parties simulées.
 import { chromium } from '/home/claude/.npm-global/lib/node_modules/playwright/index.mjs';
-import { runLeg } from '../src/engine/runner.js';
-import { makeRng, makeSim } from '../src/engine/sim.js';
-import { atcTargets } from '../src/engine/modes.js';
+import { runLeg } from '../../src/engine/runner.js';
+import { makeRng, makeSim } from '../../src/engine/sim.js';
+import { atcTargets } from '../../src/engine/modes.js';
 const OUT = process.argv[2];
 const rnd = makeRng(99); const sim = makeSim(rnd);
 const DAY = 86400000; const now = Date.now();

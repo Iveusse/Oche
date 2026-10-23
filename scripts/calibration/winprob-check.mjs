@@ -1,6 +1,6 @@
 // Compare le modèle de probabilité aux résultats de matchs simulés.
-import { makeRng, makeSim } from '../src/engine/sim.js';
-import { x01Profile, x01Probs } from '../src/engine/winprob.js';
+import { makeRng, makeSim } from '../../src/engine/sim.js';
+import { x01Profile, x01Probs } from '../../src/engine/winprob.js';
 const sim = makeSim(makeRng(77));
 const N = Number(process.argv[2] || 250);
 const mk = (settings, sa, sb, n, t0, ids = ['a', 'b']) => Array.from({ length: n }, (_, i) => { const leg = sim.play('x01', settings, ids, (k) => (k === 0 ? sa : sb)); return { id: `g${t0}-${i}`, mode: 'x01', settings, player_ids: ids, created_at: new Date(1e12 + t0 + i).toISOString(), data: { legs: [{ ...leg, done: true }], legsToWin: 1 } }; });

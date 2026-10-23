@@ -5,86 +5,97 @@ import { MODES } from './modes.js';
 
 const clone = (o) => JSON.parse(JSON.stringify(o));
 
+/**
+ * Rejoue un leg et renvoie tout ce qu'on peut en dire.
+ * @param {string} mode      'x01', 'cricket', 'shanghai'... (clé de MODES)
+ * @param {object} settings  réglages de la partie (départ, sortie double...)
+ * @param {import('../types.js').Leg} leg
+ * @returns {import('../types.js').RunResult}
+ */
 export function runLeg(mode, settings, leg) {
-  const M = MODES[mode];
-  const n = leg.order.length;
-  const ps = leg.order.map((id, i) => ({ ...M.init(settings, leg, i), id, finished: false }));
-  const finishedOrder = [];
-  const turns = [];
-  const turnCount = new Array(n).fill(0);
-  let cur = 0;
-  let turn = null;
+  const modeRules = MODES[mode];
+  const playerCount = leg.order.length;
+  // ps = « player states » : l'état de chaque joueur (reste à marquer, points, cibles...), dans l'ordre de jeu
+  const ps = leg.order.map((id, i) => ({ ...modeRules.init(settings, leg, i), id, finished: false }));
+  const finishedOrder = []; // indices des joueurs, dans l'ordre où ils ont fini
+  const turns = [];          // tours terminés
+  const turnsPlayed = new Array(playerCount).fill(0);
+  let current = 0;           // indice du joueur qui lance
+  let turn = null;           // tour en cours (3 fléchettes max)
   let instantWin = false;
-  let st = { over: false, needDecision: false };
+  let status = { over: false, needDecision: false };
 
-  const nextFrom = (i) => {
-    for (let k = 1; k <= n; k++) {
-      const j = (i + k) % n;
+  // joueur suivant qui n'a pas encore fini
+  const nextPlayerAfter = (i) => {
+    for (let k = 1; k <= playerCount; k++) {
+      const j = (i + k) % playerCount;
       if (!ps[j].finished) return j;
     }
     return i;
   };
+  const computeStatus = () => modeRules.status({ ps, turns, finishedOrder, n: playerCount, leg, settings, instantWin });
 
-  for (const d of leg.darts) {
-    if (st.over || (st.needDecision && leg.continueForPlaces == null)) break;
+  for (const dart of leg.darts) {
+    if (status.over || (status.needDecision && leg.continueForPlaces == null)) break;
     if (!turn) {
       turn = {
-        p: cur, darts: [], start: clone(ps[cur]),
-        round: Math.floor(turns.length / n), nth: turnCount[cur],
+        p: current, darts: [], start: clone(ps[current]),
+        round: Math.floor(turns.length / playerCount), nth: turnsPlayed[current],
       };
     }
-    const ctx = { settings, leg, turn, all: ps, idx: cur };
-    const res = M.dart(ps[cur], d, ctx);
-    turn.darts.push({ ...d, ...res.info });
-    if (res.bust) {
-      const keep = { id: ps[cur].id, finished: false };
-      ps[cur] = { ...clone(turn.start), ...keep };
+    const context = { settings, leg, turn, all: ps, idx: current };
+    const outcome = modeRules.dart(ps[current], dart, context);
+    turn.darts.push({ ...dart, ...outcome.info });
+    if (outcome.bust) {
+      // bust : le joueur revient à l'état d'avant son tour
+      const keep = { id: ps[current].id, finished: false };
+      ps[current] = { ...clone(turn.start), ...keep };
       turn.bust = true;
     }
-    if (res.finished) {
-      ps[cur].finished = true;
-      finishedOrder.push(cur);
+    if (outcome.finished) {
+      ps[current].finished = true;
+      finishedOrder.push(current);
       turn.finished = true;
     }
-    if (res.instantWin) instantWin = true;
-    const end = res.finished || res.bust || res.endTurn || turn.darts.length === 3;
-    if (end) {
+    if (outcome.instantWin) instantWin = true;
+    const turnEnds = outcome.finished || outcome.bust || outcome.endTurn || turn.darts.length === 3;
+    if (turnEnds) {
       turn.complete = true;
-      if (M.afterTurn) M.afterTurn(ps[cur], turn, ctx);
+      if (modeRules.afterTurn) modeRules.afterTurn(ps[current], turn, context);
       turns.push(turn);
-      turnCount[cur] += 1;
+      turnsPlayed[current] += 1;
       turn = null;
-      st = M.status({ ps, turns, finishedOrder, n, leg, settings, instantWin });
-      if (!st.over && !st.needDecision) cur = nextFrom(cur);
-      else if (st.needDecision && leg.continueForPlaces != null) {
-        st = M.status({ ps, turns, finishedOrder, n, leg, settings, instantWin });
-        if (!st.over) cur = nextFrom(cur);
+      status = computeStatus();
+      if (!status.over && !status.needDecision) current = nextPlayerAfter(current);
+      else if (status.needDecision && leg.continueForPlaces != null) {
+        status = computeStatus();
+        if (!status.over) current = nextPlayerAfter(current);
       }
     }
   }
   // décision déjà prise après coup : recalculer
-  if (!turn) st = M.status({ ps, turns, finishedOrder, n, leg, settings, instantWin });
-  if (!turn && !st.over && !st.needDecision && turns.length && turns[turns.length - 1].p === cur && ps[cur].finished) {
-    cur = nextFrom(cur);
+  if (!turn) status = computeStatus();
+  if (!turn && !status.over && !status.needDecision && turns.length && turns[turns.length - 1].p === current && ps[current].finished) {
+    current = nextPlayerAfter(current);
   }
 
-  const ranking = computeRanking(M, ps, finishedOrder, instantWin);
-  const awaiting = turns.length > (leg.validated || 0);
+  const ranking = computeRanking(modeRules, ps, finishedOrder, instantWin);
+  const awaiting = turns.length > (leg.validated || 0); // des tours attendent d'être validés
   return {
-    ps, turns, current: turn, cur, finishedOrder, ranking,
-    over: st.over, needDecision: st.needDecision && leg.continueForPlaces == null,
+    ps, turns, current: turn, cur: current, finishedOrder, ranking,
+    over: status.over, needDecision: status.needDecision && leg.continueForPlaces == null,
     awaiting, instantWin,
   };
 }
 
-function computeRanking(M, ps, finishedOrder, instantWin) {
+// Classement : ceux qui ont fini d'abord (dans l'ordre), puis les autres selon la clé de tri du mode
+function computeRanking(modeRules, ps, finishedOrder, instantWin) {
   const first = finishedOrder.map((i) => ps[i].id);
   const rest = ps
     .map((p, i) => ({ p, i }))
     .filter(({ i }) => !finishedOrder.includes(i))
-    .sort((a, b) => M.rankKey(b.p) - M.rankKey(a.p) || a.i - b.i)
+    .sort((a, b) => modeRules.rankKey(b.p) - modeRules.rankKey(a.p) || a.i - b.i)
     .map(({ p }) => p.id);
-  if (instantWin || !M.race) return [...first, ...rest];
   return [...first, ...rest];
 }
 

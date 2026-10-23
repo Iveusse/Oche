@@ -1,7 +1,7 @@
 // Plusieurs parties en cours : lancer, quitter, en lancer une autre, reprendre chacune, les terminer,
 // récupérer celles du serveur sur un téléphone vierge, ne pas garder une partie jamais commencée.
 import { chromium } from '/home/claude/.npm-global/lib/node_modules/playwright/index.mjs';
-import { zoneCenter } from '../src/lib/board.js';
+import { zoneCenter } from '../../src/lib/board.js';
 import { mkdirSync } from 'fs';
 const OUT = process.argv[2] || 'shots'; mkdirSync(OUT, { recursive: true });
 const BASE = process.env.BASE || 'http://localhost:4173';
