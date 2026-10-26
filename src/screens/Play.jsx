@@ -500,7 +500,7 @@ export function Play({ game, players, records, history = [], onUpdate, onLegDone
         right={<button className="icon-btn" aria-label="Options" onClick={() => setMenu(true)}><Icon.More /></button>}
       />
 
-      {game.mode === 'shanghai' && <ShanghaiTargets r={r} game={game} players={byId} thrower={thrower} currentNum={r.over ? null : (typeof info?.a === 'number' ? info.a : null)} size={r.ps.length > 3 ? 64 : r.ps.length > 2 ? 84 : 96} />}
+      {game.mode === 'shanghai' && <ShanghaiTargets r={r} game={game} players={byId} thrower={thrower} currentNum={r.over ? null : (typeof info?.a === 'number' ? info.a : null)} size={r.ps.length > 3 ? 64 : r.ps.length > 2 ? 84 : 96} fill={buttons} />}
       {!training && game.mode !== 'cricket' && game.mode !== 'shanghai' && (
         <div className="scores">
           {r.ps.map((p, i) => {
@@ -543,7 +543,7 @@ export function Play({ game, players, records, history = [], onUpdate, onLegDone
         <Seg options={[['board', 'Cible'], ['buttons', 'Boutons']]} value={input} onChange={setInput} />
       )}
       {buttons && TARGET_MODE ? (
-        <ShanghaiButtons target={info.a} disabled={blocked} onHit={hit} darts={tDarts} runs={game.mode !== 'shanghai'} />
+        <ShanghaiButtons target={info.a} disabled={blocked} onHit={hit} darts={tDarts} runs={game.mode !== 'shanghai'} compact={game.mode === 'shanghai'} />
       ) : buttons ? (
         <NumberPad disabled={blocked} onHit={hit} darts={tDarts} cricket={game.mode === 'cricket'} dead={game.mode === 'cricket' ? closedByAll(r) : []} />
       ) : (
@@ -679,7 +679,7 @@ function NumberPad({ disabled, onHit, darts = [], cricket = false, dead = [] }) 
   );
 }
 
-function ShanghaiButtons({ target, disabled, onHit, darts = [], runs = false }) {
+function ShanghaiButtons({ target, disabled, onHit, darts = [], runs = false, compact = false }) {
   const btns = [[1, 'Simple'], [2, 'Double'], [3, 'Triple']];
   const [flash, setFlash] = useState(null); // dernier bouton touché, pour le retour visuel
   const timer = useRef(null);
@@ -691,7 +691,7 @@ function ShanghaiButtons({ target, disabled, onHit, darts = [], runs = false }) 
   };
   useEffect(() => () => clearTimeout(timer.current), []);
   return (
-    <div className="board-slot" style={{ containerType: 'normal' }}>
+    <div className={`board-slot ${compact ? 'compact' : ''}`} style={{ containerType: 'normal' }}>
       <div className="col sh-pad" style={{ width: '100%', gap: 10, position: 'relative' }}>
         <div className="between">
           <span className="small muted">Fléchette sur le {target}</span>

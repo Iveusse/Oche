@@ -63,11 +63,11 @@ export function ShanghaiTarget({ hits, current, color, size, from, to }) {
 }
 
 // Rangée de cibles : une par joueur, avec nom et points
-export function ShanghaiTargets({ r, game, players, thrower, currentNum = null, size = 88 }) {
+export function ShanghaiTargets({ r, game, players, thrower, currentNum = null, size = 88, fill = false }) {
   const s = game.settings;
   const nums = shanghaiNumbers(s);
   return (
-    <div className="scores sh-targets">
+    <div className={`scores sh-targets ${fill ? 'fill' : ''}`}>
       {r.ps.map((p, i) => {
         return (
           <div key={p.id} className={`score-card sh-card ${i === thrower && currentNum != null ? 'on' : ''}`}>
