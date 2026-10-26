@@ -264,8 +264,10 @@ export function Play({ game, players, records, history = [], onUpdate, onLegDone
   const r = useMemo(() => runLeg(game.mode, game.settings, leg), [game, leg]);
   const [menu, setMenu] = useState(false);
   // saisie : cible ou boutons, mémorisé par mode (X01, Cricket, Shanghai…)
-  const PAD_MODES = ['shanghai', 'baseball', 'countup', 'train-baseball', 'x01', 'cricket', 'train-checkout', 'atc', 'killer'];
+  const PAD_MODES = ['shanghai', 'baseball', 'countup', 'train-baseball', 'x01', 'cricket', 'train-checkout', 'atc', 'train-atc', 'train-doubles', 'killer'];
   const TARGET_MODE = ['shanghai', 'baseball', 'train-baseball'].includes(game.mode);
+  // Around the Clock (et ses entraînements) : on ne choisit pas le numéro, seulement « touché ou raté »
+  const ATC_MODE = ['atc', 'train-atc', 'train-doubles'].includes(game.mode);
   const inputKey = game.mode === 'shanghai' ? 'shanghaiInput' : `input.${game.mode}`;
   const [input, setInputState] = useState(() => (PAD_MODES.includes(game.mode) ? load(inputKey, 'board') : 'board'));
   const setInput = (v) => { setInputState(v); save(inputKey, v); };
@@ -542,7 +544,16 @@ export function Play({ game, players, records, history = [], onUpdate, onLegDone
       {PAD_MODES.includes(game.mode) && (
         <Seg options={[['board', 'Cible'], ['buttons', 'Boutons']]} value={input} onChange={setInput} />
       )}
-      {buttons && TARGET_MODE ? (
+      {buttons && ATC_MODE ? (
+        <AtcButtons
+          target={leg.targets?.[tps.pos]}
+          zones={game.mode === 'train-doubles' ? ['D'] : (game.settings.zones?.length ? game.settings.zones : ['S', 'D', 'T'])}
+          skip={game.mode !== 'train-doubles' && !!game.settings.skip}
+          disabled={blocked || tps.finished}
+          onHit={hit}
+          darts={tDarts}
+        />
+      ) : buttons && TARGET_MODE ? (
         <ShanghaiButtons target={info.a} disabled={blocked} onHit={hit} darts={tDarts} runs={game.mode !== 'shanghai'} compact={game.mode === 'shanghai'} />
       ) : buttons ? (
         <NumberPad disabled={blocked} onHit={hit} darts={tDarts} cricket={game.mode === 'cricket'} dead={game.mode === 'cricket' ? closedByAll(r) : []} />
@@ -557,7 +568,7 @@ export function Play({ game, players, records, history = [], onUpdate, onLegDone
           const d = tDarts[k];
           return (
             <div key={k} className={`dart-box ${d ? 'filled' : ''}`}>
-              <div className="a" style={{ color: d ? undefined : 'var(--muted)' }}>{d ? (!d.mult && TARGET_MODE ? 'Raté' : dartLabel(d)) : '-'}</div>
+              <div className="a" style={{ color: d ? undefined : 'var(--muted)' }}>{d ? (!d.mult && (TARGET_MODE || ATC_MODE) ? 'Raté' : dartLabel(d)) : '-'}</div>
               <div className="b">{d ? (game.mode === 'cricket' ? (d.marks ? `${d.marks} marque${d.marks > 1 ? 's' : ''}` : '-') : d.hit === false ? (d.mult ? 'raté' : '0') : d.pts ?? dartScore(d)) : `Fléch. ${k + 1}`}</div>
             </div>
           );
@@ -674,6 +685,53 @@ function NumberPad({ disabled, onHit, darts = [], cricket = false, dead = [] }) 
           <button className="np-key miss" disabled={disabled} aria-label="Raté" {...tap(() => press({ seg: 0, mult: 0 }))}>Raté</button>
         </div>
         {flash && <div key={flash.id} className={`sh-toast ${flash.miss ? 'miss' : ''}`} role="status">{flash.miss ? 'Raté' : `${flash.label} · ${flash.pts}`}</div>}
+      </div>
+    </div>
+  );
+}
+
+// Around the Clock : le numéro à viser est imposé, donc pas de clavier. Un seul bouton « Touché »
+// (ou Simple / Double / Triple si les sauts comptent, pour savoir de combien on avance) et « Raté ».
+function AtcButtons({ target, zones, skip, disabled, onHit, darts = [] }) {
+  const isBull = target === 25;
+  const label = (m) => (isBull ? (m === 2 ? 'Bull' : '25') : `${m === 3 ? 'T' : m === 2 ? 'D' : ''}${target}`);
+  const word = { 1: 'Simple', 2: 'Double', 3: 'Triple' };
+  // le bull n'a pas de saut : touché suffit. Sinon, un bouton par zone autorisée quand les sauts comptent.
+  const mults = skip && !isBull ? [1, 2, 3].filter((m) => zones.includes(m === 3 ? 'T' : m === 2 ? 'D' : 'S')) : null;
+  // un seul bouton : on enregistre la zone exigée (double seul, triple seul, sinon simple)
+  const single = isBull ? (zones.includes('S') || !zones.includes('D') ? 1 : 2) : zones.includes('S') ? 1 : zones.includes('D') ? 2 : 3;
+  const btns = mults && mults.length > 1 ? mults.map((m) => ({ m, big: label(m), small: word[m] })) : [{ m: mults?.length === 1 ? mults[0] : single, big: label(mults?.length === 1 ? mults[0] : single), small: 'Touché' }];
+  const [flash, setFlash] = useState(null);
+  const timer = useRef(null);
+  useEffect(() => () => clearTimeout(timer.current), []);
+  const press = (d, w, text) => {
+    onHit(d, w);
+    clearTimeout(timer.current);
+    setFlash({ id: Date.now(), m: d.mult, text });
+    timer.current = setTimeout(() => setFlash(null), 1000);
+  };
+  if (target == null) return null;
+  return (
+    <div className="board-slot" style={{ containerType: 'normal' }}>
+      <div className="col sh-pad" style={{ width: '100%', gap: 10, position: 'relative' }}>
+        <div className="between">
+          <span className="small muted">Fléchette sur {isBull ? 'le bull' : `le ${target}`}</span>
+          <span className="sh-dots" aria-label={`${darts.length} fléchette(s) lancée(s)`}>
+            {[0, 1, 2].map((k) => <i key={k} className={darts[k] ? (darts[k].hit ? 'hit' : 'miss') : ''} />)}
+          </span>
+        </div>
+        <div className="sh-grid" style={{ gridTemplateColumns: `repeat(${btns.length}, minmax(0, 1fr))` }}>
+          {btns.map((b) => (
+            <button key={`${b.m}-${flash?.m === b.m ? flash.id : 0}`} aria-label={`${b.small} ${b.big}`} disabled={disabled}
+              {...tap(() => press({ seg: target, mult: b.m }, btns.length > 1 ? b.small : 'Touché', b.big))}
+              className={`sh-btn ${flash?.m === b.m ? 'flash' : ''}`}>
+              <span style={{ fontSize: btns.length > 1 ? 30 : 38, fontWeight: 800 }}>{btns.length > 1 ? b.big : 'Touché'}</span>
+              <span className="small" style={{ color: 'var(--text-2)', fontWeight: 700 }}>{btns.length > 1 ? b.small : b.big}</span>
+            </button>
+          ))}
+        </div>
+        <button disabled={disabled} {...tap(() => press({ seg: 0, mult: 0 }, 'Raté', 'Raté'))} className={`sh-btn sh-miss ${flash?.m === 0 ? 'flash' : ''}`}>Raté</button>
+        {flash && <div key={flash.id} className={`sh-toast ${flash.m ? '' : 'miss'}`} role="status">{flash.m ? `${flash.text} ✓` : 'Raté'}</div>}
       </div>
     </div>
   );
