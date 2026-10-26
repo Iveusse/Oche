@@ -80,7 +80,7 @@ if (!only || only === 'ki') {
   await start('Killer', ['Nico', 'Marie']);
   await page.waitForTimeout(300);
   await page.screenshot({ path: `${OUT}/ki1-${H}.png` });
-  await page.getByRole('button', { name: /Devenir killer/ }).click();
+  await page.getByRole('button', { name: /pour devenir killer/ }).click();
   await page.getByRole('button', { name: 'Raté' }).first().click();
   await page.waitForTimeout(1200);
   await page.screenshot({ path: `${OUT}/ki2-${H}.png` });

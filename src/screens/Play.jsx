@@ -512,7 +512,7 @@ export function Play({ game, players, records, history = [], onUpdate, onLegDone
                 {game.mode === 'killer' ? (<>
                   <div className="n">{byId[p.id]?.name || '?'}{p.killer && !p.out ? ' ☠' : ''}</div>
                   <div className="kl-row"><span className="kl-num">{p.num}</span><span className="kl-hearts">{p.out ? '☠' : '♥'.repeat(Math.max(p.lives, 0))}</span></div>
-                  <div className="s">{p.out ? 'éliminé' : p.killer ? 'killer' : `D${p.num} pour tuer`}</div>
+                  <div className="s kl-status">{p.out ? 'éliminé' : p.killer ? (() => { const tg = killerTargets(p, r.ps); return tg.length ? `☠ vise ${tg.map((n) => `D${n}`).join(' · ')}` : '☠ killer'; })() : `D${p.num} pour devenir killer`}</div>
                 </>) : (<>
                 <div className="n">{byId[p.id]?.name || '?'}</div>
                 <div className="v">{ci.v}</div>
@@ -761,19 +761,24 @@ function KillerButtons({ me, all, players, disabled, onHit, darts = [] }) {
   return (
     <div className="board-slot compact" style={{ containerType: 'normal' }}>
       <div className="col sh-pad kl-pad" style={{ width: '100%', gap: 10, position: 'relative' }}>
-        <div className="between">
-          <span className="small muted">{mine ? `Touche ton double ${me.num} pour devenir killer` : 'Touche le double d\'un adversaire pour lui retirer une vie'}</span>
+        <div className="kl-help">
+          <div>
+            <b>{players[me.id]?.name}</b>{mine
+              ? <> : touche ton <b>double {me.num}</b> pour devenir killer.</>
+              : <>, tu es killer ☠. Touche le double d'un adversaire pour lui retirer une vie.</>}
+            {mine && <div className="small muted">Ensuite tu pourras éliminer les autres en touchant leur double.</div>}
+          </div>
           <span className="sh-dots">{[0, 1, 2].map((k) => <i key={k} className={darts[k] ? (darts[k].hit ? 'hit' : 'miss') : ''} />)}</span>
         </div>
         <div className="kl-grid" style={{ gridTemplateColumns: mine ? '1fr' : `repeat(${Math.min(foes.length, 2)}, minmax(0, 1fr))` }}>
           {mine ? (
             <button disabled={disabled} className="sh-btn kl-btn" {...tap(() => press({ seg: me.num, mult: 2 }, `D${me.num}`))}>
-              <span className="kl-big">D{me.num}</span><span className="small" style={{ color: 'var(--text-2)', fontWeight: 700 }}>Devenir killer</span>
+              <span className="kl-big">D{me.num}</span><span className="small" style={{ color: 'var(--text-2)', fontWeight: 700 }}>Touche pour devenir killer</span>
             </button>
           ) : foes.map(({ o, i }) => (
             <button key={o.id} disabled={disabled} className="sh-btn kl-btn" aria-label={`Double ${o.num}, ${players[o.id]?.name}`} {...tap(() => press({ seg: o.num, mult: 2 }, `D${o.num}`))}>
               <span className="kl-big">D{o.num}</span>
-              <span className="small" style={{ color: 'var(--text-2)', fontWeight: 700 }}>{players[o.id]?.name} {'♥'.repeat(Math.max(o.lives, 0))}</span>
+              <span className="small" style={{ color: 'var(--text-2)', fontWeight: 700 }}>Tue {players[o.id]?.name} {'♥'.repeat(Math.max(o.lives, 0))}</span>
             </button>
           ))}
         </div>
