@@ -509,9 +509,15 @@ export function Play({ game, players, records, history = [], onUpdate, onLegDone
             const ci = cardInfo(game, r, p, i);
             return (
               <div key={p.id} className={`score-card ${i === thrower ? 'on' : ''} ${p.finished ? 'done' : ''}`}>
+                {game.mode === 'killer' ? (<>
+                  <div className="n">{byId[p.id]?.name || '?'}{p.killer && !p.out ? ' ☠' : ''}</div>
+                  <div className="kl-row"><span className="kl-num">{p.num}</span><span className="kl-hearts">{p.out ? '☠' : '♥'.repeat(Math.max(p.lives, 0))}</span></div>
+                  <div className="s">{p.out ? 'éliminé' : p.killer ? 'killer' : `D${p.num} pour tuer`}</div>
+                </>) : (<>
                 <div className="n">{byId[p.id]?.name || '?'}</div>
                 <div className="v">{ci.v}</div>
                 <div className="s">{ci.s}</div>
+                </>)}
                 {(() => { const lt = lastTurnOf(r, i); return lt ? (
                   <div className="last-turn" aria-label="Tour précédent">
                     {lt.darts.map((d, k) => <b key={k} className={shortDart(game.mode, d) === 'R' ? 'r' : ''}>{shortDart(game.mode, d)}</b>)}
@@ -555,6 +561,8 @@ export function Play({ game, players, records, history = [], onUpdate, onLegDone
         />
       ) : buttons && TARGET_MODE ? (
         <ShanghaiButtons target={info.a} disabled={blocked} onHit={hit} darts={tDarts} runs={game.mode !== 'shanghai'} compact={game.mode === 'shanghai'} />
+      ) : buttons && game.mode === 'killer' ? (
+        <KillerButtons me={tps} all={r.ps} players={byId} disabled={blocked} onHit={hit} darts={tDarts} />
       ) : buttons ? (
         <NumberPad disabled={blocked} onHit={hit} darts={tDarts} cricket={game.mode === 'cricket'} dead={game.mode === 'cricket' ? closedByAll(r) : []} />
       ) : (
@@ -732,6 +740,45 @@ function AtcButtons({ target, zones, skip, disabled, onHit, darts = [] }) {
         </div>
         <button disabled={disabled} {...tap(() => press({ seg: 0, mult: 0 }, 'Raté', 'Raté'))} className={`sh-btn sh-miss ${flash?.m === 0 ? 'flash' : ''}`}>Raté</button>
         {flash && <div key={flash.id} className={`sh-toast ${flash.m ? '' : 'miss'}`} role="status">{flash.m ? `${flash.text} ✓` : 'Raté'}</div>}
+      </div>
+    </div>
+  );
+}
+
+// Killer : seulement les doubles utiles. Pas encore killer : le tien. Killer : un bouton par adversaire en vie.
+function KillerButtons({ me, all, players, disabled, onHit, darts = [] }) {
+  const [flash, setFlash] = useState(null);
+  const timer = useRef(null);
+  useEffect(() => () => clearTimeout(timer.current), []);
+  const press = (d, label) => {
+    onHit(d, d.mult ? 'Double' : 'Raté');
+    clearTimeout(timer.current);
+    setFlash({ id: Date.now(), label });
+    timer.current = setTimeout(() => setFlash(null), 1000);
+  };
+  const foes = all.map((o, i) => ({ o, i })).filter(({ o }) => o.id !== me.id && !o.out);
+  const mine = !me.killer;
+  return (
+    <div className="board-slot compact" style={{ containerType: 'normal' }}>
+      <div className="col sh-pad kl-pad" style={{ width: '100%', gap: 10, position: 'relative' }}>
+        <div className="between">
+          <span className="small muted">{mine ? `Touche ton double ${me.num} pour devenir killer` : 'Touche le double d\'un adversaire pour lui retirer une vie'}</span>
+          <span className="sh-dots">{[0, 1, 2].map((k) => <i key={k} className={darts[k] ? (darts[k].hit ? 'hit' : 'miss') : ''} />)}</span>
+        </div>
+        <div className="kl-grid" style={{ gridTemplateColumns: mine ? '1fr' : `repeat(${Math.min(foes.length, 2)}, minmax(0, 1fr))` }}>
+          {mine ? (
+            <button disabled={disabled} className="sh-btn kl-btn" {...tap(() => press({ seg: me.num, mult: 2 }, `D${me.num}`))}>
+              <span className="kl-big">D{me.num}</span><span className="small" style={{ color: 'var(--text-2)', fontWeight: 700 }}>Devenir killer</span>
+            </button>
+          ) : foes.map(({ o, i }) => (
+            <button key={o.id} disabled={disabled} className="sh-btn kl-btn" aria-label={`Double ${o.num}, ${players[o.id]?.name}`} {...tap(() => press({ seg: o.num, mult: 2 }, `D${o.num}`))}>
+              <span className="kl-big">D{o.num}</span>
+              <span className="small" style={{ color: 'var(--text-2)', fontWeight: 700 }}>{players[o.id]?.name} {'♥'.repeat(Math.max(o.lives, 0))}</span>
+            </button>
+          ))}
+        </div>
+        <button disabled={disabled} {...tap(() => press({ seg: 0, mult: 0 }, 'Raté'))} className="sh-btn sh-miss">Raté</button>
+        {flash && <div key={flash.id} className="sh-toast" role="status">{flash.label}</div>}
       </div>
     </div>
   );
