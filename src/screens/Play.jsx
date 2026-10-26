@@ -366,7 +366,7 @@ export function Play({ game, players, records, history = [], onUpdate, onLegDone
         const ps = playerStats(history.filter((g) => g.id !== game.id), r2.ps[t.p].id);
         base = { mpr: ps.cricketTurns >= 10 ? ps.mpr : null };
       }
-      const roast = numberQuip(game.mode, t, tpts) || praiseTurn(game.mode, t, who, tpts, base) || roastTurn(game.mode, t, byId[r2.ps[t.p].id]?.name || '', tpts);
+      const roast = numberQuip(game.mode, t, tpts, game.id) || praiseTurn(game.mode, t, who, tpts, base) || roastTurn(game.mode, t, byId[r2.ps[t.p].id]?.name || '', tpts);
       const nx = (!r3.over && !r3.needDecision) ? nextSpeech(game, nl, r3, byId) : null;
       if (!r3.over && !r3.needDecision) patch.validated = r2.turns.length;
       speak([`${pre}${said}`, roast, ...(Array.isArray(nx) ? nx : [nx])]);

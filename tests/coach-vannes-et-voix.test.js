@@ -81,6 +81,19 @@ describe('Clins d\'oeil 42 / 31 / 44 / 29 / 28', () => {
     expect(numberQuip('cricket', { darts: [] }, 42)).toBeNull();
     expect(numberQuip('x01', { darts: [] }, 40)).toBeNull();
   });
+  it('chaque clin d\'oeil une seule fois par partie, même sur plusieurs legs', () => {
+    const mem = {};
+    globalThis.localStorage = { getItem: (k) => (k in mem ? mem[k] : null), setItem: (k, v) => { mem[k] = String(v); }, removeItem: (k) => { delete mem[k]; } };
+    try {
+      resetRoast();
+      expect(numberQuip('x01', { darts: [] }, 42, 'partie-1')).toBeTruthy();
+      resetRoast(); // nouveau leg, même partie
+      expect(numberQuip('x01', { darts: [] }, 42, 'partie-1')).toBeNull();
+      expect(numberQuip('x01', { darts: [] }, 28, 'partie-1')).toBeTruthy();
+      resetRoast();
+      expect(numberQuip('x01', { darts: [] }, 42, 'partie-2')).toBeTruthy();
+    } finally { delete globalThis.localStorage; }
+  });
   it('succès caché du 42', () => {
     const g = (pts) => ({ id: 'g' + pts, mode: 'x01', settings: { start: 301, in: 'single', out: 'double' }, player_ids: ['a'], status: 'finished', created_at: '2026-01-01T20:00:00Z',
       data: { legs: [{ order: ['a'], darts: pts, validated: 3, done: true, ranking: ['a'], finishedAt: '2026-01-01T20:05:00Z' }] } });

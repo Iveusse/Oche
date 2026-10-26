@@ -49,10 +49,23 @@ const COMBRAY = [
   'Vingt-huit. Longtemps, je me suis couché de bonne heure. Toi, tu lances des fléchettes',
 ];
 const QUIPS = { 28: ['e', COMBRAY], 42: ['h', H2G2], 31: ['c', TOULOUSE], 44: ['n', NANTES], 29: ['f', DIRINON] };
-export function numberQuip(mode, t, pts) {
+// Chaque clin d'oeil (28, 42, 31, 44, 29) n'est dit qu'une fois par partie, tous legs confondus (mémorisé pour les 5 dernières parties)
+export function numberQuip(mode, t, pts, gameId) {
   if (t.bust || (mode !== 'x01' && mode !== 'shanghai')) return null;
   const q = QUIPS[pts];
-  return q ? draw(q[0], q[1]) : null;
+  if (!q) return null;
+  const seen = load('eggs', {});
+  if (gameId) {
+    if ((seen[gameId] || []).includes(pts)) return null;
+  }
+  const line = draw(q[0], q[1]);
+  if (line && gameId) {
+    const next = { ...seen, [gameId]: [...(seen[gameId] || []), pts] };
+    const ids = Object.keys(next);
+    for (const k of ids.slice(0, Math.max(0, ids.length - 5))) delete next[k];
+    save('eggs', next);
+  }
+  return line;
 }
 
 // une seule fléchette ratée
