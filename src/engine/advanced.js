@@ -180,7 +180,7 @@ export function cricketAdvanced(games, pid) {
 export function shanghaiAdvanced(games, pid) {
   const s = {
     legs: 0, won: 0, shanghais: 0, pts: 0, best7: null, best20: null, best10: null, darts: 0, t: 0, d: 0, sgl: 0, miss: 0, marks: 0, rounds: 0, fmt: {},
-    num: Object.fromEntries(Array.from({ length: 20 }, (_, i) => [i + 1, { darts: 0, hits: 0, pts: 0, turns: 0, sh: 0 }])),
+    num: Object.fromEntries(Array.from({ length: 20 }, (_, i) => [i + 1, { darts: 0, hits: 0, pts: 0, turns: 0, sh: 0, s: 0, d: 0, t: 0 }])),
   };
   forEachLeg(games, pid, 'shanghai', ({ g, leg, r, idx, turns }) => {
     s.legs += 1; if (leg.ranking?.[0] === pid) s.won += 1;
@@ -201,7 +201,7 @@ export function shanghaiAdvanced(games, pid) {
         if (d.shanghai) { s.shanghais += 1; if (cell) cell.sh += 1; }
         if (cell) { cell.darts += 1; cell.pts += d.pts || 0; }
         if (!d.hit) { s.miss += 1; continue; }
-        if (cell) cell.hits += 1;
+        if (cell) { cell.hits += 1; if (d.mult === 3) cell.t += 1; else if (d.mult === 2) cell.d += 1; else cell.s += 1; }
         s.marks += d.mult || 0;
         if (d.mult === 3) s.t += 1; else if (d.mult === 2) s.d += 1; else s.sgl += 1;
       }
@@ -214,6 +214,8 @@ export function shanghaiAdvanced(games, pid) {
     pct: { hit: avg(s.darts - s.miss, s.darts), t: avg(s.t, s.darts), d: avg(s.d, s.darts), s: avg(s.sgl, s.darts), miss: avg(s.miss, s.darts) },
     numAcc: Object.fromEntries(Object.entries(s.num).map(([k, c]) => [k, avg(c.hits, c.darts)])),
     numPts: Object.fromEntries(Object.entries(s.num).map(([k, c]) => [k, avg(c.pts, c.turns)])),
+    // par numéro : part de fléchettes en simple, double, triple ou ratées
+    numMix: Object.fromEntries(Object.entries(s.num).map(([k, c]) => [k, { darts: c.darts, sh: c.sh, s: avg(c.s, c.darts), d: avg(c.d, c.darts), t: avg(c.t, c.darts), miss: avg(c.darts - c.hits, c.darts) }])),
     duration: duration(games, pid, 'shanghai'),
   };
 }
@@ -268,6 +270,8 @@ export function baseballAdvanced(games, pid) {
     pct: { hit: avg(s.darts - s.miss, s.darts), t: avg(s.t, s.darts), d: avg(s.d, s.darts), s: avg(s.sgl, s.darts), miss: avg(s.miss, s.darts) },
     numAcc: Object.fromEntries(Object.entries(s.num).map(([k, c]) => [k, avg(c.hits, c.darts)])),
     numPts: Object.fromEntries(Object.entries(s.num).map(([k, c]) => [k, avg(c.pts, c.turns)])),
+    // par numéro : part de fléchettes en simple, double, triple ou ratées
+    numMix: Object.fromEntries(Object.entries(s.num).map(([k, c]) => [k, { darts: c.darts, sh: c.sh, s: avg(c.s, c.darts), d: avg(c.d, c.darts), t: avg(c.t, c.darts), miss: avg(c.darts - c.hits, c.darts) }])),
     duration: duration(games, pid, 'baseball'),
   };
 }

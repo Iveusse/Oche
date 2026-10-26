@@ -4,6 +4,8 @@ import { runLeg, legsWon } from '../engine/runner.js';
 import { MODE_LABEL, CRICKET_NUMS, isTraining, shanghaiNumbers, atcTargets, startOf, hasHandicap, BASEBALL_INNINGS, countUpRounds, killerNumbers, killerTargets } from '../engine/modes.js';
 import { dartLabel, dartScore, suggestCheckout } from '../lib/board.js';
 import { Dartboard } from '../components/Dartboard.jsx';
+import { ShanghaiTargets, CricketTarget, shanghaiLine, colorOf } from '../components/Targets.jsx';
+import { shanghaiAdvanced } from '../engine/advanced.js';
 import { Icon, Seg, Sheet, Switch, TopBar, tap } from '../components/ui.jsx';
 import { PlayerOrder, shuffle } from '../components/PlayerOrder.jsx';
 import { trainingResult, playerStats } from '../engine/stats.js';
@@ -224,13 +226,13 @@ function Mark({ n }) {
 // numéros fermés par TOUS les joueurs : ils ne rapportent plus rien à personne
 const closedByAll = (r) => CRICKET_NUMS.filter((n) => r.ps.length > 0 && r.ps.every((p) => p.marks[n] >= 3));
 
-function CricketGrid({ r, players, thrower }) {
+function CricketGrid({ r, players, thrower, colors }) {
   const cols = r.ps.length;
   const dead = closedByAll(r);
   return (
     <div className="cricket-grid" style={{ gridTemplateColumns: `28px repeat(${cols}, minmax(0,1fr))` }}>
       <span />
-      {r.ps.map((p, i) => <span key={p.id} className={`h ${i === thrower ? 'on' : ''}`}>{players[p.id]?.name}</span>)}
+      {r.ps.map((p, i) => <span key={p.id} className={`h ${i === thrower ? 'on' : ''}`} style={{ color: colors[i], borderBottom: i === thrower ? `2px solid ${colors[i]}` : '2px solid transparent' }}>{players[p.id]?.name}</span>)}
       {CRICKET_NUMS.filter((n) => !dead.includes(n)).map((n) => (
         <React.Fragment key={n}>
           <span className="num">{n === 25 ? 'B' : n}</span>
@@ -240,6 +242,17 @@ function CricketGrid({ r, players, thrower }) {
       <span className="num">Pts</span>
       {r.ps.map((p) => <span key={p.id} className="m" style={{ color: 'var(--text)' }}>{p.pts}</span>)}
       {dead.length > 0 && <span className="closed-line" style={{ gridColumn: '1 / -1' }}>Fermés par tous : {dead.map((n) => (n === 25 ? 'Bull' : n)).join(' · ')}</span>}
+    </div>
+  );
+}
+
+// cible partagée + tableau des marques, côte à côte
+export function CricketPanel({ r, players, thrower, size = 132 }) {
+  const colors = r.ps.map((p, i) => colorOf(players, p.id, i));
+  return (
+    <div className="panel cricket-panel">
+      <CricketTarget r={r} colors={colors} size={size} />
+      <CricketGrid r={r} players={players} thrower={thrower} colors={colors} />
     </div>
   );
 }
@@ -305,6 +318,10 @@ export function Play({ game, players, records, history = [], onUpdate, onLegDone
     const name = byId[r.ps[decided.leader].id]?.name || '';
     speak(`Plus personne ne peut rattraper ${name} aux points${decided.shanghai ? ', sauf avec un Shanghai' : ''}. Vous pouvez terminer la partie.`, false, true);
   }, [decided]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const shHistAll = useMemo(() => (game.mode === 'shanghai'
+    ? Object.fromEntries(game.player_ids.map((id) => [id, shanghaiAdvanced(history.filter((g) => g.id !== game.id), id)]))
+    : null), [game.mode, game.id, game.player_ids, history]);
 
   if (leg.done) {
     return training
@@ -446,6 +463,9 @@ export function Play({ game, players, records, history = [], onUpdate, onLegDone
     info = { b: 'Total', a: tps.pts };
   }
 
+  // Shanghai : stats du joueur qui lance (partie en cours + habitude)
+  const shLine = game.mode === 'shanghai' ? shanghaiLine(typeof info?.a === 'number' ? info.a : null, shHistAll?.[tps.id]) : null;
+
   // Finish possible : recalculé après chaque fléchette
   let checkout = null;
   const coMode = game.mode === 'x01' || game.mode === 'train-checkout';
@@ -480,7 +500,8 @@ export function Play({ game, players, records, history = [], onUpdate, onLegDone
         right={<button className="icon-btn" aria-label="Options" onClick={() => setMenu(true)}><Icon.More /></button>}
       />
 
-      {!training && game.mode !== 'cricket' && (
+      {game.mode === 'shanghai' && <ShanghaiTargets r={r} game={game} players={byId} thrower={thrower} currentNum={r.over ? null : (typeof info?.a === 'number' ? info.a : null)} size={r.ps.length > 3 ? 64 : r.ps.length > 2 ? 84 : 96} />}
+      {!training && game.mode !== 'cricket' && game.mode !== 'shanghai' && (
         <div className="scores">
           {r.ps.map((p, i) => {
             const ci = cardInfo(game, r, p, i);
@@ -499,7 +520,7 @@ export function Play({ game, players, records, history = [], onUpdate, onLegDone
           })}
         </div>
       )}
-      {game.mode === 'cricket' && <div className="panel" style={{ padding: 10 }}><CricketGrid r={r} players={byId} thrower={thrower} /></div>}
+      {game.mode === 'cricket' && <CricketPanel r={r} players={byId} thrower={thrower} />}
       {training && <div className="between"><span className="h3">{byId[r.ps[0].id]?.name}</span><span className="small muted">{MODE_LABEL[game.mode]}</span></div>}
 
       {coMode && (checkout ? <CheckoutBar {...checkout} /> : (
@@ -546,6 +567,17 @@ export function Play({ game, players, records, history = [], onUpdate, onLegDone
       <div className="small" style={{ minHeight: 16, color: shown?.bust || /Shanghai peut|Plus possible/.test(hint || '') ? 'var(--bad)' : /rester en vie/.test(hint || '') ? 'var(--sky)' : 'var(--text-2)', fontWeight: /rester en vie|Shanghai peut|Plus possible/.test(hint || '') ? 700 : 400, textAlign: 'center' }}>
         {hint || (tDarts.length ? `Tour : ${turnPts}` : `${lastTurn && r.ps.length > 1 ? `${byId[r.ps[lastTurn.p].id]?.name} : ${lastTurn.bust ? 'bust' : game.mode === 'cricket' ? `${lastTurn.darts.reduce((a, d) => a + (d.marks || 0), 0)} marque(s)` : lastTurn.darts.reduce((a, d) => a + (d.pts ?? dartScore(d)), 0)} · ` : ''}À ${byId[tps.id]?.name || '?'} de jouer`)}
       </div>
+      {shLine && (
+        <div className="sh-stats" aria-label={`Tes stats sur le ${shLine.num}`}>
+          <span className="sh-stats-t">{byId[tps.id]?.name} au {shLine.num}</span>
+          {shLine.text ? <span>{shLine.text}</span> : (
+            <span className="sh-mix">
+              <i>Simple <b>{shLine.s}</b></i><i>Double <b>{shLine.d}</b></i><i>Triple <b>{shLine.t}</b></i><i>Raté <b>{shLine.miss}</b></i>
+              {shLine.sh > 0 && <i>Shanghai <b>{shLine.sh}</b></i>}
+            </span>
+          )}
+        </div>
+      )}
       {heard && <div className="small heard" aria-live="polite">{heard}</div>}
 
       <div className="actions">
@@ -858,6 +890,9 @@ function LegEnd({ game, byId, history, onUpdate, onEnd }) {
           );
         })}
       </div>
+
+      {game.mode === 'shanghai' && <ShanghaiTargets r={r} game={game} players={byId} thrower={-1} size={r.ps.length > 3 ? 70 : 96} />}
+      {game.mode === 'cricket' && <CricketPanel r={r} players={byId} thrower={-1} size={140} />}
 
       <LegReport game={game} byId={byId} history={history} winnerId={winnerId} />
 

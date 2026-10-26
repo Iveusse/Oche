@@ -168,5 +168,12 @@ describe('shanghai formats', () => {
     const rep2 = legReport(mkSh('g7', 1, 10, 1), hist, 'a');
     expect(rep2.rows.some((r) => r.label === 'Points')).toBe(false);
   });
+  it('répartition simple / double / triple / raté sur chaque numéro', () => {
+    const a = shanghaiAdvanced([mkSh('g1', 1, 7, 1), mkSh('g2', 1, 7, 1)], 'a');
+    expect(a.numMix[3].darts).toBe(6);
+    expect(a.numMix[3].d).toBeCloseTo(1 / 3, 5);
+    expect(a.numMix[3].miss).toBeCloseTo(2 / 3, 5);
+    expect(a.numMix[3].s + a.numMix[3].d + a.numMix[3].t + a.numMix[3].miss).toBeCloseTo(1, 5);
+  });
 });
 
