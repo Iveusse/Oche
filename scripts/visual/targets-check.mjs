@@ -52,6 +52,7 @@ const metrics = async (tag) => console.log(tag, JSON.stringify(await page.evalua
 })));
 const b = (name) => page.getByRole('button', { name, exact: true }).click();
 const only = process.argv[4];
+if (only === 'x') { await start('X01', ['Nico']); await b('Triple'); await b('T20'); await b('Triple'); await b('T20'); await b('Triple'); await b('T20'); await b('Triple'); await b('T20'); await page.waitForTimeout(400); await page.screenshot({ path: `${OUT}/x01-${H}.png` }); console.log('errors', errs); await browser.close(); process.exit(0); }
 if (!only || only === 'sh') {
   for (const names of [['Nico'], ['Nico', 'Marie'], ['Nico', 'Marie', 'Paul']]) {
     await start('Shanghai', names);

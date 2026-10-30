@@ -202,10 +202,10 @@ export function shanghaiDecided(settings, r) {
   return ok ? { leader: L, shanghai: sh } : null;
 }
 
-function cardInfo(game, r, ps, idx) {
+function cardInfo(game, r, ps, idx, prevDarts = 0) {
   const leg = game.data.legs[game.data.legs.length - 1];
   switch (game.mode) {
-    case 'x01': { const a = legAvg(r, idx); return { v: ps.rem, s: a == null ? 'Moy. -' : `Moy. ${a.toFixed(1)}` }; }
+    case 'x01': { const a = legAvg(r, idx); const n = dartsOf(r, idx); return { v: ps.rem, s: a == null ? 'Moy. -' : `Moy. ${a.toFixed(1)}`, s2: `${n} fléch.${prevDarts ? ` · ${n + prevDarts} au total` : ''}` }; }
     case 'atc': return { v: ps.finished ? '✓' : targetLabel(leg.targets[ps.pos]), s: `${ps.pos} / ${leg.targets.length}` };
     case 'shanghai': return { v: ps.pts, s: 'points' };
     case 'countup': return { v: ps.pts, s: `manche ${Math.min(r.turns.filter((t) => t.p === idx).length + 1, countUpRounds(game.settings))}/${countUpRounds(game.settings)}` };
@@ -320,6 +320,17 @@ export function Play({ game, players, records, history = [], onUpdate, onLegDone
     const name = byId[r.ps[decided.leader].id]?.name || '';
     speak(`Plus personne ne peut rattraper ${name} aux points${decided.shanghai ? ', sauf avec un Shanghai' : ''}. Vous pouvez terminer la partie.`, false, true);
   }, [decided]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // X01 : fléchettes déjà lancées par chaque joueur dans les legs précédents de la partie
+  const prevDarts = useMemo(() => {
+    const out = {};
+    if (game.mode !== 'x01') return out;
+    for (const l of legs.slice(0, -1)) {
+      const rr = runLeg(game.mode, game.settings, l);
+      rr.ps.forEach((p, i) => { out[p.id] = (out[p.id] || 0) + dartsOf(rr, i); });
+    }
+    return out;
+  }, [game.mode, game.settings, legs]);
 
   const shHistAll = useMemo(() => (game.mode === 'shanghai'
     ? Object.fromEntries(game.player_ids.map((id) => [id, shanghaiAdvanced(history.filter((g) => g.id !== game.id), id)]))
@@ -506,7 +517,7 @@ export function Play({ game, players, records, history = [], onUpdate, onLegDone
       {!training && game.mode !== 'cricket' && game.mode !== 'shanghai' && (
         <div className="scores">
           {r.ps.map((p, i) => {
-            const ci = cardInfo(game, r, p, i);
+            const ci = cardInfo(game, r, p, i, prevDarts[p.id] || 0);
             return (
               <div key={p.id} className={`score-card ${i === thrower ? 'on' : ''} ${p.finished ? 'done' : ''}`}>
                 {game.mode === 'killer' ? (<>
@@ -517,6 +528,7 @@ export function Play({ game, players, records, history = [], onUpdate, onLegDone
                 <div className="n">{byId[p.id]?.name || '?'}</div>
                 <div className="v">{ci.v}</div>
                 <div className="s">{ci.s}</div>
+                {ci.s2 && <div className="s">{ci.s2}</div>}
                 </>)}
                 {(() => { const lt = lastTurnOf(r, i); return lt ? (
                   <div className="last-turn" aria-label="Tour précédent">
