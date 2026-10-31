@@ -257,6 +257,19 @@ export function CricketPanel({ r, players, thrower, size = 132 }) {
   );
 }
 
+// Rangée de cartes joueurs : quand ils sont nombreux, elle défile pour garder le joueur qui lance bien en vue
+function useFollowActive(deps) {
+  const ref = useRef(null);
+  useEffect(() => {
+    const box = ref.current;
+    const on = box?.querySelector('.score-card.on');
+    if (!box || !on || box.scrollWidth <= box.clientWidth + 1) return;
+    const left = on.offsetLeft - (box.clientWidth - on.offsetWidth) / 2;
+    box.scrollTo({ left: Math.max(0, left), behavior: 'smooth' });
+  }, deps); // eslint-disable-line react-hooks/exhaustive-deps
+  return ref;
+}
+
 export function Play({ game, players, records, history = [], onUpdate, onLegDone, onEnd, onExit, onReplay }) {
   const byId = useMemo(() => Object.fromEntries(players.map((p) => [p.id, p])), [players]);
   const legs = game.data.legs;
@@ -281,6 +294,8 @@ export function Play({ game, players, records, history = [], onUpdate, onLegDone
     return () => document.documentElement.classList.remove('playing');
   }, [leg.done]);
   const takeMs = usePlayClock(!leg.done);
+  const activeIdx = (r.current || (r.awaiting ? r.turns[r.turns.length - 1] : null))?.p ?? r.cur;
+  const scoresRef = useFollowActive([activeIdx, leg.done]);
   const withTime = (l) => ({ ...l, activeMs: (l.activeMs || 0) + takeMs() });
   const [voice, setVoice] = useState(voiceOn);
   const [trash, setTrash] = useState(trashOn);
@@ -513,9 +528,9 @@ export function Play({ game, players, records, history = [], onUpdate, onLegDone
         right={<button className="icon-btn" aria-label="Options" onClick={() => setMenu(true)}><Icon.More /></button>}
       />
 
-      {game.mode === 'shanghai' && <ShanghaiTargets r={r} game={game} players={byId} thrower={thrower} currentNum={r.over ? null : (typeof info?.a === 'number' ? info.a : null)} size={r.ps.length > 3 ? 64 : r.ps.length > 2 ? 84 : 96} fill={buttons} />}
+      {game.mode === 'shanghai' && <ShanghaiTargets r={r} game={game} players={byId} thrower={thrower} scrollRef={scoresRef} currentNum={r.over ? null : (typeof info?.a === 'number' ? info.a : null)} size={r.ps.length > 3 ? 64 : r.ps.length > 2 ? 84 : 96} fill={buttons} />}
       {!training && game.mode !== 'cricket' && game.mode !== 'shanghai' && (
-        <div className="scores">
+        <div className="scores" ref={scoresRef}>
           {r.ps.map((p, i) => {
             const ci = cardInfo(game, r, p, i, prevDarts[p.id] || 0);
             return (
