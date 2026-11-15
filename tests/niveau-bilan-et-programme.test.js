@@ -168,6 +168,15 @@ describe('shanghai formats', () => {
     const rep2 = legReport(mkSh('g7', 1, 10, 1), hist, 'a');
     expect(rep2.rows.some((r) => r.label === 'Points')).toBe(false);
   });
+  it('indice de précision : voisins corrects, côté opposé très mauvais', async () => {
+    const { dartPrecision } = await import('../src/engine/precision.js');
+    const mean = (t, segs) => segs.reduce((p, x) => p + dartPrecision(t, x), 0) / segs.length;
+    expect(dartPrecision(1, 1)).toBe(100);
+    expect(dartPrecision(1, 0)).toBe(0);
+    expect(mean(1, [20, 18, 1])).toBeGreaterThan(55); // 1 visé : 20, 18, 1 = pas mal
+    expect(mean(1, [1, 16, 2])).toBeLessThan(40); // 1 visé : 1, 16, 2 = mauvais
+    expect(dartPrecision(1, 20)).toBeGreaterThan(dartPrecision(1, 4)); // plus c'est loin, plus c'est bas
+  });
   it('répartition simple / double / triple / raté sur chaque numéro', () => {
     const a = shanghaiAdvanced([mkSh('g1', 1, 7, 1), mkSh('g2', 1, 7, 1)], 'a');
     expect(a.numMix[3].darts).toBe(6);

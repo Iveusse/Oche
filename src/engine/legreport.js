@@ -52,6 +52,7 @@ function rowsFor(game, pid, a, b, won) {
       add('Touches par manche', a.markAvg, b.markAvg, f2, 1, 2, { refText: num(b.markAvg) ? `${f2(b.markAvg)}` : null });
       add('Précision sur le numéro', a.pct.hit, b.pct.hit, pc, 1);
       add('Triples', a.pct.t, b.pct.t, pc, 1);
+      if (a.precision != null) add('Indice de précision', a.precision, b.precision, f0, 1, 5);
       break;
     case 'atc':
       if (a.finished) add('Fléchettes pour finir', a.finAvg, b.finAvg, f0, -1, 2);

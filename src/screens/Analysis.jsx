@@ -174,6 +174,7 @@ const SHANGHAI_SECTIONS = [
   ['Fléchettes', [['Tentatives', (a) => n0(a.darts)], ['Triples', (a) => a.t], ['Doubles', (a) => a.d], ['Simples', (a) => a.sgl], ['Ratées', (a) => a.miss]]],
   ['Précision', [up('Touches', (a) => a.pct.hit, pc), up('Triples', (a) => a.pct.t, pc), up('Doubles', (a) => a.pct.d, pc), ['Simples', (a) => pc(a.pct.s)], dn('Ratées', (a) => a.pct.miss, pc)]],
   ['Précision par numéro', SH_NUMS.map((n) => up(String(n), (a) => a.numAcc[n], pc))],
+  ['Indice de précision (0 à 100, cible ou clavier)', [up('Global', (a) => a.precision, f0), ...SH_NUMS.map((n) => up(String(n), (a) => a.numPrec[n], f0))]],
   ['Points moyens par numéro', SH_NUMS.map((n) => up(String(n), (a) => a.numPts[n], f1))],
   ['Shanghais par numéro', SH_NUMS.map((n) => [String(n), (a) => a.num[n].sh])],
 ];

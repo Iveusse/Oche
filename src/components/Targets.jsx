@@ -86,7 +86,8 @@ export function shanghaiLine(num, hist) {
   if (num == null) return null;
   if (!m || m.darts < 9) return { num, text: 'pas encore assez de parties sur ce numéro' };
   const pc = (v) => `${Math.round((v || 0) * 100)}%`;
-  return { num, s: pc(m.s), d: pc(m.d), t: pc(m.t), miss: pc(m.miss), sh: m.sh, darts: m.darts };
+  const pr = hist.numPrec?.[num];
+  return { num, s: pc(m.s), d: pc(m.d), t: pc(m.t), miss: pc(m.miss), sh: m.sh, darts: m.darts, prec: pr == null ? null : Math.round(pr) };
 }
 
 // ---------- Cricket ----------

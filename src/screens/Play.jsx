@@ -284,7 +284,8 @@ export function Play({ game, players, records, history = [], onUpdate, onLegDone
   const inputKey = game.mode === 'shanghai' ? 'shanghaiInput' : `input.${game.mode}`;
   const [input, setInputState] = useState(() => (PAD_MODES.includes(game.mode) ? load(inputKey, 'board') : 'board'));
   const setInput = (v) => { setInputState(v); save(inputKey, v); };
-  const buttons = input === 'buttons' && PAD_MODES.includes(game.mode);
+  const keypad = input === 'pad' && game.mode === 'shanghai'; // Shanghai : clavier à numéros, comme au 501
+  const buttons = (input === 'buttons' || keypad) && PAD_MODES.includes(game.mode);
   const training = isTraining(game.mode);
   useWakeLock(true);
   // pendant le jeu, la page ne doit jamais « rebondir » (sinon iOS prend les taps pour du défilement)
@@ -528,7 +529,7 @@ export function Play({ game, players, records, history = [], onUpdate, onLegDone
         right={<button className="icon-btn" aria-label="Options" onClick={() => setMenu(true)}><Icon.More /></button>}
       />
 
-      {game.mode === 'shanghai' && <ShanghaiTargets r={r} game={game} players={byId} thrower={thrower} scrollRef={scoresRef} currentNum={r.over ? null : (typeof info?.a === 'number' ? info.a : null)} size={r.ps.length > 3 ? 64 : r.ps.length > 2 ? 84 : 96} fill={buttons} />}
+      {game.mode === 'shanghai' && <ShanghaiTargets r={r} game={game} players={byId} thrower={thrower} scrollRef={scoresRef} currentNum={r.over ? null : (typeof info?.a === 'number' ? info.a : null)} size={r.ps.length > 3 ? 64 : r.ps.length > 2 ? 84 : 96} fill={input === 'buttons'} />}
       {!training && game.mode !== 'cricket' && game.mode !== 'shanghai' && (
         <div className="scores" ref={scoresRef}>
           {r.ps.map((p, i) => {
@@ -575,7 +576,7 @@ export function Play({ game, players, records, history = [], onUpdate, onLegDone
         </div>
       )}
       {PAD_MODES.includes(game.mode) && (
-        <Seg options={[['board', 'Cible'], ['buttons', 'Boutons']]} value={input} onChange={setInput} />
+        <Seg options={game.mode === 'shanghai' ? [['board', 'Cible'], ['buttons', 'Boutons'], ['pad', 'Clavier']] : [['board', 'Cible'], ['buttons', 'Boutons']]} value={input} onChange={setInput} />
       )}
       {buttons && ATC_MODE ? (
         <AtcButtons
@@ -586,7 +587,7 @@ export function Play({ game, players, records, history = [], onUpdate, onLegDone
           onHit={hit}
           darts={tDarts}
         />
-      ) : buttons && TARGET_MODE ? (
+      ) : buttons && TARGET_MODE && !keypad ? (
         <ShanghaiButtons target={info.a} disabled={blocked} onHit={hit} darts={tDarts} runs={game.mode !== 'shanghai'} compact={game.mode === 'shanghai'} />
       ) : buttons && game.mode === 'killer' ? (
         <KillerButtons me={tps} all={r.ps} players={byId} disabled={blocked} onHit={hit} darts={tDarts} />
@@ -620,6 +621,7 @@ export function Play({ game, players, records, history = [], onUpdate, onLegDone
             <span className="sh-mix">
               <i>Simple <b>{shLine.s}</b></i><i>Double <b>{shLine.d}</b></i><i>Triple <b>{shLine.t}</b></i><i>Raté <b>{shLine.miss}</b></i>
               {shLine.sh > 0 && <i>Shanghai <b>{shLine.sh}</b></i>}
+              {shLine.prec != null && <i>Précision <b>{shLine.prec}/100</b></i>}
             </span>
           )}
         </div>
