@@ -125,16 +125,18 @@ describe('Shanghai : rester en vie', () => {
     current: cur,
   });
   it('dit simple / double / triple / Shanghai', () => {
-    // dernière manche (le 3), 3 de retard -> un simple ; 6 -> un double ; 9 -> un triple
-    expect(shanghaiNeed(s, R(12, 15, 2, 3), 0)).toMatchObject({ kind: 'need', text: 'un simple' });
-    expect(shanghaiNeed(s, R(9, 15, 2, 3), 0)).toMatchObject({ kind: 'need', text: 'un double' });
-    expect(shanghaiNeed(s, R(6, 15, 2, 3), 0)).toMatchObject({ kind: 'need', text: 'un triple' });
-    expect(shanghaiNeed(s, R(0, 18, 2, 3), 0)).toMatchObject({ kind: 'need', text: 'un Shanghai (ou 2 triples)' });
+    // dernière manche (le 3) : il faut battre le premier. 2 de retard -> un simple ; 5 -> un double ; 8 -> un triple
+    expect(shanghaiNeed(s, R(13, 15, 2, 3), 0)).toMatchObject({ kind: 'need', final: true, text: 'un simple' });
+    expect(shanghaiNeed(s, R(10, 15, 2, 3), 0)).toMatchObject({ kind: 'need', text: 'un double' });
+    expect(shanghaiNeed(s, R(7, 15, 2, 3), 0)).toMatchObject({ kind: 'need', text: 'un triple' });
+    expect(shanghaiNeed(s, R(0, 17, 2, 3), 0)).toMatchObject({ kind: 'need', text: 'un Shanghai (ou 2 triples)' });
     // 40 de retard, max 27 sur le 3 : seul un Shanghai
     expect(shanghaiNeed(s, R(0, 40, 2, 3), 0).kind).toBe('shanghai');
     expect(shanghaiNeed({ ...s, instantWin: false }, R(0, 40, 2, 3), 0).kind).toBe('dead');
     // 1 fléchette restante, un simple 3 déjà touché, besoin de 9 : Shanghai encore possible ? non (manquent D et T)
     expect(shanghaiNeed(s, R(3, 15, 2, 3, { p: 0, darts: [{ hit: true, mult: 1 }, { hit: false, mult: 0 }] }), 0).kind).toBe('dead');
+    // pas la dernière manche : on parle de rester en vie, et égaler suffit
+    expect(shanghaiNeed({ from: 1, to: 4, instantWin: true }, R(0, 40, 2, 3), 0)).toMatchObject({ kind: 'need', final: false })
     expect(shanghaiNeed(s, R(30, 20, 1, 1), 0)).toMatchObject({ kind: 'lead', gap: 10 });
   });
   it('voit quand plus personne ne peut rattraper le premier', () => {

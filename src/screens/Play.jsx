@@ -102,7 +102,7 @@ function nextSpeech(game, leg, r, byId) {
     const num = nums[r.turns.filter((t) => t.p === i).length];
     if (!num) return who;
     const nd = shanghaiNeed(game.settings, r, i);
-    const extra = nd?.kind === 'need' ? `. Pour rester en vie : ${nd.text}` : nd?.kind === 'shanghai' ? '. Seul un Shanghai peut te sauver' : '';
+    const extra = nd?.kind === 'need' ? `. ${nd.final ? 'Pour gagner' : 'Pour rester en vie'} : ${nd.text}` : nd?.kind === 'shanghai' ? '. Seul un Shanghai peut te sauver' : '';
     return `${who}Le ${num}${extra}`;
   }
   return who;
@@ -177,13 +177,15 @@ export function shanghaiNeed(settings, r, j) {
   const cur = r.current?.p === j ? r.current.darts : [];
   const left = 3 - cur.length;
   const after = nums.slice(done + 1).reduce((a, x) => a + 9 * x, 0);
+  // dernière manche pour ce joueur : il ne s'agit plus de « rester en vie » mais de gagner, donc de battre le premier (pas de l'égaler)
+  const final = after === 0;
   const needPts = gap - after;
-  if (needPts <= 0) return { kind: 'safe', gap };
-  const m = Math.ceil(needPts / n);
+  if (!final && needPts <= 0) return { kind: 'safe', gap };
+  const m = final ? Math.floor(needPts / n) + 1 : Math.ceil(needPts / n);
   const hitMults = new Set(cur.filter((d) => d.hit && d.mult).map((d) => d.mult));
   const missing = [1, 2, 3].filter((k) => !hitMults.has(k)).length;
   const shanghai = settings.instantWin !== false && missing <= left;
-  if (m <= 3 * left) return { kind: 'need', m, text: m >= 6 && shanghai ? (m === 6 ? MARKS_TEXT[6] : 'un Shanghai') : MARKS_TEXT[m], gap };
+  if (m <= 3 * left) return { kind: 'need', final, m, text: m >= 6 && shanghai ? (m === 6 ? MARKS_TEXT[6] : 'un Shanghai') : MARKS_TEXT[m], gap };
   if (shanghai) return { kind: 'shanghai', gap };
   return { kind: 'dead', gap };
 }
@@ -446,7 +448,7 @@ export function Play({ game, players, records, history = [], onUpdate, onLegDone
     info = { b: `Manche ${Math.min(round + 1, nums.length)}/${nums.length}`, a: nums[Math.min(round, nums.length - 1)] };
     if (!r.awaiting && !r.over) {
       const nd = r.ps.length > 1 ? shanghaiNeed(s, r, thrower) : null;
-      if (nd?.kind === 'need') hint = `Pour rester en vie : ${nd.text}${tDarts.length ? ' (avec les fléchettes qui restent)' : ''}`;
+      if (nd?.kind === 'need') hint = `${nd.final ? 'Pour gagner' : 'Pour rester en vie'} : ${nd.text}${tDarts.length ? ' (avec les fléchettes qui restent)' : ''}`;
       else if (nd?.kind === 'shanghai') hint = 'Seul un Shanghai peut te sauver !';
       else if (nd?.kind === 'dead') hint = 'Plus possible de rattraper le premier';
       else if (nd?.kind === 'lead') hint = `En tête de ${nd.gap} pts`;
@@ -611,7 +613,7 @@ export function Play({ game, players, records, history = [], onUpdate, onLegDone
         })}
         {info && <div className="info-box"><div className="b">{info.b}</div><div className="a">{info.a}</div></div>}
       </div>
-      <div className="small" style={{ minHeight: 16, color: shown?.bust || /Shanghai peut|Plus possible/.test(hint || '') ? 'var(--bad)' : /rester en vie/.test(hint || '') ? 'var(--sky)' : 'var(--text-2)', fontWeight: /rester en vie|Shanghai peut|Plus possible/.test(hint || '') ? 700 : 400, textAlign: 'center' }}>
+      <div className="small" style={{ minHeight: 16, color: shown?.bust || /Shanghai peut|Plus possible/.test(hint || '') ? 'var(--bad)' : /rester en vie|Pour gagner/.test(hint || '') ? 'var(--sky)' : 'var(--text-2)', fontWeight: /rester en vie|Pour gagner|Shanghai peut|Plus possible/.test(hint || '') ? 700 : 400, textAlign: 'center' }}>
         {hint || (tDarts.length ? `Tour : ${turnPts}` : `${lastTurn && r.ps.length > 1 ? `${byId[r.ps[lastTurn.p].id]?.name} : ${lastTurn.bust ? 'bust' : game.mode === 'cricket' ? `${lastTurn.darts.reduce((a, d) => a + (d.marks || 0), 0)} marque(s)` : lastTurn.darts.reduce((a, d) => a + (d.pts ?? dartScore(d)), 0)} · ` : ''}À ${byId[tps.id]?.name || '?'} de jouer`)}
       </div>
       {shLine && (
