@@ -196,18 +196,21 @@ export function roastTurn(mode, t, name, pts) {
   if (nMiss === 1 && !t.finished) return draw('d', DART, name);
   return null;
 }
-// Félicitations (toujours actives, voix seule) quand la volée est bien au-dessus de la moyenne du joueur
+// Félicitations sincères (toujours actives, voix seule) quand la volée est bien au-dessus de la moyenne du joueur.
+// Jamais de comparaison avec son niveau habituel ni de pique : on félicite, point.
 const PRAISE = [
-  (n) => `Waouh ${n}, bien au-dessus de ta moyenne !`,
-  (n) => `${n}, quelle volée ! Tu te surpasses`,
-  (n) => `Bravo ${n}, ça c'est du niveau supérieur`,
+  (n) => `Waouh ${n}, quelle volée !`,
+  (n) => `${n}, magnifique !`,
+  (n) => `Bravo ${n}, belle volée`,
   (n) => `${n}, tu es en feu !`,
-  (n) => `Belle volée ${n}, très au-dessus de ton niveau habituel`,
-  (n) => `${n}, magnifique, continue comme ça`,
+  (n) => `Superbe ${n}, bien joué`,
+  (n) => `${n}, c'est du très beau jeu`,
   (n) => `Ça, c'est du lourd ${n}`,
-  (n) => `${n}, on dirait que tu as retrouvé tes lunettes`,
-  (n) => `Impressionnant ${n}, tu viens de t'offrir une belle volée`,
+  (n) => `Joli ${n}, ça fait plaisir à voir`,
+  (n) => `Impressionnant ${n}, bravo`,
   (n) => `${n}, là tu régales !`,
+  (n) => `Belle gâchette ${n}`,
+  (n) => `Excellent ${n}, continue comme ça`,
 ];
 // base : { avg, mpr } du joueur sur ses parties passées (null si pas assez d'historique)
 export function praiseTurn(mode, t, name, pts, base) {
