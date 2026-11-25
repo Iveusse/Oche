@@ -164,7 +164,8 @@ function dartLaw(hist, num) {
 }
 
 // pts : points de chaque joueur au début de la manche en cours (tours terminés), done : tours terminés par joueur
-export function shanghaiLive(nums, pts, done, hists, instantWin = true, iters = 1500) {
+// partial : volée en cours { i: joueur, seen: bits déjà obtenus (1 simple, 2 double, 4 triple), left: fléchettes qui lui restent } ; ses points déjà marqués sont dans pts
+export function shanghaiLive(nums, pts, done, hists, instantWin = true, iters = 1500, partial = null) {
   const n = pts.length; const wins = new Array(n).fill(0); const r = rng(20261125);
   const laws = hists.map((h) => nums.map((x) => dartLaw(h, x)));
   for (let it = 0; it < iters; it++) {
@@ -173,8 +174,9 @@ export function shanghaiLive(nums, pts, done, hists, instantWin = true, iters = 
     for (let round = Math.min(...done); round < nums.length && winner < 0; round++) {
       for (let i = 0; i < n && winner < 0; i++) {
         if (done[i] > round) continue;
-        const L = laws[i][round]; let seen = 0; let sum = 0;
-        for (let k = 0; k < 3; k++) {
+        const L = laws[i][round]; const part = partial && partial.i === i && round === done[i] ? partial : null;
+        let seen = part ? part.seen : 0; let sum = 0;
+        for (let k = 0; k < (part ? part.left : 3); k++) {
           const u = r();
           const mult = u < L[0] ? 1 : u < L[1] ? 2 : u < L[2] ? 3 : 0;
           if (mult) { seen |= 1 << (mult - 1); sum += mult; }

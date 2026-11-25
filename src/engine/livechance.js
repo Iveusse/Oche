@@ -47,7 +47,9 @@ export function liveChances(game, leg, history, iters = 150, budgetMs = 220) {
   if (mode === 'countup') {
     const rounds = countUpRounds(game.settings);
     const done = base.ps.map((_, i) => base.turns.filter((t) => t.p === i).length);
-    const pts = base.ps.map((p, i) => p.pts - (base.current?.p === i ? base.current.darts.reduce((a, d) => a + (d.pts || 0), 0) : 0));
+    const pts = base.ps.map((p) => p.pts);
+    // volée en cours : elle compte comme déjà entamée (ses points sont dans pts), il reste donc moins à jouer
+    if (base.current) done[base.current.p] += base.current.darts.length / 3;
     const wins = new Array(n).fill(0);
     const m = stats.map((s) => (s.turns >= 6 ? { avg: s.turnAvg, sd: Math.max(s.sd || 0, 6) } : { avg: 30, sd: 15 }));
     for (let it = 0; it < 2000; it++) {

@@ -191,6 +191,15 @@ describe('shanghai formats', () => {
     const match = x01Live([pr, pr], [501, 501], 0, 0, [501, 501], 'double', [1, 0], 2);
     expect(match[0]).toBeGreaterThan(0.6); // mène 1 leg à 0 dans un match en 2 legs
   });
+  it('chances au Shanghai mises à jour dès la première fléchette de la volée', async () => {
+    const { shanghaiLive } = await import('../src/engine/winprob.js');
+    const h = { darts: 90, pct: { s: 0.3, d: 0.08, t: 0.06, miss: 0.56 }, numMix: {} };
+    const nums = [1, 2, 3, 4, 5];
+    const avant = shanghaiLive(nums, [0, 0], [0, 0], [h, h]);
+    // 1er joueur : simple + double + triple déjà faits ? Impossible en 2 darts, donc simple + double puis 1 fléchette restante pour le triple
+    const apres = shanghaiLive(nums, [3, 0], [0, 0], [h, h], true, 1500, { i: 0, left: 1, seen: 3 });
+    expect(apres[0]).toBeGreaterThan(avant[0] + 0.04);
+  });
   it('indice de précision : voisins corrects, côté opposé très mauvais', async () => {
     const { dartPrecision } = await import('../src/engine/precision.js');
     const mean = (t, segs) => segs.reduce((p, x) => p + dartPrecision(t, x), 0) / segs.length;

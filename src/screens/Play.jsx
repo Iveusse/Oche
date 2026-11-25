@@ -374,22 +374,22 @@ export function Play({ game, players, records, history = [], onUpdate, onLegDone
     if (game.mode !== 'shanghai' || !shHistAll || r.ps.length < 2 || r.over) return null;
     const nums = shanghaiNumbers(game.settings);
     const done = r.ps.map((_, i) => r.turns.filter((t) => t.p === i).length);
-    const pts = r.ps.map((p, i) => p.pts - (r.current?.p === i ? r.current.darts.reduce((a, d) => a + (d.pts || 0), 0) : 0));
-    const cur = r.current ? r.ps.map((_, i) => (r.current.p === i ? r.current.darts.length : 0)) : r.ps.map(() => 0);
-    if (cur.some(Boolean)) return null; // en plein tour : on garde l'affichage précédent plutôt que de le faire sauter
-    const p = shanghaiLive(nums, pts, done, r.ps.map((x) => shHistAll[x.id]), game.settings.instantWin !== false);
+    const pts = r.ps.map((p) => p.pts);
+    // volée en cours : on compte ses fléchettes déjà lancées et on ne simule que celles qui restent
+    const part = r.current ? { i: r.current.p, left: 3 - r.current.darts.length, seen: r.current.darts.reduce((m, d) => m | (d.mult ? 1 << (d.mult - 1) : 0) & (d.hit === false ? 0 : 7), 0) } : null;
+    const p = shanghaiLive(nums, pts, done, r.ps.map((x) => shHistAll[x.id]), game.settings.instantWin !== false, 1500, part);
     return Object.fromEntries(r.ps.map((x, i) => [x.id, p[i]]));
-  }, [r.turns.length, r.over, game.mode, shHistAll]);
+  }, [r.turns.length, r.current?.darts.length, r.over, game.mode, shHistAll]);
   const [chancesShown, setChancesShown] = useState(null);
   useEffect(() => { if (shChances) setChancesShown(shChances); }, [shChances]);
   // Cricket, ATC, Baseball, Killer, Count Up : simulation avec le vrai moteur de règles, calculée en douceur après chaque tour terminé
   const [liveShown, setLiveShown] = useState(null);
   useEffect(() => { setLiveShown(null); }, [legs.length]);
   useEffect(() => {
-    if (!LIVE_MODES.includes(game.mode) || r.over || r.awaiting || r.current) return undefined;
+    if (!LIVE_MODES.includes(game.mode) || r.over || r.awaiting) return undefined;
     const h = setTimeout(() => { try { const c = liveChances(game, leg, history); if (c) setLiveShown(c); } catch { /* pas de pourcentage plutôt qu'un plantage */ } }, 60);
     return () => clearTimeout(h);
-  }, [game.mode, r.turns.length, r.over, r.awaiting]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [game.mode, r.turns.length, r.current?.darts.length, r.over, r.awaiting]); // eslint-disable-line react-hooks/exhaustive-deps
   const chancesAll = x01Chances || chancesShown || (LIVE_MODES.includes(game.mode) ? liveShown : null);
 
   if (leg.done) {
