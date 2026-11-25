@@ -219,7 +219,7 @@ describe('chances de victoire : tous les jeux', () => {
     for (const n of [20, 19, 18, 17]) { darts.push(D(n, 3), D(0, 0), D(0, 0)); darts.push(D(0, 0), D(0, 0), D(0, 0)); }
     const game = { id: 'g', mode: 'cricket', settings: {}, player_ids: ['a', 'b'] };
     const c = liveChances(game, { order: ['a', 'b'], darts }, []);
-    expect(c.a + c.b).toBeCloseTo(1, 5);
+    expect(Math.abs(c.a + c.b - 1)).toBeLessThan(0.06); // arrondi à 5 % près
     expect(c.a).toBeGreaterThan(0.7);
     // Count Up : même chose, a mène de beaucoup
     const g2 = { id: 'h', mode: 'countup', settings: { rounds: 8 }, player_ids: ['a', 'b'] };
