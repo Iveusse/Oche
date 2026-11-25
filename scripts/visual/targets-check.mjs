@@ -58,6 +58,7 @@ if (only === 'pad') {
   await b('20'); await b('18'); await b('1');
   await page.waitForTimeout(500);
   await page.screenshot({ path: `${OUT}/pad-${H}.png` });
+  await page.getByRole('radio', { name: 'Boutons' }).click(); await page.getByRole('button', { name: /^Simple|^S$/ }).first().click().catch(()=>{}); await page.waitForTimeout(250); await page.screenshot({ path: `${OUT}/toast-${H}.png` });
   console.log('errors', errs); await browser.close(); process.exit(0);
 }
 if (only === 'x4') { await start('X01', ['Nico', 'Marie', 'Paul']); await page.getByRole('radio', { name: 'Boutons' }).click().catch(() => {}); for (let k = 0; k < 3; k++) { for (let j = 0; j < 3; j++) await b('Raté'); } await page.waitForTimeout(900); await page.screenshot({ path: `${OUT}/x4-${H}.png` }); console.log(await page.evaluate(() => { const bx = document.querySelector('.scores'); return JSON.stringify({ sl: bx.scrollLeft, sw: bx.scrollWidth, cw: bx.clientWidth }); })); await browser.close(); process.exit(0); }
