@@ -696,6 +696,21 @@ export function Play({ game, players, records, history = [], onUpdate, onLegDone
       {menu && (
         <Sheet onClose={() => setMenu(false)} label="Options">
           <div className="h2">Options</div>
+          {legs.length > 1 || (game.data.legsToWin || 1) > 1 ? (() => {
+            const w = legsWon(game); const toWin = game.data.legsToWin || 1;
+            const played = legs.filter((l) => l.done && l.ranking?.length);
+            return (
+              <div className="legs-score">
+                <div style={{ fontWeight: 700 }}>Score des legs{toWin > 1 ? ` · premier à ${toWin}` : ''}</div>
+                <div className="legs-row">
+                  {game.player_ids.map((id) => (
+                    <div key={id} className="legs-cell"><b>{w[id] || 0}</b><span>{byId[id]?.name || ''}</span></div>
+                  ))}
+                </div>
+                {played.length > 0 && <div className="small muted">{played.map((l, k) => `Leg ${k + 1} : ${byId[l.ranking[0]]?.name || '?'}`).join(' · ')}</div>}
+              </div>
+            );
+          })() : null}
           <div className="between">
             <div className="grow"><div style={{ fontWeight: 700 }}>Annonces vocales</div><div className="small muted">Score du tour, reste et finish conseillé</div></div>
             <Switch on={voice} onChange={(v) => { setVoice(v); setVoiceOn(v); }} label="Annonces vocales" />
