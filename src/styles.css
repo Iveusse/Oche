@@ -559,3 +559,6 @@ html.playing body { position: fixed; inset: 0; width: 100%; }
 .lr-row { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) minmax(0, 1fr); gap: 8px; align-items: center; padding: 8px 0; border-top: 1px solid var(--line); font-size: 14px; font-variant-numeric: tabular-nums; }
 .lr-head { border-top: 0; padding: 0 0 4px; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
 .lr-l { color: var(--text-2); min-width: 0; }
+
+.sh-chance{font-size:12px;font-weight:700;color:var(--text-2);text-align:center;margin-top:2px;font-variant-numeric:tabular-nums}
+.sh-chance::before{content:'chances ';font-weight:500;color:var(--muted)}

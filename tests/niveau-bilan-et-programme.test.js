@@ -168,6 +168,18 @@ describe('shanghai formats', () => {
     const rep2 = legReport(mkSh('g7', 1, 10, 1), hist, 'a');
     expect(rep2.rows.some((r) => r.label === 'Points')).toBe(false);
   });
+  it('chances de victoire au Shanghai : le plus fort devant, somme à 1, Shanghai adverse impossible si fini', async () => {
+    const { shanghaiLive } = await import('../src/engine/winprob.js');
+    const strong = { darts: 90, pct: { s: 0.35, d: 0.1, t: 0.1, miss: 0.45 }, numMix: {} };
+    const weak = { darts: 90, pct: { s: 0.2, d: 0.02, t: 0.01, miss: 0.77 }, numMix: {} };
+    const nums = [1, 2, 3, 4, 5, 6, 7];
+    const p = shanghaiLive(nums, [0, 0], [0, 0], [strong, weak]);
+    expect(p[0] + p[1]).toBeCloseTo(1, 5);
+    expect(p[0]).toBeGreaterThan(0.7);
+    // le faible mène de 100 points à la dernière manche : il gagne presque sûrement
+    const q = shanghaiLive(nums, [0, 100], [6, 6], [strong, weak]);
+    expect(q[1]).toBeGreaterThan(0.95);
+  });
   it('indice de précision : voisins corrects, côté opposé très mauvais', async () => {
     const { dartPrecision } = await import('../src/engine/precision.js');
     const mean = (t, segs) => segs.reduce((p, x) => p + dartPrecision(t, x), 0) / segs.length;

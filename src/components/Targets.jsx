@@ -63,7 +63,7 @@ export function ShanghaiTarget({ hits, current, color, size, from, to }) {
 }
 
 // Rangée de cibles : une par joueur, avec nom et points
-export function ShanghaiTargets({ r, game, players, thrower, currentNum = null, size = 88, fill = false, scrollRef = null }) {
+export function ShanghaiTargets({ r, game, players, thrower, currentNum = null, size = 88, fill = false, scrollRef = null, chances = null }) {
   const s = game.settings;
   const nums = shanghaiNumbers(s);
   return (
@@ -73,6 +73,7 @@ export function ShanghaiTargets({ r, game, players, thrower, currentNum = null, 
           <div key={p.id} className={`score-card sh-card ${i === thrower && currentNum != null ? 'on' : ''}`}>
             <ShanghaiTarget hits={shanghaiHits(r, i, s)} current={i === thrower ? currentNum : null} color={colorOf(players, p.id, i)} size={size} from={nums[0]} to={nums[nums.length - 1]} />
             <div className="sh-name"><span className="n" style={{ color: colorOf(players, p.id, i) }}>{players[p.id]?.name || '?'}</span><b>{p.pts}</b></div>
+            {chances && chances[p.id] != null && <div className="sh-chance" title="Chances de gagner la partie">{chances[p.id] < 0.01 ? '<1' : chances[p.id] > 0.99 ? '>99' : Math.round(chances[p.id] * 100)}%</div>}
           </div>
         );
       })}

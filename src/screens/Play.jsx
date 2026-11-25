@@ -16,6 +16,7 @@ import { bestLegDarts, computeAchievements, newlyUnlocked, TIER } from '../engin
 import { Medal } from './Achievements.jsx';
 import { load, save } from '../lib/store.js';
 import { usePlayClock, useWakeLock } from '../lib/playclock.js';
+import { shanghaiLive } from '../engine/winprob.js';
 import { numberQuip, praiseTurn, roastTurn, roastLoss, resetRoast, trashOn, setTrashOn } from '../lib/roast.js';
 import { canListen, dartWords, parseSpeech, speak, startListening, voiceOn, setVoiceOn } from '../lib/voice.js';
 
@@ -353,6 +354,19 @@ export function Play({ game, players, records, history = [], onUpdate, onLegDone
   const shHistAll = useMemo(() => (game.mode === 'shanghai'
     ? Object.fromEntries(game.player_ids.map((id) => [id, shanghaiAdvanced(history.filter((g) => g.id !== game.id), id)]))
     : null), [game.mode, game.id, game.player_ids, history]);
+  // chances de gagner la partie : simulées depuis l'historique de chacun, remises à jour à chaque tour terminé
+  const shChances = useMemo(() => {
+    if (game.mode !== 'shanghai' || !shHistAll || r.ps.length < 2 || r.over) return null;
+    const nums = shanghaiNumbers(game.settings);
+    const done = r.ps.map((_, i) => r.turns.filter((t) => t.p === i).length);
+    const pts = r.ps.map((p, i) => p.pts - (r.current?.p === i ? r.current.darts.reduce((a, d) => a + (d.pts || 0), 0) : 0));
+    const cur = r.current ? r.ps.map((_, i) => (r.current.p === i ? r.current.darts.length : 0)) : r.ps.map(() => 0);
+    if (cur.some(Boolean)) return null; // en plein tour : on garde l'affichage précédent plutôt que de le faire sauter
+    const p = shanghaiLive(nums, pts, done, r.ps.map((x) => shHistAll[x.id]), game.settings.instantWin !== false);
+    return Object.fromEntries(r.ps.map((x, i) => [x.id, p[i]]));
+  }, [r.turns.length, r.over, game.mode, shHistAll]);
+  const [chancesShown, setChancesShown] = useState(null);
+  useEffect(() => { if (shChances) setChancesShown(shChances); }, [shChances]);
 
   if (leg.done) {
     return training
@@ -397,7 +411,10 @@ export function Play({ game, players, records, history = [], onUpdate, onLegDone
         const ps = playerStats(history.filter((g) => g.id !== game.id), r2.ps[t.p].id);
         base = { mpr: ps.cricketTurns >= 10 ? ps.mpr : null };
       }
-      const roast = numberQuip(game.mode, t, tpts, game.id) || praiseTurn(game.mode, t, who, tpts, base) || roastTurn(game.mode, t, byId[r2.ps[t.p].id]?.name || '', tpts);
+      const pid = r2.ps[t.p].id;
+      // clin d'oeil seulement si c'est la première fois que ce joueur fait ce score en un tour (= il débloque le succès caché)
+      const firstTime = () => !computeAchievements(history.filter((g) => g.id !== game.id), pid).__counters.turnPts.has(tpts);
+      const roast = numberQuip(game.mode, t, tpts, game.id, firstTime) || praiseTurn(game.mode, t, who, tpts, base) || roastTurn(game.mode, t, byId[r2.ps[t.p].id]?.name || '', tpts);
       const nx = (!r3.over && !r3.needDecision) ? nextSpeech(game, nl, r3, byId) : null;
       if (!r3.over && !r3.needDecision) patch.validated = r2.turns.length;
       speak([`${pre}${said}`, roast, ...(Array.isArray(nx) ? nx : [nx])]);
@@ -531,7 +548,7 @@ export function Play({ game, players, records, history = [], onUpdate, onLegDone
         right={<button className="icon-btn" aria-label="Options" onClick={() => setMenu(true)}><Icon.More /></button>}
       />
 
-      {game.mode === 'shanghai' && <ShanghaiTargets r={r} game={game} players={byId} thrower={thrower} scrollRef={scoresRef} currentNum={r.over ? null : (typeof info?.a === 'number' ? info.a : null)} size={r.ps.length > 3 ? 64 : r.ps.length > 2 ? 84 : 96} fill={input === 'buttons'} />}
+      {game.mode === 'shanghai' && <ShanghaiTargets r={r} game={game} players={byId} thrower={thrower} scrollRef={scoresRef} currentNum={r.over ? null : (typeof info?.a === 'number' ? info.a : null)} size={r.ps.length > 3 ? 64 : r.ps.length > 2 ? 84 : 96} fill={input === 'buttons'} chances={chancesShown} />}
       {!training && game.mode !== 'cricket' && game.mode !== 'shanghai' && (
         <div className="scores" ref={scoresRef}>
           {r.ps.map((p, i) => {

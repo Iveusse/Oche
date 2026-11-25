@@ -148,3 +148,44 @@ export function balanceStarts(ids, settings, games, legsToWin = 1) {
   }
   return Object.fromEntries(ids.map((id, i) => [id, starts[i]]));
 }
+
+// ---------- Shanghai : chances de victoire en cours de partie ----------
+// À partir de ce que chacun fait d'habitude sur chaque numéro (simple / double / triple / raté par fléchette), on simule
+// les manches qui restent. Peu d'historique sur un numéro : on le tire vers la moyenne du joueur, puis vers un joueur moyen.
+const SH_PRIOR = { s: 0.3, d: 0.05, t: 0.03, miss: 0.62 };
+function dartLaw(hist, num) {
+  const g = hist?.pct;
+  const base = g && hist.darts >= 9 ? { s: g.s, d: g.d, t: g.t, miss: g.miss } : SH_PRIOR;
+  const m = hist?.numMix?.[num];
+  const k = 9; const n = m?.darts || 0;
+  const mix = (key) => ((m ? m[key] : 0) * n + k * base[key]) / (n + k);
+  const s = mix('s'); const d = mix('d'); const t = mix('t');
+  return [s, s + d, s + d + t]; // seuils cumulés : simple, double, triple ; le reste est raté
+}
+
+// pts : points de chaque joueur au début de la manche en cours (tours terminés), done : tours terminés par joueur
+export function shanghaiLive(nums, pts, done, hists, instantWin = true, iters = 1500) {
+  const n = pts.length; const wins = new Array(n).fill(0); const r = rng(20261125);
+  const laws = hists.map((h) => nums.map((x) => dartLaw(h, x)));
+  for (let it = 0; it < iters; it++) {
+    const tot = pts.slice(); let winner = -1;
+    // on rejoue dans l'ordre des manches, joueur par joueur : un Shanghai arrête la partie net
+    for (let round = Math.min(...done); round < nums.length && winner < 0; round++) {
+      for (let i = 0; i < n && winner < 0; i++) {
+        if (done[i] > round) continue;
+        const L = laws[i][round]; let seen = 0; let sum = 0;
+        for (let k = 0; k < 3; k++) {
+          const u = r();
+          const mult = u < L[0] ? 1 : u < L[1] ? 2 : u < L[2] ? 3 : 0;
+          if (mult) { seen |= 1 << (mult - 1); sum += mult; }
+        }
+        tot[i] += sum * nums[round];
+        if (instantWin && seen === 7) winner = i;
+      }
+    }
+    if (winner >= 0) { wins[winner] += 1; continue; }
+    const best = Math.max(...tot); const lead = tot.map((v, i) => (v === best ? i : -1)).filter((i) => i >= 0);
+    for (const i of lead) wins[i] += 1 / lead.length;
+  }
+  return wins.map((w) => w / iters);
+}

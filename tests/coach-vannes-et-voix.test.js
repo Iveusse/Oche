@@ -77,6 +77,9 @@ describe('Clins d\'oeil 42 / 31 / 44 / 29 / 28', () => {
   it('une phrase pour chaque score, jamais sur un bust ni hors X01/Shanghai', () => {
     for (const n of [42, 31, 44, 29, 28]) { resetRoast(); expect(numberQuip('x01', { darts: [] }, n)).toBeTruthy(); }
     resetRoast();
+    // seulement le jour du succès : si le joueur avait déjà fait ce score, rien
+    resetRoast(); expect(numberQuip('x01', { darts: [] }, 42, undefined, () => false)).toBeNull();
+    expect(numberQuip('x01', { darts: [] }, 42, undefined, () => true)).toBeTruthy();
     expect(numberQuip('x01', { darts: [], bust: true }, 42)).toBeNull();
     expect(numberQuip('cricket', { darts: [] }, 42)).toBeNull();
     expect(numberQuip('x01', { darts: [] }, 40)).toBeNull();
