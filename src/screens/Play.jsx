@@ -16,6 +16,7 @@ import { bestLegDarts, computeAchievements, newlyUnlocked, TIER } from '../engin
 import { Medal } from './Achievements.jsx';
 import { load, save } from '../lib/store.js';
 import { usePlayClock, useWakeLock } from '../lib/playclock.js';
+import { liveChances, LIVE_MODES } from '../engine/livechance.js';
 import { shanghaiLive, x01Live, x01Profile } from '../engine/winprob.js';
 import { numberQuip, praiseTurn, roastTurn, roastLoss, resetRoast, trashOn, setTrashOn } from '../lib/roast.js';
 import { canListen, dartWords, parseSpeech, speak, startListening, voiceOn, setVoiceOn } from '../lib/voice.js';
@@ -381,6 +382,15 @@ export function Play({ game, players, records, history = [], onUpdate, onLegDone
   }, [r.turns.length, r.over, game.mode, shHistAll]);
   const [chancesShown, setChancesShown] = useState(null);
   useEffect(() => { if (shChances) setChancesShown(shChances); }, [shChances]);
+  // Cricket, ATC, Baseball, Killer, Count Up : simulation avec le vrai moteur de règles, calculée en douceur après chaque tour terminé
+  const [liveShown, setLiveShown] = useState(null);
+  useEffect(() => { setLiveShown(null); }, [legs.length]);
+  useEffect(() => {
+    if (!LIVE_MODES.includes(game.mode) || r.over || r.awaiting || r.current) return undefined;
+    const h = setTimeout(() => { try { const c = liveChances(game, leg, history); if (c) setLiveShown(c); } catch { /* pas de pourcentage plutôt qu'un plantage */ } }, 60);
+    return () => clearTimeout(h);
+  }, [game.mode, r.turns.length, r.over, r.awaiting]); // eslint-disable-line react-hooks/exhaustive-deps
+  const chancesAll = x01Chances || chancesShown || (LIVE_MODES.includes(game.mode) ? liveShown : null);
 
   if (leg.done) {
     return training
@@ -573,12 +583,13 @@ export function Play({ game, players, records, history = [], onUpdate, onLegDone
                   <div className="n">{byId[p.id]?.name || '?'}{p.killer && !p.out ? ' ☠' : ''}</div>
                   <div className="kl-row"><span className="kl-num">{p.num}</span><span className="kl-hearts">{p.out ? '☠' : '♥'.repeat(Math.max(p.lives, 0))}</span></div>
                   <div className="s kl-status">{p.out ? 'éliminé' : p.killer ? (() => { const tg = killerTargets(p, r.ps); return tg.length ? `☠ vise ${tg.map((n) => `D${n}`).join(' · ')}` : '☠ killer'; })() : `D${p.num} pour devenir killer`}</div>
+                  {chancesAll && chancesAll[p.id] != null && <div className="s x01-chance">{chancesAll[p.id] < 0.01 ? '<1' : chancesAll[p.id] > 0.99 ? '>99' : Math.round(chancesAll[p.id] * 100)}%</div>}
                 </>) : (<>
                 <div className="n">{byId[p.id]?.name || '?'}</div>
                 <div className="v">{ci.v}</div>
                 <div className="s">{ci.s}</div>
                 {ci.s2 && <div className="s">{ci.s2}</div>}
-                {x01Chances && <div className="s x01-chance">{x01Chances[p.id] < 0.01 ? '<1' : x01Chances[p.id] > 0.99 ? '>99' : Math.round(x01Chances[p.id] * 100)}%{r.ps.length <= 3 ? ' de chances' : ''}</div>}
+                {chancesAll && chancesAll[p.id] != null && <div className="s x01-chance">{chancesAll[p.id] < 0.01 ? '<1' : chancesAll[p.id] > 0.99 ? '>99' : Math.round(chancesAll[p.id] * 100)}%{r.ps.length <= 3 ? ' de chances' : ''}</div>}
                 </>)}
                 {(() => { const lt = lastTurnOf(r, i); return lt ? (
                   <div className="last-turn" aria-label="Tour précédent">

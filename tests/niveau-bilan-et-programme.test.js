@@ -209,3 +209,21 @@ describe('shanghai formats', () => {
   });
 });
 
+
+describe('chances de victoire : tous les jeux', () => {
+  it('somme à 1 et un joueur largement devant est favori', async () => {
+    const { liveChances } = await import('../src/engine/livechance.js');
+    const D = (seg, mult) => ({ seg, mult });
+    // Cricket : a ferme 20, 19, 18, 17 ; b n'a rien
+    const darts = [];
+    for (const n of [20, 19, 18, 17]) { darts.push(D(n, 3), D(0, 0), D(0, 0)); darts.push(D(0, 0), D(0, 0), D(0, 0)); }
+    const game = { id: 'g', mode: 'cricket', settings: {}, player_ids: ['a', 'b'] };
+    const c = liveChances(game, { order: ['a', 'b'], darts }, []);
+    expect(c.a + c.b).toBeCloseTo(1, 5);
+    expect(c.a).toBeGreaterThan(0.7);
+    // Count Up : même chose, a mène de beaucoup
+    const g2 = { id: 'h', mode: 'countup', settings: { rounds: 8 }, player_ids: ['a', 'b'] };
+    const c2 = liveChances(g2, { order: ['a', 'b'], darts: [D(20, 3), D(20, 3), D(20, 3), D(0, 0), D(0, 0), D(0, 0)] }, []);
+    expect(c2.a).toBeGreaterThan(0.6);
+  });
+});
