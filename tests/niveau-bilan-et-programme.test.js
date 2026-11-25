@@ -200,6 +200,16 @@ describe('shanghai formats', () => {
     const apres = shanghaiLive(nums, [3, 0], [0, 0], [h, h], true, 1500, { i: 0, left: 1, seen: 3 });
     expect(apres[0]).toBeGreaterThan(avant[0] + 0.04);
   });
+  it('X01 en direct : 8 de reste vaut mieux que 100, et 170 de reste est loin derrière', async () => {
+    const { x01Live } = await import('../src/engine/winprob.js');
+    const pr = { score: 45, p: 0.15 };
+    const proche = x01Live([pr, pr], [40, 8], 0, 0, [501, 501], 'double', [0, 0]);
+    expect(proche[0]).toBeGreaterThan(0.55); // 40 (D20) contre 8 (D4), il lance : légèrement devant
+    const retard = x01Live([pr, pr], [100, 8], 1, 0, [501, 501], 'double', [0, 0]);
+    expect(retard[1]).toBeGreaterThan(0.6); // 8 de reste et le trait : nettement favori
+    const loin = x01Live([pr, pr], [170, 8], 0, 0, [501, 501], 'double', [0, 0]);
+    expect(loin[1]).toBeGreaterThan(0.75);
+  });
   it('indice de précision : voisins corrects, côté opposé très mauvais', async () => {
     const { dartPrecision } = await import('../src/engine/precision.js');
     const mean = (t, segs) => segs.reduce((p, x) => p + dartPrecision(t, x), 0) / segs.length;

@@ -198,7 +198,17 @@ export function shanghaiLive(nums, pts, done, hists, instantWin = true, iters = 
 export function x01Live(profiles, rems, cur, thrown, starts, out, got, legsToWin = 1, iters = 2500) {
   const n = profiles.length; const r = rng(20261125); const wins = new Array(n).fill(0);
   const dartsFor = (L) => Math.max(1, L.ds + L.sdS * gauss(r)) + Math.exp(L.muF + L.sigF * gauss(r));
-  const now = profiles.map((p, i) => legLaw(p, Math.max(rems[i], 1), out));
+  // tirage du nombre de fléchettes qu'il lui faut encore. Loin de la sortie (plus de 100) : phase de scoring puis phase de finish calibrées.
+  // Dans la zone de finish (100 ou moins) : quelques fléchettes de préparation pour se placer sur un double, puis des tentatives
+  // sur le double, chacune réussie avec la probabilité p du joueur (loi géométrique, d'où des finish parfois très longs).
+  const needDarts = profiles.map((p, i) => {
+    const rem = Math.max(rems[i], 1);
+    if (rem > 100) { const L = legLaw(p, rem, out); return () => Math.max(1, L.ds + L.sdS * gauss(r)) + Math.exp(L.muF + L.sigF * gauss(r)); }
+    const dbl = out !== 'single';
+    const setup = dbl ? ((rem <= 40 && rem % 2 === 0) || rem === 50 ? 0 : rem <= 60 ? 1 : 2) : (rem <= 60 ? 0 : 1);
+    const q = Math.min(Math.max(p.p, 0.02), 0.9);
+    return () => setup + Math.floor(Math.log(r() + 1e-12) / Math.log(1 - q)) + 1;
+  });
   const full = profiles.map((p, i) => legLaw(p, starts[i], out));
   for (let it = 0; it < iters; it++) {
     const g = got.slice(); let winner = -1;
@@ -206,7 +216,7 @@ export function x01Live(profiles, rems, cur, thrown, starts, out, got, legsToWin
     let best = -1; let bt = Infinity;
     for (let i = 0; i < n; i++) {
       const k = (i - cur + n) % n;
-      const t = dartsFor(now[i]); // fléchettes encore nécessaires (les points restants tiennent déjà compte de celles lancées)
+      const t = needDarts[i](); // fléchettes encore nécessaires (les points restants tiennent déjà compte de celles lancées)
       const room = i === cur ? 3 - thrown : 3; // fléchettes qu'il lui reste dans sa volée en cours
       const visits = t <= room ? 1 : 1 + Math.ceil((t - room) / 3);
       const when = (visits - 1) * n + k;
