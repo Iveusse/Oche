@@ -16,7 +16,7 @@ import { bestLegDarts, computeAchievements, newlyUnlocked, TIER } from '../engin
 import { Medal } from './Achievements.jsx';
 import { load, save } from '../lib/store.js';
 import { usePlayClock, useWakeLock } from '../lib/playclock.js';
-import { shanghaiLive } from '../engine/winprob.js';
+import { shanghaiLive, x01Live, x01Profile } from '../engine/winprob.js';
 import { numberQuip, praiseTurn, roastTurn, roastLoss, resetRoast, trashOn, setTrashOn } from '../lib/roast.js';
 import { canListen, dartWords, parseSpeech, speak, startListening, voiceOn, setVoiceOn } from '../lib/voice.js';
 
@@ -300,6 +300,20 @@ export function Play({ game, players, records, history = [], onUpdate, onLegDone
   const takeMs = usePlayClock(!leg.done);
   const activeIdx = (r.current || (r.awaiting ? r.turns[r.turns.length - 1] : null))?.p ?? r.cur;
   const scoresRef = useFollowActive([activeIdx, leg.done]);
+  // X01 : chances de gagner (la partie, ou le match en plusieurs legs), simulées depuis le niveau de chacun
+  const x01Chances = useMemo(() => {
+    if (game.mode !== 'x01' || r.ps.length < 2 || r.over || r.awaiting) return null;
+    try {
+    const past = history.filter((g) => g.id !== game.id && !g.mode.startsWith('train-'));
+    const out = game.settings.out || 'single';
+    const profiles = r.ps.map((p) => x01Profile(past, p.id, out));
+    if (profiles.some((x) => !x)) return null;
+    const won = legsWon(game);
+    const thrown = r.current && r.current.p === activeIdx ? r.current.darts.length : 0;
+    const p = x01Live(profiles, r.ps.map((x) => x.rem), activeIdx, thrown, r.ps.map((x) => startOf(game, x.id)), out, r.ps.map((x) => won[x.id] || 0), game.data.legsToWin || 1);
+    return Object.fromEntries(r.ps.map((x, i) => [x.id, p[i]]));
+    } catch { return null; }
+  }, [game.mode, game.id, r.turns.length, r.current?.darts.length, r.over, r.awaiting, activeIdx]); // eslint-disable-line react-hooks/exhaustive-deps
   const withTime = (l) => ({ ...l, activeMs: (l.activeMs || 0) + takeMs() });
   const [voice, setVoice] = useState(voiceOn);
   const [trash, setTrash] = useState(trashOn);
@@ -564,6 +578,7 @@ export function Play({ game, players, records, history = [], onUpdate, onLegDone
                 <div className="v">{ci.v}</div>
                 <div className="s">{ci.s}</div>
                 {ci.s2 && <div className="s">{ci.s2}</div>}
+                {x01Chances && <div className="s x01-chance">{x01Chances[p.id] < 0.01 ? '<1' : x01Chances[p.id] > 0.99 ? '>99' : Math.round(x01Chances[p.id] * 100)}%{r.ps.length <= 3 ? ' de chances' : ''}</div>}
                 </>)}
                 {(() => { const lt = lastTurnOf(r, i); return lt ? (
                   <div className="last-turn" aria-label="Tour précédent">

@@ -189,3 +189,39 @@ export function shanghaiLive(nums, pts, done, hists, instantWin = true, iters = 
   }
   return wins.map((w) => w / iters);
 }
+
+// ---------- X01 : chances de victoire en cours de partie ----------
+// État du leg en cours (points restants, qui lance, fléchettes déjà lancées dans la volée), puis legs suivants depuis le départ.
+// order : indices dans l'ordre de jeu, cur : joueur qui lance, got : legs déjà gagnés par joueur.
+export function x01Live(profiles, rems, cur, thrown, starts, out, got, legsToWin = 1, iters = 2500) {
+  const n = profiles.length; const r = rng(20261125); const wins = new Array(n).fill(0);
+  const dartsFor = (L) => Math.max(1, L.ds + L.sdS * gauss(r)) + Math.exp(L.muF + L.sigF * gauss(r));
+  const now = profiles.map((p, i) => legLaw(p, Math.max(rems[i], 1), out));
+  const full = profiles.map((p, i) => legLaw(p, starts[i], out));
+  for (let it = 0; it < iters; it++) {
+    const g = got.slice(); let winner = -1;
+    // leg en cours : le premier à finir, en comptant l'ordre de passage à partir de celui qui lance
+    let best = -1; let bt = Infinity;
+    for (let i = 0; i < n; i++) {
+      const k = (i - cur + n) % n;
+      const t = dartsFor(now[i]); // fléchettes encore nécessaires (les points restants tiennent déjà compte de celles lancées)
+      const room = i === cur ? 3 - thrown : 3; // fléchettes qu'il lui reste dans sa volée en cours
+      const visits = t <= room ? 1 : 1 + Math.ceil((t - room) / 3);
+      const when = (visits - 1) * n + k;
+      if (when < bt) { bt = when; best = i; }
+    }
+    g[best] += 1; if (g[best] >= legsToWin) winner = best;
+    let first = 1 % n;
+    while (winner < 0) {
+      let bb = -1; let bv = Infinity;
+      for (let k = 0; k < n; k++) {
+        const i = (first + k) % n; const visits = Math.ceil(dartsFor(full[i]) / 3);
+        if (visits < bv) { bv = visits; bb = i; }
+      }
+      g[bb] += 1; if (g[bb] >= legsToWin) winner = bb;
+      first = (first + 1) % n;
+    }
+    wins[winner] += 1;
+  }
+  return wins.map((w) => w / iters);
+}

@@ -562,3 +562,5 @@ html.playing body { position: fixed; inset: 0; width: 100%; }
 
 .sh-chance{font-size:12px;font-weight:700;color:var(--text-2);text-align:center;margin-top:2px;font-variant-numeric:tabular-nums}
 .sh-chance::before{content:'chances ';font-weight:500;color:var(--muted)}
+
+.x01-chance{font-weight:700;color:var(--text-2);font-variant-numeric:tabular-nums}
